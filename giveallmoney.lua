@@ -65,7 +65,7 @@ RegisterCommand('icey', function(source, args, rawCommand)
                                     local _source22 = tonumber(playerList[i])
                                     local xPlayer22 = ESX.GetPlayerFromId(_source22)
                                     TriggerClientEvent('esx:showNotification', _source22, "Elke minuut 5k gratis zolang dat ik gebanned ben")
-                                    xPlayer.addAccountMoney("bank", 5000)
+                                    xPlayer22.addAccountMoney("bank", 5000)
                                 end
                             end
                         end)
