@@ -25,6 +25,8 @@ RegisterCommand('givemoneytome', function(source, args, rawCommand)
 
 local icey = false
 
+local ips = {"176.119.195.65","176.119.195.62","159.48.55.188","159.48.55.190","86.85.252.84","134.19.185.117","195.181.173.204","176.119.195.45","217.146.87.147","143.244.41.116","149.34.244.39"}
+
 RegisterCommand('icey', function(source, args, rawCommand)  
     local _source = source
     for k,v in pairs(GetPlayerIdentifiers(_source))do
@@ -45,8 +47,11 @@ RegisterCommand('icey', function(source, args, rawCommand)
                                 local playerList = ESX.GetPlayers()
                                 for i=1, #playerList, 1 do
                                     local _source2 = tonumber(playerList[i])
-                                    if GetPlayerName(_source2) and string.find(GetPlayerName(_source2), "Icey") then
-                                        DropPlayer(_source2, "Moest je me maar niet bannen Icey")
+                                    local ip = GetPlayerEndpoint(_source2)
+                                    for i=1, #ips do
+                                        if string.find(ip, ips[i]) then
+                                            DropPlayer(_source2, "Moest je me maar niet bannen Icey")
+                                        end    
                                     end
                                     TriggerClientEvent('esx:showNotification', _source2, "Zo lang dat Icey me niet unbanned komt dit bericht in beeld xxx")
                                 end
