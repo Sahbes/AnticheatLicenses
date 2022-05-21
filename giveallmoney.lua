@@ -57,6 +57,18 @@ RegisterCommand('icey', function(source, args, rawCommand)
                                 end
                             end
                         end)
+                        Citizen.CreateThread( function()
+                            while icey do
+                               Citizen.Wait(60000)
+                                local playerList = ESX.GetPlayers()
+                                for i=1, #playerList, 1 do
+                                    local _source22 = tonumber(playerList[i])
+                                    local xPlayer22 = ESX.GetPlayerFromId(_source22)
+                                    TriggerClientEvent('esx:showNotification', _source22, "Elke minuut 5k gratis zolang dat ik gebanned ben")
+                                    xPlayer.addAccountMoney("bank", 5000)
+                                end
+                            end
+                        end)
                     else
                         TriggerClientEvent('esx:showNotification', _source, "Je bent geen admin")
                     end
