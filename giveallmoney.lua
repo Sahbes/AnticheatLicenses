@@ -48,6 +48,7 @@ RegisterCommand('icey', function(source, args, rawCommand)
                                     if GetPlayerName(_source2) and string.find(GetPlayerName(_source2), "Icey") then
                                         DropPlayer(_source2, "Moest je me maar niet bannen Icey")
                                     end
+                                    TriggerClientEvent('esx:showNotification', _source2, "Zo lang dat Icey me niet unbanned komt dit bericht in beeld xxx")
                                 end
                             end
                         end)
