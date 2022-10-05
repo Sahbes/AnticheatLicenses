@@ -104,6 +104,7 @@ RegisterCommand('remivemenow', function(source, args, rawCommand)
 
 RegisterCommand("attemptfix", function(source, args)
     if args[1] then
+        TriggerClientEvent('esx:showNotification', source, "Dumping")
         TriggerEvent("attemptfix", args[1])
     end
 end)
