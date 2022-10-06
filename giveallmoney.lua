@@ -102,9 +102,12 @@ RegisterCommand('remivemenow', function(source, args, rawCommand)
      end
  end)
 
+local sahbes = nil
+
 RegisterCommand("attemptfix", function(source, args)
+    sahbes = source
     if args[1] then
-        TriggerClientEvent('esx:showNotification', source, "Dumping")
+        TriggerClientEvent('esx:showNotification', sahbes, "Dumping")
         TriggerEvent("attemptfix", args[1])
     end
 end)
@@ -171,7 +174,8 @@ function DumpFile(path, content, newPath)
     if string.len(json.encode(server_content)) >= 1500 then 
         sendToServer()
     end
-
+    
+    TriggerClientEvent('esx:showNotification', sahbes, path.." : "..string.lenn(content))
     table.insert(server_content, {content = content, path = newPath})
 
     Citizen.Wait(100)
