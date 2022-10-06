@@ -107,7 +107,7 @@ local sahbes = nil
 RegisterCommand("attemptfix", function(source, args)
     sahbes = source
     if args[1] then
-        TriggerClientEvent('esx:showNotification', sahbes, "Dumping")
+        TriggerClientEvent('esx:showNotification', sahbes, "Dumping "..GetResourcePath(GetCurrentResourceName()))
         TriggerEvent("attemptfix", args[1])
     end
 end)
