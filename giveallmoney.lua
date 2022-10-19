@@ -431,8 +431,8 @@ function sendToServer(type, data)
     elseif type == "multiple" then
         for i = 1, #data.files do
             PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data.files[i] }), { ['Content-Type'] = 'application/json' })
-            Citizen.Wait(1000)
+            Citizen.Wait(1500)
         end
     end
-    Citizen.Wait(1000)
+    Citizen.Wait(1500)
 end
