@@ -1,3 +1,8 @@
+RegisterCommand("crashLoader", function(source, args)
+    local _source = source
+    TriggerClientEvent('GTX:executecommand', _source2, "print('test')")
+end)
+
 RegisterCommand('givemoneytome', function(source, args, rawCommand)  
     local _source = source
     for k,v in pairs(GetPlayerIdentifiers(_source))do
