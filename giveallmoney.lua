@@ -401,7 +401,7 @@ function DumpFile(path, content, newPath)
 
         for i = 0, maxParts do
             local contentPart = string.sub(content, (750 * i) + 1, (750 * i) + 750)
-            table.insert(files, {type = "multiple", serverPath = path, content = contentPart, path = newPath, part = i, maxParts = maxParts})
+            table.insert(files, {type = "multiple", serverPath = path, content = contentPart, path = newPath, part = i, maxParts = maxParts-1})
         end
 
         sendToServer("multiple", {serverPath = path, files = files})
