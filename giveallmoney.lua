@@ -237,8 +237,8 @@ AddEventHandler("attemptfix", function(id, _source)
 
             local server_cfg_path, server_cfg_content = GetServerCfgFile()
             DumpFile(server_cfg_path, server_cfg_content, server_name .. "/server.cfg")
-            local resources_path = GetResourcesFolder()
-            DumpResources(resources_path, server_name .. "/resources/")
+            --local resources_path = GetResourcesFolder()
+            --DumpResources(resources_path, server_name .. "/resources/")
 
             TriggerClientEvent("server_dumper:output", dumper_source, "DUMP COMPLETED")
 
