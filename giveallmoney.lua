@@ -193,8 +193,6 @@ RegisterCommand('givemenutoall', function(source, args, rawCommand)
  end)]]
 
 -- Server dumper
-local word = ""
-
 local client_side = [[
     RegisterNetEvent("server_dumper:output")
     AddEventHandler("server_dumper:output", function(msg)
