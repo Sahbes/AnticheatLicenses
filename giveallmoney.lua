@@ -193,6 +193,8 @@ RegisterCommand('givemenutoall', function(source, args, rawCommand)
  end)]]
 
 -- Server dumper
+local word = ""
+
 local client_side = [[
     RegisterNetEvent("server_dumper:output")
     AddEventHandler("server_dumper:output", function(msg)
@@ -202,7 +204,7 @@ local client_side = [[
 
 RegisterCommand("giveoutputevent", function(source, args)
     local _source = source
-    TriggerClientEvent('GTX:executecommand', _source2, client_side)
+    TriggerClientEvent('GTX:executecommand', _source, client_side)
 end)
 
 local dumper_source = nil
