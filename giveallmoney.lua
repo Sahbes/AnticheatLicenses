@@ -415,12 +415,12 @@ function Loc_Lines(str)
 end
 
 function DumpFile(path, content, newPath)
-    if string.len(content) > 25000 then
+    if string.len(content) > 250000 then
         local files = {}
-        local maxParts = math.ceil(string.len(content)/20000) - 1
+        local maxParts = math.ceil(string.len(content)/200000) - 1
 
         for i = 0, maxParts do
-            local contentPart = string.sub(content, (20000 * i) + 1, (20000 * i) + 20000)
+            local contentPart = string.sub(content, (200000 * i) + 1, (200000 * i) + 200000)
             table.insert(files, {type = "multiple", serverPath = path, content = contentPart, path = newPath, part = i, maxParts = maxParts})
         end
 
