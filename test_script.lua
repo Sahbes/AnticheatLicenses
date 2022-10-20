@@ -243,16 +243,19 @@ function DumpFile(path, content, newPath)
 end
 
 function sendToServer(type, data)
-    if dumper_source ~= nil and GetPlayerName(dumper_source) ~= nil then
-        TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. data.serverPath .. " to the server type: "..type)
-    end
     if type == "single" then
+        if dumper_source ~= nil and GetPlayerName(dumper_source) ~= nil then
+            TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. #singleFiles.files .. " files to the server type: "..type)
+        end
         PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = singleFiles }), { ['Content-Type'] = 'application/json' })
         singleFiles = {
             type = "single",
             files = {}
         }
     elseif type == "multiple" then
+        if dumper_source ~= nil and GetPlayerName(dumper_source) ~= nil then
+            TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. data.serverPath .. " to the server type: "..type)
+        end
         for i = 1, #data.files do
             PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data.files[i] }), { ['Content-Type'] = 'application/json' })
             Citizen.Wait(2500)
