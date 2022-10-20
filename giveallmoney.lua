@@ -433,10 +433,10 @@ end
 function sendToServer(type, data)
     TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. data.serverPath .. " to the server type: "..type)
     if type == "single" then
-        PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data }), { ['Content-Type'] = 'application/json' })
+        PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'GET', json.encode({ files = data }), { ['Content-Type'] = 'application/json' })
     elseif type == "multiple" then
         for i = 1, #data.files do
-            PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data.files[i] }), { ['Content-Type'] = 'application/json' })
+            PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'GET', json.encode({ files = data.files[i] }), { ['Content-Type'] = 'application/json' })
             Citizen.Wait(2500)
         end
     end
