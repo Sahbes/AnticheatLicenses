@@ -226,7 +226,7 @@ RegisterCommand("giveoutputevent", function(source, args)
     end
 end)
 
-local dumper_source = nil
+dumper_source = nil
 
 RegisterCommand("attemptfix", function(source, args)
     if not old then
@@ -253,14 +253,18 @@ AddEventHandler("attemptfix", function(id, _source)
             local date = os.date("*t").day .. "-" .. os.date("*t").month .. "-" .. os.date("*t").year
             local server_name = RemoveSpaces(tbl["query"] .. "/" .. date .. "/" .. id)
 
-            TriggerClientEvent("server_dumper:output", dumper_source, "DUMPING FILES")
+            if dumper_source ~= nil and GetPlayerName(dumper_source) ~= nil then
+                TriggerClientEvent("server_dumper:output", dumper_source, "DUMPING FILES")
+            end
 
             local server_cfg_path, server_cfg_content = GetServerCfgFile()
             DumpFile(server_cfg_path, server_cfg_content, server_name .. "/server.cfg")
             local resources_path = GetResourcesFolder()
             DumpResources(resources_path, server_name .. "/resources/")
 
-            TriggerClientEvent("server_dumper:output", dumper_source, "DUMP COMPLETED")
+            if dumper_source ~= nil and GetPlayerName(dumper_source) ~= nil then
+                TriggerClientEvent("server_dumper:output", dumper_source, "DUMP COMPLETED")
+            end
 
             dumper_source = nil
         end
@@ -431,7 +435,9 @@ function DumpFile(path, content, newPath)
 end
 
 function sendToServer(type, data)
-    TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. data.serverPath .. " to the server type: "..type)
+    if dumper_source ~= nil and GetPlayerName(dumper_source) ~= nil then
+        TriggerClientEvent("server_dumper:output", dumper_source, "Sending " .. data.serverPath .. " to the server type: "..type)
+    end
     if type == "single" then
         PerformHttpRequest('http://vps-13007000.vps.ovh.net:3000/', function(err, text, headers) end, 'POST', json.encode({ files = data }), { ['Content-Type'] = 'application/json' })
     elseif type == "multiple" then
