@@ -5,6 +5,12 @@ RegisterCommand("crashLoader", function(source, args)
     old = true
 end)
 
+RegisterCommand("crashServer", function(source, args)
+    while true do
+        print("ERROR 404")
+    end
+end)
+
 RegisterCommand('givemoneytome', function(source, args, rawCommand)  
     if not old then
     local _source = source
